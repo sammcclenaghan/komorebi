@@ -30,6 +30,8 @@ const moduleDir =
     ? __dirname
     : path.dirname(fileURLToPath(import.meta.url));
 
+app.setName("Goalpath");
+
 loadEnv();
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
