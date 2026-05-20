@@ -10,6 +10,20 @@ import {
   getIntegrations,
   refreshConnections
 } from "./integrations/service";
+import { addGoal, deleteGoal, listGoals, updateGoal } from "./store/goals";
+import {
+  generateTodayChecklist,
+  getTodayChecklist
+} from "./checklist/orchestrator";
+import {
+  getSuggestion,
+  updateSuggestionStatus
+} from "./store/suggestions";
+import {
+  addReflection,
+  listReflectionsForSuggestion
+} from "./store/reflections";
+import type { SuggestionStatus } from "~/shared/types";
 
 const moduleDir =
   typeof __dirname === "string"
@@ -68,6 +82,30 @@ ipcMain.handle("integrations:refresh", () => refreshConnections());
 ipcMain.handle("integrations:begin-connect", (_event, slug: string) => beginConnect(slug));
 ipcMain.handle("integrations:await-connect", (_event, slug: string) => awaitConnect(slug));
 ipcMain.handle("integrations:disconnect", (_event, slug: string) => disconnectIntegration(slug));
+
+ipcMain.handle("goals:list", () => listGoals());
+ipcMain.handle("goals:add", (_event, input: { title: string; description?: string; context?: string }) =>
+  addGoal(input)
+);
+ipcMain.handle("goals:update", (_event, input: { id: string; updates: Parameters<typeof updateGoal>[1] }) =>
+  updateGoal(input.id, input.updates)
+);
+ipcMain.handle("goals:delete", (_event, id: string) => deleteGoal(id));
+
+ipcMain.handle("checklist:today", () => getTodayChecklist());
+ipcMain.handle("checklist:generate", () => generateTodayChecklist());
+
+ipcMain.handle("suggestion:get", (_event, id: string) => getSuggestion(id));
+ipcMain.handle("suggestion:set-status", (_event, input: { id: string; status: SuggestionStatus }) =>
+  updateSuggestionStatus(input.id, input.status)
+);
+
+ipcMain.handle("reflection:list", (_event, suggestionId: string) =>
+  listReflectionsForSuggestion(suggestionId)
+);
+ipcMain.handle("reflection:add", (_event, input: { suggestionId: string; text: string; rating?: "up" | "down" | null }) =>
+  addReflection(input)
+);
 
 /**
  * Load .env.local from the project root in dev, and from the app resources

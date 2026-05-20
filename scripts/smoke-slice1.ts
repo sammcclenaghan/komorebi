@@ -1,6 +1,6 @@
 /**
  * Slice 1 end-to-end check (no UI):
- *   1. Open a fresh DB in a temp dir.
+ *   1. Use a fresh data dir.
  *   2. Seed a "become a better developer" goal.
  *   3. Ask Claude for one suggestion (uses WebSearch).
  *   4. Persist the suggestion.
@@ -11,30 +11,24 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { openDb, closeDb } from "../src/main/db/db";
-import { insertGoal } from "../src/main/db/goals";
-import {
-  insertSuggestion,
-  recentSuggestionsForGoal
-} from "../src/main/db/suggestions";
+import { addGoal } from "../src/main/store/goals";
+import { insertSuggestion, listRecentSuggestionsForGoal } from "../src/main/store/suggestions";
 import { generateSuggestion } from "../src/main/claude/generate";
 
 async function main(): Promise<void> {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "goalpath-smoke-"));
+  process.env.GOALPATH_DATA_DIR = dataDir;
   console.log(`[smoke] data dir: ${dataDir}`);
 
-  const db = openDb({ dataDir });
-
-  const goal = insertGoal(db, {
+  const goal = await addGoal({
     title: "Become a better developer",
     description: "Senior-ish full-stack TS engineer wanting deeper systems intuition.",
     context:
       "Strong React + Node. Weakest on distributed systems and database internals. Prefers articles and small coding exercises over books. Has ~30 min on weekdays."
   });
-
   console.log(`[smoke] seeded goal: ${goal.id} — "${goal.title}"`);
 
-  const history = recentSuggestionsForGoal(db, goal.id, 14);
+  const history = await listRecentSuggestionsForGoal(goal.id, 14);
   console.log(`[smoke] history rows: ${history.length}`);
 
   console.log(`[smoke] calling claude (may take ~30-60s with WebSearch)...`);
@@ -47,7 +41,7 @@ async function main(): Promise<void> {
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
   console.log(`[smoke] claude returned in ${elapsed}s`);
 
-  const suggestion = insertSuggestion(db, {
+  const suggestion = await insertSuggestion({
     goalId: goal.id,
     date: new Date().toISOString().slice(0, 10),
     draft
@@ -63,8 +57,7 @@ async function main(): Promise<void> {
   console.log(suggestion.detailMarkdown);
   console.log("--- end ---\n");
 
-  closeDb();
-  console.log(`[smoke] done. db file: ${path.join(dataDir, "goalpath.db")}`);
+  console.log(`[smoke] done. data dir: ${dataDir}`);
 }
 
 main().catch((err) => {
