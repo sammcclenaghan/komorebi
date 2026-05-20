@@ -1,37 +1,34 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles } from "lucide-react";
-import { cn } from "~/lib/cn";
+import { Sidebar, type View } from "./components/Sidebar";
+import { Today } from "./pages/Today";
+import { Integrations } from "./pages/Integrations";
 
 export function App() {
-  const versionQuery = useQuery({
-    queryKey: ["app", "version"],
-    queryFn: () => window.goalpath.getVersion()
+  const [view, setView] = useState<View>("today");
+
+  // The sidebar shows the connected count badge — read it from the same
+  // query the Integrations page populates, so we don't re-fetch.
+  const integrationsQuery = useQuery({
+    queryKey: ["integrations"],
+    queryFn: () => window.goalpath.integrations.list(),
+    staleTime: 60_000
   });
 
+  const connectedCount =
+    integrationsQuery.data?.filter((v) => v.status === "connected").length ?? 0;
+
   return (
-    <main className="mx-auto max-w-2xl px-8 py-12">
-      <header className="flex items-center gap-3">
-        <Sparkles className="h-6 w-6 text-indigo-500" aria-hidden />
-        <h1 className="text-2xl font-semibold tracking-tight">Goalpath</h1>
-      </header>
-
-      <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-        Electron + React + TypeScript + Tailwind shell.
-      </p>
-
-      <section
-        className={cn(
-          "mt-8 rounded-lg border border-neutral-200 bg-white p-4 text-sm",
-          "dark:border-neutral-800 dark:bg-neutral-900"
-        )}
-      >
-        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
-          <dt className="text-neutral-500">App version</dt>
-          <dd className="font-mono">
-            {versionQuery.isPending ? "…" : versionQuery.data}
-          </dd>
-        </dl>
-      </section>
-    </main>
+    <div className="flex h-screen w-screen overflow-hidden">
+      <Sidebar active={view} onSelect={setView} connectedCount={connectedCount} />
+      <main key={view} className="relative flex-1 overflow-hidden">
+        <div
+          className="absolute inset-0 overflow-y-auto"
+          style={{ animation: "fade-up 280ms ease-out" }}
+        >
+          {view === "today" ? <Today /> : <Integrations />}
+        </div>
+      </main>
+    </div>
   );
 }

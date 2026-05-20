@@ -1,5 +1,115 @@
 @import "tailwindcss";
 
-:root {
-  color-scheme: light dark;
+@theme {
+  --font-sans: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Surfaces — warm whites and soft grays */
+  --color-canvas: oklch(98.8% 0.004 85);
+  --color-panel: oklch(96.8% 0.003 85);
+  --color-panel-2: oklch(94.5% 0.003 85);
+  --color-panel-hover: oklch(96% 0.003 85);
+
+  /* Text — charcoal with a hint of warmth, never pure black */
+  --color-ink: oklch(22% 0.008 60);
+  --color-ink-2: oklch(46% 0.006 60);
+  --color-ink-3: oklch(64% 0.006 60);
+
+  /* Rules — barely-there borders */
+  --color-rule: oklch(91.5% 0.003 80);
+  --color-rule-2: oklch(86% 0.004 80);
+
+  /* Accent — calm slate blue, used sparingly */
+  --color-accent: oklch(52% 0.11 245);
+  --color-accent-strong: oklch(45% 0.13 245);
+  --color-accent-soft: oklch(95.5% 0.018 245);
+  --color-accent-tint: oklch(96.5% 0.015 245);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv05", "cv11";
+    letter-spacing: -0.005em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-rule-2);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-ink-3);
+    background-clip: padding-box;
+  }
+
+  ::selection {
+    background: var(--color-accent-soft);
+    color: var(--color-ink);
+  }
+
+  input,
+  button,
+  textarea {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
