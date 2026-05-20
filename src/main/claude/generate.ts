@@ -1,6 +1,7 @@
 import { runClaude } from "./cli";
 import { ClaudeCliError } from "./cli";
 import type { Goal, Suggestion, SuggestionDraft } from "~/shared/types";
+import type { ContextBlock } from "../context/types";
 
 const DEFAULT_MODEL = "claude-opus-4-7";
 
@@ -12,7 +13,8 @@ Rules:
 - Be concrete. "Read about React hooks" is bad. "Read 'A Complete Guide to useEffect' by Dan Abramov (overreacted.io)" is good.
 - Use WebSearch to find real, current, high-quality resources. Always include a real URL when one exists.
 - Match difficulty to what the user has done before. Don't repeat suggestions in the history.
-- Respect estimated time. Default to 20-40 minutes unless the user's context implies otherwise.
+- If a "Context" section is provided, USE it — match the time estimate to actual open time, don't suggest something that conflicts with scheduled events, and let what's happening today shape the suggestion.
+- Respect estimated time. Default to 20–40 minutes unless the user's context implies otherwise.
 - The detailMarkdown is the page the user opens — include the link, why this resource, and what to focus on. Markdown formatting OK.
 
 You MUST respond with ONLY a JSON object (no prose, no code fences). Shape:
@@ -28,6 +30,7 @@ export type GenerateInput = {
   goal: Goal;
   history: Suggestion[];
   date: string;
+  contextBlocks?: ContextBlock[];
   model?: string;
 };
 
@@ -43,12 +46,12 @@ export async function generateSuggestion(input: GenerateInput): Promise<Suggesti
 }
 
 function buildPrompt(input: GenerateInput): string {
-  const { goal, history, date } = input;
+  const { goal, history, date, contextBlocks } = input;
 
   const goalBlock = [
     `Goal: ${goal.title}`,
     goal.description ? `Description: ${goal.description}` : null,
-    goal.context ? `Context: ${goal.context}` : null,
+    goal.context ? `User context: ${goal.context}` : null,
     `Today's date: ${date}`
   ]
     .filter(Boolean)
@@ -64,13 +67,23 @@ function buildPrompt(input: GenerateInput): string {
         .join("\n")
     : "(none yet — this is the first suggestion for this goal)";
 
+  const contextSection = contextBlocks?.length
+    ? `\n\n## Context\n\n${contextBlocks
+        .map((b) => `### ${b.label}\n${b.body}`)
+        .join("\n\n")}`
+    : "";
+
   return `${SYSTEM_INSTRUCTIONS}
 
 ---
+${contextSection}
+
+## Goal
 
 ${goalBlock}
 
-Recent history (don't repeat these):
+## Recent history (don't repeat these)
+
 ${historyBlock}
 
 Generate one suggestion now.`;

@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "smoke:slice1": "tsx scripts/smoke-slice1.ts",
-    "smoke:composio": "tsx --env-file=.env.local scripts/smoke-composio.ts"
+    "smoke:composio": "tsx --env-file=.env.local scripts/smoke-composio.ts",
+    "smoke:context": "tsx --env-file=.env.local scripts/smoke-context.ts"
   },
   "dependencies": {
     "@composio/core": "^0.10.0",
