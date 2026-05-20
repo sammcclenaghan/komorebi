@@ -12,13 +12,16 @@
     "start": "node scripts/start.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "smoke:slice1": "tsx scripts/smoke-slice1.ts"
+    "smoke:slice1": "tsx scripts/smoke-slice1.ts",
+    "smoke:composio": "tsx --env-file=.env.local scripts/smoke-composio.ts"
   },
   "dependencies": {
+    "@composio/core": "^0.10.0",
     "@tanstack/react-query": "^5.90.0",
     "better-sqlite3": "^12.6.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
     "lucide-react": "^0.564.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
