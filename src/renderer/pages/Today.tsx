@@ -56,6 +56,39 @@ function WeatherIcon({ summary }: { summary: WeatherSummary | null | undefined }
   }
 }
 
+function titleCase(s: string): string {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function WeatherTooltip({ summary }: { summary: WeatherSummary }) {
+  return (
+    <div
+      role="tooltip"
+      className={cn(
+        "pointer-events-none absolute left-0 top-full z-30 mt-2 w-[200px] origin-top-left",
+        "opacity-0 -translate-y-1 transition-all duration-150 ease-out",
+        "group-hover:opacity-100 group-hover:translate-y-0",
+        "rounded-lg border border-[var(--color-rule)] bg-[var(--color-canvas)] p-3",
+        "shadow-[0_18px_36px_-18px_oklch(20%_0.01_60/0.22),0_4px_10px_-4px_oklch(20%_0.01_60/0.10)]"
+      )}
+    >
+      <div className="font-mono text-[9.5px] uppercase tracking-[0.22em] text-[var(--color-ink-3)]">
+        {summary.resolvedName}
+        {summary.isNight && <span className="ml-1.5 opacity-70">· night</span>}
+      </div>
+      <div className="mt-2 flex items-baseline justify-between gap-3">
+        <div className="text-[13px] font-medium text-[var(--color-ink)]">
+          {titleCase(summary.description)}
+        </div>
+        <div className="text-[18px] font-semibold tabular-nums leading-none text-[var(--color-ink)]">
+          {summary.temperatureC}°
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type Props = {
   onOpenSuggestion: (id: string) => void;
 };
@@ -119,16 +152,17 @@ export function Today({ onOpenSuggestion }: Props) {
     <>
       <div className="mx-auto max-w-2xl px-10 pt-16 pb-20">
         <header className="flex items-center justify-between">
-          <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
-            <WeatherIcon summary={weatherQuery.data} />
+          <div className="group relative flex items-center gap-3 text-[var(--color-ink-3)]">
+            <div className="relative">
+              <WeatherIcon summary={weatherQuery.data} />
+              {weatherQuery.data && <WeatherTooltip summary={weatherQuery.data} />}
+            </div>
             <span className="font-mono text-[10px] uppercase tracking-[0.22em]">
               today &middot; {today}
               {weatherQuery.data && (
                 <>
                   <span className="mx-1.5 opacity-50">·</span>
-                  <span className="tabular-nums" title={weatherQuery.data.description}>
-                    {weatherQuery.data.temperatureC}°
-                  </span>
+                  <span className="tabular-nums">{weatherQuery.data.temperatureC}°</span>
                 </>
               )}
             </span>
