@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import * as dotenv from "dotenv";
 import {
   awaitConnect,
@@ -68,6 +68,33 @@ function createWindow(): void {
   } else {
     void mainWindow.loadFile(path.join(moduleDir, "..", "dist", "renderer", "index.html"));
   }
+
+  routeExternalLinks(mainWindow);
+}
+
+/**
+ * Send every http/https/mailto link the renderer tries to navigate to
+ * out to the system default browser instead of opening it inside the
+ * Electron window. Covers both `<a target="_blank">` (window.open path)
+ * and plain `<a href>` (will-navigate path).
+ */
+function routeExternalLinks(win: BrowserWindow): void {
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^(https?|mailto):/.test(url)) {
+      void shell.openExternal(url);
+    }
+    return { action: "deny" };
+  });
+
+  win.webContents.on("will-navigate", (event, url) => {
+    const allowed =
+      url.startsWith("file://") || (devServerUrl ? url.startsWith(devServerUrl) : false);
+    if (allowed) return;
+    if (/^(https?|mailto):/.test(url)) {
+      event.preventDefault();
+      void shell.openExternal(url);
+    }
+  });
 }
 
 app.whenReady().then(() => {
