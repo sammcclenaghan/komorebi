@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { IntegrationView } from "~/main/integrations/service";
 import type { ConnectionSummary } from "~/main/integrations/composio";
-import type { ChecklistDay } from "~/main/checklist/orchestrator";
+import type { ChecklistDay, GenerationProgress } from "~/main/checklist/orchestrator";
 import type { Goal, Reflection, Suggestion, SuggestionRating, SuggestionStatus } from "~/shared/types";
 import type { WeatherSummary } from "~/main/weather/service";
 
@@ -28,7 +28,14 @@ const api = {
   },
   checklist: {
     today: (): Promise<ChecklistDay> => ipcRenderer.invoke("checklist:today"),
-    generate: (): Promise<ChecklistDay> => ipcRenderer.invoke("checklist:generate")
+    generate: (): Promise<ChecklistDay> => ipcRenderer.invoke("checklist:generate"),
+    onProgress: (handler: (event: GenerationProgress) => void): (() => void) => {
+      const listener = (_: unknown, payload: GenerationProgress) => handler(payload);
+      ipcRenderer.on("checklist:progress", listener);
+      return () => {
+        ipcRenderer.off("checklist:progress", listener);
+      };
+    }
   },
   suggestions: {
     get: (id: string): Promise<Suggestion | null> => ipcRenderer.invoke("suggestion:get", id),

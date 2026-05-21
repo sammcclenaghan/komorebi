@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Cloud,
@@ -17,8 +17,10 @@ import {
 import { cn } from "~/lib/cn";
 import { GoalModal } from "../components/GoalModal";
 import { ChecklistRow } from "../components/ChecklistRow";
+import { GeneratingRow } from "../components/GeneratingRow";
 import type { Goal, Suggestion } from "~/shared/types";
 import type { WeatherSummary } from "~/main/weather/service";
+import type { GenerationProgress } from "~/main/checklist/orchestrator";
 
 function locationFromTimezone(): string {
   try {
@@ -89,6 +91,69 @@ function WeatherTooltip({ summary }: { summary: WeatherSummary }) {
   );
 }
 
+type InFlightGoal = { id: string; title: string; state: "pending" | "in-progress" | "error"; error?: string };
+
+function useChecklistProgress() {
+  const queryClient = useQueryClient();
+  const [inFlight, setInFlight] = useState<Map<string, InFlightGoal>>(new Map());
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = window.goalpath.checklist.onProgress((event: GenerationProgress) => {
+      switch (event.phase) {
+        case "start": {
+          setActive(true);
+          const fresh = new Map<string, InFlightGoal>();
+          for (const g of event.goals) {
+            fresh.set(g.id, { id: g.id, title: g.title, state: "pending" });
+          }
+          setInFlight(fresh);
+          break;
+        }
+        case "goal-start": {
+          setInFlight((prev) => {
+            const next = new Map(prev);
+            const cur = next.get(event.goalId);
+            if (cur) next.set(event.goalId, { ...cur, state: "in-progress" });
+            return next;
+          });
+          break;
+        }
+        case "goal-done": {
+          setInFlight((prev) => {
+            const next = new Map(prev);
+            next.delete(event.goalId);
+            return next;
+          });
+          void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
+          break;
+        }
+        case "goal-error": {
+          setInFlight((prev) => {
+            const next = new Map(prev);
+            const cur = next.get(event.goalId);
+            if (cur) {
+              next.set(event.goalId, { ...cur, state: "error", error: event.message });
+            }
+            return next;
+          });
+          break;
+        }
+        case "done": {
+          setActive(false);
+          // Clear after a beat so any straggler placeholders fade out cleanly.
+          setTimeout(() => setInFlight(new Map()), 400);
+          void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
+          break;
+        }
+      }
+    });
+    return unsubscribe;
+  }, [queryClient]);
+
+  return { inFlight, active };
+}
+
 type Props = {
   onOpenSuggestion: (id: string) => void;
 };
@@ -117,6 +182,8 @@ export function Today({ onOpenSuggestion }: Props) {
     }
   });
 
+  const { inFlight, active } = useChecklistProgress();
+
   const location = useMemo(() => locationFromTimezone(), []);
   const weatherQuery = useQuery({
     queryKey: ["weather", location],
@@ -137,6 +204,14 @@ export function Today({ onOpenSuggestion }: Props) {
     return map;
   }, [goals]);
 
+  // Hide placeholders for goals that already have a real item in the checklist
+  // (the IPC goal-done fires invalidation, so the real item appears).
+  const itemGoalIds = useMemo(() => new Set(items.map((s) => s.goalId)), [items]);
+  const visiblePlaceholders = useMemo(
+    () => [...inFlight.values()].filter((g) => !itemGoalIds.has(g.id)),
+    [inFlight, itemGoalIds]
+  );
+
   const doneCount = items.filter((s) => s.status === "done").length;
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",
@@ -146,7 +221,19 @@ export function Today({ onOpenSuggestion }: Props) {
 
   const isLoading = goalsQuery.isLoading || checklistQuery.isLoading;
   const noGoals = activeGoals.length === 0;
-  const hasGoalsNoChecklist = !noGoals && items.length === 0;
+  const showChecklist = items.length > 0 || visiblePlaceholders.length > 0 || active;
+
+  // Auto-start generation when Today opens and there's nothing for today yet.
+  const autoFiredRef = useRef(false);
+  useEffect(() => {
+    if (autoFiredRef.current) return;
+    if (isLoading) return;
+    if (noGoals) return;
+    if (items.length > 0) return;
+    if (active || generate.isPending) return;
+    autoFiredRef.current = true;
+    generate.mutate();
+  }, [isLoading, noGoals, items.length, active, generate]);
 
   return (
     <>
@@ -167,11 +254,20 @@ export function Today({ onOpenSuggestion }: Props) {
               )}
             </span>
           </div>
-          {items.length > 0 && (
+          {(items.length > 0 || active) && (
             <div className="font-mono text-[11px] tabular-nums text-[var(--color-ink-3)]">
-              <span className="text-[var(--color-ink)]">{doneCount}</span>
-              <span className="opacity-60"> / </span>
-              <span>{items.length}</span>
+              {active ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)] animate-[pulse-soft_1.6s_ease-in-out_infinite]" />
+                  <span>composing</span>
+                </span>
+              ) : (
+                <>
+                  <span className="text-[var(--color-ink)]">{doneCount}</span>
+                  <span className="opacity-60"> / </span>
+                  <span>{items.length}</span>
+                </>
+              )}
             </div>
           )}
         </header>
@@ -180,22 +276,23 @@ export function Today({ onOpenSuggestion }: Props) {
           <LoadingState />
         ) : noGoals ? (
           <NoGoalsState onAdd={() => setShowAddGoal(true)} />
-        ) : hasGoalsNoChecklist ? (
+        ) : showChecklist ? (
+          <ChecklistView
+            items={items}
+            placeholders={visiblePlaceholders}
+            goalsById={goalsById}
+            onOpenSuggestion={onOpenSuggestion}
+            onAddGoal={() => setShowAddGoal(true)}
+            onRefresh={() => generate.mutate()}
+            generating={generate.isPending || active}
+          />
+        ) : (
           <NoChecklistYet
             goals={activeGoals}
             onGenerate={() => generate.mutate()}
             generating={generate.isPending}
             error={generate.error as Error | null}
             onAddGoal={() => setShowAddGoal(true)}
-          />
-        ) : (
-          <ChecklistView
-            items={items}
-            goalsById={goalsById}
-            onOpenSuggestion={onOpenSuggestion}
-            onAddGoal={() => setShowAddGoal(true)}
-            onRefresh={() => generate.mutate()}
-            generating={generate.isPending}
           />
         )}
       </div>
@@ -324,6 +421,7 @@ function NoChecklistYet({
 
 function ChecklistView({
   items,
+  placeholders,
   goalsById,
   onOpenSuggestion,
   onAddGoal,
@@ -331,6 +429,7 @@ function ChecklistView({
   generating
 }: {
   items: Suggestion[];
+  placeholders: InFlightGoal[];
   goalsById: Map<string, Goal>;
   onOpenSuggestion: (id: string) => void;
   onAddGoal: () => void;
@@ -340,13 +439,26 @@ function ChecklistView({
   return (
     <div className="mt-8">
       <ul className="space-y-2.5">
-        {items.map((s) => (
-          <li key={s.id}>
+        {items.map((s, idx) => (
+          <li
+            key={s.id}
+            style={{ animation: `fade-up 320ms ${Math.min(idx, 6) * 40}ms backwards ease-out` }}
+          >
             <ChecklistRow
               suggestion={s}
               goal={goalsById.get(s.goalId)}
               onOpen={() => onOpenSuggestion(s.id)}
             />
+          </li>
+        ))}
+        {placeholders.map((p, idx) => (
+          <li
+            key={`placeholder-${p.id}`}
+            style={{
+              animation: `fade-up 320ms ${Math.min(idx + items.length, 6) * 40}ms backwards ease-out`
+            }}
+          >
+            <GeneratingRow goalTitle={p.title} />
           </li>
         ))}
       </ul>
