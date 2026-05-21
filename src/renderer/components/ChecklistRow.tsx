@@ -28,7 +28,7 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
 
   const setStatus = useMutation({
     mutationFn: (next: Suggestion["status"]) =>
-      window.goalpath.suggestions.setStatus({ id: suggestion.id, status: next }),
+      window.komorebi.suggestions.setStatus({ id: suggestion.id, status: next }),
     onMutate: async (next) => {
       await queryClient.cancelQueries({ queryKey: ["checklist", "today"] });
       return patchCache((s) => ({ ...s, status: next }));
@@ -43,7 +43,7 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
 
   const setRating = useMutation({
     mutationFn: (next: SuggestionRating) =>
-      window.goalpath.suggestions.setRating({ id: suggestion.id, rating: next }),
+      window.komorebi.suggestions.setRating({ id: suggestion.id, rating: next }),
     onMutate: async (next) => {
       await queryClient.cancelQueries({ queryKey: ["checklist", "today"] });
       return patchCache((s) => ({ ...s, rating: next }));
@@ -58,7 +58,7 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
   });
 
   const skipRegen = useMutation({
-    mutationFn: () => window.goalpath.suggestions.skipAndRegenerate(suggestion.id),
+    mutationFn: () => window.komorebi.suggestions.skipAndRegenerate(suggestion.id),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["checklist", "today"] });
       return patchCache((s) => ({ ...s, status: "skipped" as const }));

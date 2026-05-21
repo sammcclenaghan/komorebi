@@ -46,7 +46,7 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
   const save = useMutation({
     mutationFn: async () => {
       if (goal) {
-        return window.goalpath.goals.update({
+        return window.komorebi.goals.update({
           id: goal.id,
           updates: {
             title: title.trim(),
@@ -55,7 +55,7 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
           }
         });
       }
-      return window.goalpath.goals.add({
+      return window.komorebi.goals.add({
         title: title.trim(),
         description: description.trim() || undefined,
         context: context.trim() || undefined

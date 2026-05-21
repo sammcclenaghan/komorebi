@@ -10,7 +10,7 @@ export function Integrations() {
 
   const integrationsQuery = useQuery({
     queryKey: ["integrations"],
-    queryFn: () => window.goalpath.integrations.list()
+    queryFn: () => window.komorebi.integrations.list()
   });
 
   const all: IntegrationView[] = integrationsQuery.data ?? [];

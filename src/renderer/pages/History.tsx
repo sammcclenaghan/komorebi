@@ -11,12 +11,12 @@ type Props = {
 export function History({ onOpenSuggestion }: Props) {
   const historyQuery = useQuery({
     queryKey: ["history"],
-    queryFn: () => window.goalpath.history.list(30)
+    queryFn: () => window.komorebi.history.list(30)
   });
 
   const goalsQuery = useQuery({
     queryKey: ["goals"],
-    queryFn: () => window.goalpath.goals.list(),
+    queryFn: () => window.komorebi.goals.list(),
     staleTime: 60_000
   });
 

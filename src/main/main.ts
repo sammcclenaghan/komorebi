@@ -35,8 +35,9 @@ const moduleDir =
     ? __dirname
     : path.dirname(fileURLToPath(import.meta.url));
 
-app.setName("Goalpath");
+app.setName("Komorebi");
 
+migrateLegacyUserData();
 loadEnv();
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
@@ -53,7 +54,7 @@ function createWindow(): void {
     height: 780,
     minWidth: 980,
     minHeight: 640,
-    title: "Goalpath",
+    title: "Komorebi",
     backgroundColor: "#fbfbf9",
     titleBarStyle: "hiddenInset",
     webPreferences: {
@@ -150,11 +151,33 @@ ipcMain.handle("reflection:add", (_event, input: { suggestionId: string; text: s
 ipcMain.handle("weather:current", (_event, location: string) => getCurrentWeather(location));
 
 /**
+ * The app was previously called "Goalpath", which set Electron's userData
+ * dir to ~/Library/Application Support/Goalpath. After the rename to
+ * Komorebi, that path becomes ~/Library/Application Support/Komorebi —
+ * which is empty, so all goals/suggestions/reflections would vanish.
+ *
+ * If the legacy dir exists and the new one doesn't, rename it once. Runs
+ * before any store reads.
+ */
+function migrateLegacyUserData(): void {
+  try {
+    const newDir = app.getPath("userData");
+    const legacyDir = path.join(path.dirname(newDir), "Goalpath");
+    if (fs.existsSync(legacyDir) && !fs.existsSync(newDir)) {
+      fs.renameSync(legacyDir, newDir);
+      console.log(`[migrate] moved ${legacyDir} → ${newDir}`);
+    }
+  } catch (err) {
+    console.error("[migrate] userData rename failed (continuing):", err);
+  }
+}
+
+/**
  * Load env vars. Lookup order depends on whether we're in dev or
  * running from a packaged .app:
  *
  * dev → project root .env.local / .env (loaded by Vite + here for symmetry)
- * packaged → ~/Library/Application Support/Goalpath/.env (user override)
+ * packaged → ~/Library/Application Support/Komorebi/.env (user override)
  *            then the .env.local that was bundled into the .app at build
  *            time via electron-builder extraResources.
  *

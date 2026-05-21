@@ -1,21 +1,21 @@
 import path from "node:path";
 import os from "node:os";
 
-export type GoalpathPaths = {
+export type KomorebiPaths = {
   dataDir: string;
   dbFile: string;
 };
 
-export function resolvePaths(override?: { dataDir?: string }): GoalpathPaths {
+export function resolvePaths(override?: { dataDir?: string }): KomorebiPaths {
   const dataDir = override?.dataDir ?? defaultDataDir();
   return {
     dataDir,
-    dbFile: path.join(dataDir, "goalpath.db")
+    dbFile: path.join(dataDir, "komorebi.db")
   };
 }
 
 function defaultDataDir(): string {
-  if (process.env.GOALPATH_DATA_DIR) return process.env.GOALPATH_DATA_DIR;
+  if (process.env.KOMOREBI_DATA_DIR) return process.env.KOMOREBI_DATA_DIR;
 
   // Lazy-load electron only when running inside Electron.
   try {
@@ -27,5 +27,5 @@ function defaultDataDir(): string {
     // Not inside Electron — fall through to OS default.
   }
 
-  return path.join(os.homedir(), ".goalpath");
+  return path.join(os.homedir(), ".komorebi");
 }

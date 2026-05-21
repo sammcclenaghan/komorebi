@@ -17,8 +17,8 @@ import { listReflectionsForSuggestion } from "../src/main/store/reflections";
 import { generateSuggestion, type HistoryItem } from "../src/main/claude/generate";
 
 async function main(): Promise<void> {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "goalpath-smoke-"));
-  process.env.GOALPATH_DATA_DIR = dataDir;
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "komorebi-smoke-"));
+  process.env.KOMOREBI_DATA_DIR = dataDir;
   console.log(`[smoke] data dir: ${dataDir}`);
 
   const goal = await addGoal({

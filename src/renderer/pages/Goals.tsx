@@ -12,11 +12,11 @@ export function Goals() {
 
   const goalsQuery = useQuery({
     queryKey: ["goals"],
-    queryFn: () => window.goalpath.goals.list()
+    queryFn: () => window.komorebi.goals.list()
   });
 
   const remove = useMutation({
-    mutationFn: (id: string) => window.goalpath.goals.delete(id),
+    mutationFn: (id: string) => window.komorebi.goals.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["goals"] });
       void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });

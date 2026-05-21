@@ -5,7 +5,7 @@ import type { ContextBlock } from "../context/types";
 
 const DEFAULT_MODEL = "claude-opus-4-7";
 
-const SYSTEM_INSTRUCTIONS = `You are Goalpath, a personal AI that turns long-term goals into one concrete daily action.
+const SYSTEM_INSTRUCTIONS = `You are Komorebi, a personal AI that turns long-term goals into one concrete daily action.
 
 For the given goal, produce ONE specific action the user can do today that meaningfully advances the goal.
 

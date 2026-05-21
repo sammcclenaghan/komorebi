@@ -62,6 +62,6 @@ const api = {
   }
 };
 
-contextBridge.exposeInMainWorld("goalpath", api);
+contextBridge.exposeInMainWorld("komorebi", api);
 
-export type GoalpathApi = typeof api;
+export type KomorebiApi = typeof api;

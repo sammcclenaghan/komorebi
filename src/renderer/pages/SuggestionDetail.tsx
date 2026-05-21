@@ -15,22 +15,22 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
 
   const suggestionQuery = useQuery({
     queryKey: ["suggestion", suggestionId],
-    queryFn: () => window.goalpath.suggestions.get(suggestionId)
+    queryFn: () => window.komorebi.suggestions.get(suggestionId)
   });
 
   const reflectionsQuery = useQuery({
     queryKey: ["reflections", suggestionId],
-    queryFn: () => window.goalpath.reflections.list(suggestionId)
+    queryFn: () => window.komorebi.reflections.list(suggestionId)
   });
 
   const goalsQuery = useQuery({
     queryKey: ["goals"],
-    queryFn: () => window.goalpath.goals.list()
+    queryFn: () => window.komorebi.goals.list()
   });
 
   const setStatus = useMutation({
     mutationFn: (next: Suggestion["status"]) =>
-      window.goalpath.suggestions.setStatus({ id: suggestionId, status: next }),
+      window.komorebi.suggestions.setStatus({ id: suggestionId, status: next }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["suggestion", suggestionId] });
       void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
@@ -38,7 +38,7 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
   });
 
   const skipRegen = useMutation({
-    mutationFn: () => window.goalpath.suggestions.skipAndRegenerate(suggestionId),
+    mutationFn: () => window.komorebi.suggestions.skipAndRegenerate(suggestionId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["suggestion", suggestionId] });
       void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
@@ -247,7 +247,7 @@ function ReflectionCapture({
 
   const setRating = useMutation({
     mutationFn: (next: SuggestionRating) =>
-      window.goalpath.suggestions.setRating({ id: suggestionId, rating: next }),
+      window.komorebi.suggestions.setRating({ id: suggestionId, rating: next }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["suggestion", suggestionId] });
       void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
@@ -256,7 +256,7 @@ function ReflectionCapture({
 
   const addText = useMutation({
     mutationFn: () =>
-      window.goalpath.reflections.add({
+      window.komorebi.reflections.add({
         suggestionId,
         text: text.trim()
       }),

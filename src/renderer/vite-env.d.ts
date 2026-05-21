@@ -1,7 +1,7 @@
-import type { GoalpathApi } from "../preload/preload";
+import type { KomorebiApi } from "../preload/preload";
 
 declare global {
   interface Window {
-    goalpath: GoalpathApi;
+    komorebi: KomorebiApi;
   }
 }

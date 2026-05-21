@@ -119,7 +119,7 @@ function useChecklistProgress() {
   const [active, setActive] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = window.goalpath.checklist.onProgress((event: GenerationProgress) => {
+    const unsubscribe = window.komorebi.checklist.onProgress((event: GenerationProgress) => {
       switch (event.phase) {
         case "start": {
           setActive(true);
@@ -184,16 +184,16 @@ export function Today({ onOpenSuggestion }: Props) {
 
   const goalsQuery = useQuery({
     queryKey: ["goals"],
-    queryFn: () => window.goalpath.goals.list()
+    queryFn: () => window.komorebi.goals.list()
   });
 
   const checklistQuery = useQuery({
     queryKey: ["checklist", "today"],
-    queryFn: () => window.goalpath.checklist.today()
+    queryFn: () => window.komorebi.checklist.today()
   });
 
   const generate = useMutation({
-    mutationFn: () => window.goalpath.checklist.generate(),
+    mutationFn: () => window.komorebi.checklist.generate(),
     onSuccess: (data) => {
       queryClient.setQueryData(["checklist", "today"], data);
     },
@@ -207,7 +207,7 @@ export function Today({ onOpenSuggestion }: Props) {
   const location = useMemo(() => locationFromTimezone(), []);
   const weatherQuery = useQuery({
     queryKey: ["weather", location],
-    queryFn: () => window.goalpath.weather.current(location),
+    queryFn: () => window.komorebi.weather.current(location),
     enabled: location.length > 0,
     staleTime: 25 * 60 * 1000,
     refetchOnWindowFocus: false

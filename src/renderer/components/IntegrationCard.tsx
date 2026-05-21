@@ -16,8 +16,8 @@ export function IntegrationCard({ view }: Props) {
     mutationFn: async () => {
       setWaiting(true);
       try {
-        await window.goalpath.integrations.beginConnect(toolkit.slug);
-        await window.goalpath.integrations.awaitConnect(toolkit.slug);
+        await window.komorebi.integrations.beginConnect(toolkit.slug);
+        await window.komorebi.integrations.awaitConnect(toolkit.slug);
       } finally {
         setWaiting(false);
       }
@@ -28,7 +28,7 @@ export function IntegrationCard({ view }: Props) {
   });
 
   const disconnect = useMutation({
-    mutationFn: () => window.goalpath.integrations.disconnect(toolkit.slug),
+    mutationFn: () => window.komorebi.integrations.disconnect(toolkit.slug),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["integrations"] });
     }

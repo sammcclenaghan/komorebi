@@ -44,7 +44,7 @@ function spawnTracked(command, args, opts) {
   childProcesses.push(child);
   child.on("exit", (code, signal) => {
     if (shuttingDown) return;
-    console.error(`[goalpath] ${command} exited (code=${code} signal=${signal}). Shutting down.`);
+    console.error(`[komorebi] ${command} exited (code=${code} signal=${signal}). Shutting down.`);
     void shutdown(code ?? 1);
   });
   return child;
@@ -81,7 +81,7 @@ function startApp() {
   currentApp = app;
 
   app.once("error", (err) => {
-    console.error("[goalpath] electron error:", err);
+    console.error("[komorebi] electron error:", err);
     if (currentApp === app) currentApp = null;
     if (!shuttingDown) scheduleRestart();
   });
