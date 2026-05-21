@@ -1,10 +1,60 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Sparkles, Loader2, Sunrise } from "lucide-react";
+import {
+  Cloud,
+  CloudDrizzle,
+  CloudFog,
+  CloudLightning,
+  CloudRain,
+  CloudSnow,
+  Loader2,
+  Moon,
+  Plus,
+  Sparkles,
+  Sun,
+  Sunrise
+} from "lucide-react";
 import { cn } from "~/lib/cn";
 import { GoalModal } from "../components/GoalModal";
 import { ChecklistRow } from "../components/ChecklistRow";
 import type { Goal, Suggestion } from "~/shared/types";
+import type { WeatherSummary } from "~/main/weather/service";
+
+function locationFromTimezone(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const parts = tz.split("/");
+    const last = parts[parts.length - 1] ?? "";
+    return last.replace(/_/g, " ");
+  } catch {
+    return "";
+  }
+}
+
+function WeatherIcon({ summary }: { summary: WeatherSummary | null | undefined }) {
+  if (!summary) {
+    return <Sunrise className="h-4 w-4" strokeWidth={1.5} />;
+  }
+  const props = { className: "h-4 w-4", strokeWidth: 1.5 };
+  switch (summary.condition) {
+    case "clear":
+      return summary.isNight ? <Moon {...props} /> : <Sun {...props} />;
+    case "clouds":
+      return <Cloud {...props} />;
+    case "rain":
+      return <CloudRain {...props} />;
+    case "drizzle":
+      return <CloudDrizzle {...props} />;
+    case "snow":
+      return <CloudSnow {...props} />;
+    case "thunderstorm":
+      return <CloudLightning {...props} />;
+    case "mist":
+      return <CloudFog {...props} />;
+    default:
+      return <Sunrise {...props} />;
+  }
+}
 
 type Props = {
   onOpenSuggestion: (id: string) => void;
@@ -34,6 +84,15 @@ export function Today({ onOpenSuggestion }: Props) {
     }
   });
 
+  const location = useMemo(() => locationFromTimezone(), []);
+  const weatherQuery = useQuery({
+    queryKey: ["weather", location],
+    queryFn: () => window.goalpath.weather.current(location),
+    enabled: location.length > 0,
+    staleTime: 25 * 60 * 1000,
+    refetchOnWindowFocus: false
+  });
+
   const goals = goalsQuery.data ?? [];
   const activeGoals = goals.filter((g) => g.status === "active");
   const checklist = checklistQuery.data;
@@ -61,9 +120,17 @@ export function Today({ onOpenSuggestion }: Props) {
       <div className="mx-auto max-w-2xl px-10 pt-16 pb-20">
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
-            <Sunrise className="h-4 w-4" strokeWidth={1.5} />
+            <WeatherIcon summary={weatherQuery.data} />
             <span className="font-mono text-[10px] uppercase tracking-[0.22em]">
               today &middot; {today}
+              {weatherQuery.data && (
+                <>
+                  <span className="mx-1.5 opacity-50">·</span>
+                  <span className="tabular-nums" title={weatherQuery.data.description}>
+                    {weatherQuery.data.temperatureC}°
+                  </span>
+                </>
+              )}
             </span>
           </div>
           {items.length > 0 && (

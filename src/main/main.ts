@@ -10,6 +10,7 @@ import {
   getIntegrations,
   refreshConnections
 } from "./integrations/service";
+import { getCurrentWeather } from "./weather/service";
 import { addGoal, listGoals, updateGoal } from "./store/goals";
 import {
   deleteGoalCascade,
@@ -115,6 +116,8 @@ ipcMain.handle("reflection:list", (_event, suggestionId: string) =>
 ipcMain.handle("reflection:add", (_event, input: { suggestionId: string; text: string; rating?: "up" | "down" | null }) =>
   addReflection(input)
 );
+
+ipcMain.handle("weather:current", (_event, location: string) => getCurrentWeather(location));
 
 /**
  * Load .env.local from the project root in dev, and from the app resources

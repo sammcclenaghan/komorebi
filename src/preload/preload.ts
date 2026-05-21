@@ -3,6 +3,7 @@ import type { IntegrationView } from "~/main/integrations/service";
 import type { ConnectionSummary } from "~/main/integrations/composio";
 import type { ChecklistDay } from "~/main/checklist/orchestrator";
 import type { Goal, Reflection, Suggestion, SuggestionRating, SuggestionStatus } from "~/shared/types";
+import type { WeatherSummary } from "~/main/weather/service";
 
 const api = {
   getVersion: (): Promise<string> => ipcRenderer.invoke("app:version"),
@@ -43,6 +44,10 @@ const api = {
       ipcRenderer.invoke("reflection:list", suggestionId),
     add: (input: { suggestionId: string; text: string; rating?: "up" | "down" | null }): Promise<Reflection> =>
       ipcRenderer.invoke("reflection:add", input)
+  },
+  weather: {
+    current: (location: string): Promise<WeatherSummary | null> =>
+      ipcRenderer.invoke("weather:current", location)
   }
 };
 

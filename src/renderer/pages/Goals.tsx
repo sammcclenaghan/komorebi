@@ -30,33 +30,36 @@ export function Goals() {
   return (
     <>
       <div className="mx-auto max-w-2xl px-10 pt-16 pb-20">
-        <header className="flex items-end justify-between">
-          <div>
-            <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
-              <Target className="h-4 w-4" strokeWidth={1.5} />
-              <span className="font-mono text-[10px] uppercase tracking-[0.22em]">
-                goals
-              </span>
-            </div>
-            <h1 className="mt-3 text-[30px] font-semibold leading-[1.15] tracking-tight text-[var(--color-ink)]">
-              What you're working toward.
-            </h1>
-            <p className="mt-3 max-w-lg text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
-              Edit context to sharpen the suggestions, or delete a goal when
-              you're done with it.
-            </p>
+        <header>
+          <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
+            <Target className="h-4 w-4" strokeWidth={1.5} />
+            <span className="font-mono text-[10px] uppercase tracking-[0.22em]">
+              goals
+            </span>
           </div>
 
-          <button
-            onClick={() => setModalGoal(null)}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md bg-[var(--color-ink)] px-3.5 py-2 text-[12.5px] font-medium",
-              "text-[var(--color-canvas)] transition-colors hover:bg-[var(--color-accent)]"
-            )}
-          >
-            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-            New goal
-          </button>
+          <div className="mt-3 flex items-start justify-between gap-6">
+            <h1 className="text-[30px] font-semibold leading-[1.15] tracking-tight text-[var(--color-ink)]">
+              What you're working toward.
+            </h1>
+
+            <button
+              onClick={() => setModalGoal(null)}
+              className={cn(
+                "shrink-0 whitespace-nowrap",
+                "inline-flex items-center gap-1.5 rounded-md bg-[var(--color-ink)] px-3 py-1.5 text-[12.5px] font-medium",
+                "text-[var(--color-canvas)] transition-colors hover:bg-[var(--color-accent)]"
+              )}
+            >
+              <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+              New goal
+            </button>
+          </div>
+
+          <p className="mt-3 max-w-lg text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
+            Edit context to sharpen the suggestions, or delete a goal when
+            you're done with it.
+          </p>
         </header>
 
         <div className="mt-10">
