@@ -150,17 +150,29 @@ ipcMain.handle("reflection:add", (_event, input: { suggestionId: string; text: s
 ipcMain.handle("weather:current", (_event, location: string) => getCurrentWeather(location));
 
 /**
- * Load .env.local from the project root in dev, and from the app resources
- * dir in production. Failure is non-fatal — features that need the env will
- * surface their own errors.
+ * Load env vars. Lookup order depends on whether we're in dev or
+ * running from a packaged .app:
+ *
+ * dev → project root .env.local / .env (loaded by Vite + here for symmetry)
+ * packaged → ~/Library/Application Support/Goalpath/.env (user override)
+ *            then the .env.local that was bundled into the .app at build
+ *            time via electron-builder extraResources.
+ *
+ * Failure is non-fatal — features that need a key will surface their own
+ * errors when used.
  */
 function loadEnv(): void {
-  const candidates = [
-    path.join(process.cwd(), ".env.local"),
-    path.join(process.cwd(), ".env"),
-    path.join(moduleDir, "..", ".env.local"),
-    path.join(moduleDir, "..", ".env")
-  ];
+  const candidates: string[] = [];
+  if (app.isPackaged) {
+    candidates.push(path.join(app.getPath("userData"), ".env"));
+    candidates.push(path.join(process.resourcesPath, ".env.local"));
+    candidates.push(path.join(process.resourcesPath, ".env"));
+  } else {
+    candidates.push(path.join(process.cwd(), ".env.local"));
+    candidates.push(path.join(process.cwd(), ".env"));
+    candidates.push(path.join(moduleDir, "..", ".env.local"));
+    candidates.push(path.join(moduleDir, "..", ".env"));
+  }
   for (const file of candidates) {
     if (fs.existsSync(file)) {
       dotenv.config({ path: file });

@@ -6,6 +6,7 @@ dist/
 dist-electron/
 .webpack/
 .electron-runtime/
+release/
 
 # Local data + secrets
 .env

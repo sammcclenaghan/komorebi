@@ -1,6 +1,6 @@
 {
   "name": "goalpath",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.cjs",
@@ -14,7 +14,8 @@
     "test": "vitest run --passWithNoTests",
     "smoke:slice1": "tsx scripts/smoke-slice1.ts",
     "smoke:composio": "tsx --env-file=.env.local scripts/smoke-composio.ts",
-    "smoke:context": "tsx --env-file=.env.local scripts/smoke-context.ts"
+    "smoke:context": "tsx --env-file=.env.local scripts/smoke-context.ts",
+    "package": "pnpm build && electron-builder --mac --arm64 --dir"
   },
   "dependencies": {
     "@composio/core": "^0.10.0",
@@ -36,11 +37,45 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.0",
     "electron": "^42.2.0",
+    "electron-builder": "^26.8.1",
     "tailwindcss": "^4.3.0",
     "tsdown": "^0.20.3",
     "tsx": "^4.20.0",
     "typescript": "^5.7.3",
     "vite": "^7.0.0",
     "vitest": "^4.0.0"
+  },
+  "build": {
+    "appId": "dev.sammcclenaghan.goalpath",
+    "productName": "Goalpath",
+    "files": [
+      "dist-electron/**/*",
+      "dist/**/*",
+      "package.json",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,*.markdown,LICENSE*,license*,docs}",
+      "!**/node_modules/**/{test,tests,__tests__,examples,example}/**",
+      "!**/.git",
+      "!**/.env*"
+    ],
+    "extraResources": [
+      ".env.local"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dir",
+          "arch": "arm64"
+        }
+      ],
+      "identity": null,
+      "category": "public.app-category.productivity",
+      "darkModeSupport": false,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "asar": true
   }
 }

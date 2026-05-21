@@ -232,6 +232,16 @@ export function Today({ onOpenSuggestion }: Props) {
     [inFlight, itemGoalIds]
   );
 
+  // Active goals that don't have a non-skipped suggestion today are the ones
+  // "Top up" would compose for. When this is zero, the button hides.
+  const coveredGoalIds = useMemo(
+    () => new Set(items.filter((s) => s.status !== "skipped").map((s) => s.goalId)),
+    [items]
+  );
+  const topUpCount = activeGoals.filter(
+    (g) => !coveredGoalIds.has(g.id) && !inFlight.has(g.id)
+  ).length;
+
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
@@ -279,9 +289,9 @@ export function Today({ onOpenSuggestion }: Props) {
             placeholders={visiblePlaceholders}
             goalsById={goalsById}
             onOpenSuggestion={onOpenSuggestion}
-            onAddGoal={() => setShowAddGoal(true)}
             onRefresh={() => generate.mutate()}
             generating={generate.isPending || active}
+            topUpCount={topUpCount}
             allDone={
               items.length > 0 &&
               visiblePlaceholders.length === 0 &&
@@ -427,18 +437,18 @@ function ChecklistView({
   placeholders,
   goalsById,
   onOpenSuggestion,
-  onAddGoal,
   onRefresh,
   generating,
+  topUpCount,
   allDone
 }: {
   items: Suggestion[];
   placeholders: InFlightGoal[];
   goalsById: Map<string, Goal>;
   onOpenSuggestion: (id: string) => void;
-  onAddGoal: () => void;
   onRefresh: () => void;
   generating: boolean;
+  topUpCount: number;
   allDone: boolean;
 }) {
   return (
@@ -470,28 +480,25 @@ function ChecklistView({
 
       {allDone && <AllCaughtUp />}
 
-      <div className="mt-8 flex items-center justify-between border-t border-[var(--color-rule)] pt-4 text-[12px] text-[var(--color-ink-3)]">
-        <button
-          onClick={onAddGoal}
-          className="inline-flex items-center gap-1.5 transition-colors hover:text-[var(--color-ink)]"
-        >
-          <Plus className="h-3 w-3" strokeWidth={2} />
-          Add goal
-        </button>
-        <button
-          onClick={onRefresh}
-          disabled={generating}
-          className="inline-flex items-center gap-1.5 transition-colors hover:text-[var(--color-ink)] disabled:opacity-50"
-          title="Generate suggestions for goals that don't have one today"
-        >
-          {generating ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Sparkles className="h-3 w-3" strokeWidth={2} />
-          )}
-          {generating ? "Composing…" : "Top up"}
-        </button>
-      </div>
+      {topUpCount > 0 && (
+        <div className="mt-8 flex items-center justify-end border-t border-[var(--color-rule)] pt-4 text-[12px] text-[var(--color-ink-3)]">
+          <button
+            onClick={onRefresh}
+            disabled={generating}
+            className="inline-flex items-center gap-1.5 transition-colors hover:text-[var(--color-ink)] disabled:opacity-50"
+            title={`Compose for ${topUpCount} uncovered goal${topUpCount === 1 ? "" : "s"}`}
+          >
+            {generating ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Sparkles className="h-3 w-3" strokeWidth={2} />
+            )}
+            {generating
+              ? "Composing…"
+              : `+ ${topUpCount} more ${topUpCount === 1 ? "goal" : "goals"}`}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

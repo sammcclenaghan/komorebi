@@ -213,10 +213,10 @@ function RatingThumb({
       disabled={disabled}
       className={cn(
         "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+        "opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)]",
         active
           ? "text-[var(--color-accent-strong)]"
-          : "text-[var(--color-ink-3)]/70 opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)] hover:text-[var(--color-ink-2)]",
-        active && "opacity-100",
+          : "text-[var(--color-ink-3)]/70 hover:text-[var(--color-ink-2)]",
         disabled && "cursor-not-allowed"
       )}
       aria-label={kind === "up" ? "Rate good" : "Rate poor"}
