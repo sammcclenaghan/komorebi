@@ -35,7 +35,8 @@ export const googleCalendarProvider: ContextProvider = {
         maxResults: 30,
         singleEvents: true,
         orderBy: "startTime"
-      }
+      },
+      dangerouslySkipVersionCheck: true
     });
 
     if (!result.successful) {

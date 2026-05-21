@@ -38,6 +38,7 @@ const moduleDir =
 app.setName("Komorebi");
 
 migrateLegacyUserData();
+setupFileLogging();
 loadEnv();
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
@@ -149,6 +150,58 @@ ipcMain.handle("reflection:add", (_event, input: { suggestionId: string; text: s
 );
 
 ipcMain.handle("weather:current", (_event, location: string) => getCurrentWeather(location));
+
+/**
+ * When running from a packaged .app there's no terminal to print to.
+ * Mirror console output to a rotating-by-launch file in userData/logs
+ * so we can actually debug what's going on with the AI, integrations,
+ * etc. In dev, do nothing — the terminal already has it.
+ *
+ * Tail with:
+ *   tail -f "$HOME/Library/Application Support/Komorebi/logs/main.log"
+ */
+function setupFileLogging(): void {
+  if (!app.isPackaged) return;
+  try {
+    const logDir = path.join(app.getPath("userData"), "logs");
+    fs.mkdirSync(logDir, { recursive: true });
+    const stream = fs.createWriteStream(path.join(logDir, "main.log"), { flags: "a" });
+    stream.write(`\n=== launch ${new Date().toISOString()} ===\n`);
+
+    const fmt = (args: unknown[]): string =>
+      args
+        .map((a) => {
+          if (a instanceof Error) return a.stack ?? a.message;
+          if (typeof a === "string") return a;
+          try {
+            return JSON.stringify(a);
+          } catch {
+            return String(a);
+          }
+        })
+        .join(" ");
+
+    const wrap = (orig: (...args: unknown[]) => void) =>
+      (...args: unknown[]) => {
+        stream.write(`[${new Date().toISOString()}] ${fmt(args)}\n`);
+        orig(...args);
+      };
+
+    console.log = wrap(console.log);
+    console.warn = wrap(console.warn);
+    console.error = wrap(console.error);
+
+    process.on("uncaughtException", (err) => {
+      stream.write(`[${new Date().toISOString()}] uncaught: ${err.stack ?? err.message}\n`);
+    });
+    process.on("unhandledRejection", (reason) => {
+      const text = reason instanceof Error ? reason.stack ?? reason.message : String(reason);
+      stream.write(`[${new Date().toISOString()}] unhandled rejection: ${text}\n`);
+    });
+  } catch (err) {
+    console.error("[logging] setup failed:", err);
+  }
+}
 
 /**
  * The app was previously called "Goalpath". Electron's userData dir was

@@ -48,17 +48,37 @@ export async function runClaude(opts: ClaudeOptions): Promise<string> {
     args.push("--allowed-tools", opts.allowedTools.join(" "));
   }
 
-  const binary = opts.binary ?? "claude";
+  // Resolution order:
+  //   1. explicit opts.binary
+  //   2. CLAUDE_BIN env var (set in .env.local for packaged installs)
+  //   3. "claude" on PATH — works in dev terminal, often broken in a .app
+  //      launched from Finder because macOS GUI apps inherit a minimal PATH
+  //      that doesn't include ~/.local/bin, /opt/homebrew/bin, etc.
+  const binary = opts.binary ?? process.env.CLAUDE_BIN ?? "claude";
   const maxBuffer = opts.maxBuffer ?? 16 * 1024 * 1024;
+
+  // Augment PATH so `claude` (if it shells out to node, npx, etc.) can find
+  // its tools when running from a packaged .app.
+  const augmentedPath = [
+    process.env.PATH,
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    `${process.env.HOME ?? ""}/.local/bin`
+  ]
+    .filter(Boolean)
+    .join(":");
 
   let stdout: string;
   try {
-    const result = await execFileAsync(binary, args, { maxBuffer });
+    const result = await execFileAsync(binary, args, {
+      maxBuffer,
+      env: { ...process.env, PATH: augmentedPath }
+    });
     stdout = result.stdout;
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
     throw new ClaudeCliError(
-      `claude CLI failed: ${e.message}${e.stderr ? `\n${e.stderr}` : ""}`,
+      `claude CLI failed (binary=${binary}): ${e.message}${e.stderr ? `\n${e.stderr}` : ""}`,
       e.stdout
     );
   }
