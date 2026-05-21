@@ -15,7 +15,8 @@
     "smoke:slice1": "tsx scripts/smoke-slice1.ts",
     "smoke:composio": "tsx --env-file=.env.local scripts/smoke-composio.ts",
     "smoke:context": "tsx --env-file=.env.local scripts/smoke-context.ts",
-    "package": "pnpm build && electron-builder --mac --arm64 --dir"
+    "icon": "node scripts/build-icon.mjs",
+    "package": "pnpm icon && pnpm build && electron-builder --mac --arm64 --dir"
   },
   "dependencies": {
     "@composio/core": "^0.10.0",
@@ -31,6 +32,7 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "^4.3.0",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
@@ -64,6 +66,7 @@
       "output": "release"
     },
     "mac": {
+      "icon": "build/icon.png",
       "target": [
         {
           "target": "dir",
