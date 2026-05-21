@@ -64,11 +64,12 @@ function titleCase(s: string): string {
 }
 
 function WeatherTooltip({ summary }: { summary: WeatherSummary }) {
+  const d = summary.daily;
   return (
     <div
       role="tooltip"
       className={cn(
-        "pointer-events-none absolute left-0 top-full z-30 mt-2 w-[200px] origin-top-left",
+        "pointer-events-none absolute left-0 top-full z-30 mt-2 w-[230px] origin-top-left",
         "opacity-0 -translate-y-1 transition-all duration-150 ease-out",
         "group-hover:opacity-100 group-hover:translate-y-0",
         "rounded-lg border border-[var(--color-rule)] bg-[var(--color-canvas)] p-3",
@@ -79,6 +80,7 @@ function WeatherTooltip({ summary }: { summary: WeatherSummary }) {
         {summary.resolvedName}
         {summary.isNight && <span className="ml-1.5 opacity-70">· night</span>}
       </div>
+
       <div className="mt-2 flex items-baseline justify-between gap-3">
         <div className="text-[13px] font-medium text-[var(--color-ink)]">
           {titleCase(summary.description)}
@@ -86,6 +88,23 @@ function WeatherTooltip({ summary }: { summary: WeatherSummary }) {
         <div className="text-[18px] font-semibold tabular-nums leading-none text-[var(--color-ink)]">
           {summary.temperatureC}°
         </div>
+      </div>
+
+      <div className="mt-3 border-t border-[var(--color-rule)] pt-2">
+        <div className="font-mono text-[9.5px] uppercase tracking-[0.22em] text-[var(--color-ink-3)]">
+          today
+        </div>
+        <div className="mt-1 flex items-baseline justify-between gap-3 text-[12px] text-[var(--color-ink-2)]">
+          <span>{titleCase(d.description)}</span>
+          <span className="tabular-nums text-[var(--color-ink)]">
+            {d.tempMaxC}° / {d.tempMinC}°
+          </span>
+        </div>
+        {d.precipitationProbabilityPct >= 30 && (
+          <div className="mt-1 text-[11px] tabular-nums text-[var(--color-ink-3)]">
+            {d.precipitationProbabilityPct}% chance of precipitation
+          </div>
+        )}
       </div>
     </div>
   );
@@ -212,7 +231,6 @@ export function Today({ onOpenSuggestion }: Props) {
     [inFlight, itemGoalIds]
   );
 
-  const doneCount = items.filter((s) => s.status === "done").length;
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
@@ -254,22 +272,6 @@ export function Today({ onOpenSuggestion }: Props) {
               )}
             </span>
           </div>
-          {(items.length > 0 || active) && (
-            <div className="font-mono text-[11px] tabular-nums text-[var(--color-ink-3)]">
-              {active ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)] animate-[pulse-soft_1.6s_ease-in-out_infinite]" />
-                  <span>composing</span>
-                </span>
-              ) : (
-                <>
-                  <span className="text-[var(--color-ink)]">{doneCount}</span>
-                  <span className="opacity-60"> / </span>
-                  <span>{items.length}</span>
-                </>
-              )}
-            </div>
-          )}
         </header>
 
         {isLoading ? (
@@ -437,7 +439,7 @@ function ChecklistView({
   generating: boolean;
 }) {
   return (
-    <div className="mt-8">
+    <div className="mt-12">
       <ul className="space-y-2.5">
         {items.map((s, idx) => (
           <li

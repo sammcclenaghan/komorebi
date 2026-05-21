@@ -1,17 +1,22 @@
 import { getCurrentWeather } from "../../weather/service";
 
 /**
- * Always-on weather context. Unlike Composio-toolkit-backed providers,
- * this doesn't need an explicit user connection — the underlying
- * WEATHERMAP_WEATHER tool is NO_AUTH.
- *
- * Returns a one-line markdown block like:
- *   "Toronto: partly cloudy, 9°C (night)."
- * or null if no usable location was provided or the lookup failed.
+ * Daily weather summary for Claude. Critically: the *day's* shape, not the
+ * moment of generation. Otherwise a checklist composed at 7am full of "great
+ * for tonight" suggestions arrives at the user's evening read.
  */
 export async function fetchWeatherContext(location: string): Promise<string | null> {
   const w = await getCurrentWeather(location);
   if (!w) return null;
-  const timeOfDay = w.isNight ? " (night)" : "";
-  return `${w.resolvedName}: ${w.description}, ${w.temperatureC}°C${timeOfDay}.`;
+
+  const d = w.daily;
+  const parts: string[] = [
+    `${w.resolvedName} today: ${d.description.toLowerCase()}, high ${d.tempMaxC}°C / low ${d.tempMinC}°C.`
+  ];
+  if (d.precipitationProbabilityPct >= 30) {
+    parts.push(
+      `${d.precipitationProbabilityPct}% chance of precipitation (~${d.precipitationMm}mm).`
+    );
+  }
+  return parts.join(" ");
 }
