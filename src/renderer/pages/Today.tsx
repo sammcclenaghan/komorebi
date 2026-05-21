@@ -18,6 +18,7 @@ import { cn } from "~/lib/cn";
 import { GoalModal } from "../components/GoalModal";
 import { ChecklistRow } from "../components/ChecklistRow";
 import { GeneratingRow } from "../components/GeneratingRow";
+import { AllCaughtUp } from "../components/AllCaughtUp";
 import type { Goal, Suggestion } from "~/shared/types";
 import type { WeatherSummary } from "~/main/weather/service";
 import type { GenerationProgress } from "~/main/checklist/orchestrator";
@@ -263,13 +264,7 @@ export function Today({ onOpenSuggestion }: Props) {
               {weatherQuery.data && <WeatherTooltip summary={weatherQuery.data} />}
             </div>
             <span className="font-mono text-[10px] uppercase tracking-[0.22em]">
-              today &middot; {today}
-              {weatherQuery.data && (
-                <>
-                  <span className="mx-1.5 opacity-50">·</span>
-                  <span className="tabular-nums">{weatherQuery.data.temperatureC}°</span>
-                </>
-              )}
+              {today}
             </span>
           </div>
         </header>
@@ -287,6 +282,12 @@ export function Today({ onOpenSuggestion }: Props) {
             onAddGoal={() => setShowAddGoal(true)}
             onRefresh={() => generate.mutate()}
             generating={generate.isPending || active}
+            allDone={
+              items.length > 0 &&
+              visiblePlaceholders.length === 0 &&
+              items.every((s) => s.status === "done" || s.status === "skipped") &&
+              items.some((s) => s.status === "done")
+            }
           />
         ) : (
           <NoChecklistYet
@@ -428,7 +429,8 @@ function ChecklistView({
   onOpenSuggestion,
   onAddGoal,
   onRefresh,
-  generating
+  generating,
+  allDone
 }: {
   items: Suggestion[];
   placeholders: InFlightGoal[];
@@ -437,6 +439,7 @@ function ChecklistView({
   onAddGoal: () => void;
   onRefresh: () => void;
   generating: boolean;
+  allDone: boolean;
 }) {
   return (
     <div className="mt-12">
@@ -464,6 +467,8 @@ function ChecklistView({
           </li>
         ))}
       </ul>
+
+      {allDone && <AllCaughtUp />}
 
       <div className="mt-8 flex items-center justify-between border-t border-[var(--color-rule)] pt-4 text-[12px] text-[var(--color-ink-3)]">
         <button
