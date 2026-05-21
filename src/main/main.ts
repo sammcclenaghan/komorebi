@@ -151,21 +151,26 @@ ipcMain.handle("reflection:add", (_event, input: { suggestionId: string; text: s
 ipcMain.handle("weather:current", (_event, location: string) => getCurrentWeather(location));
 
 /**
- * The app was previously called "Goalpath", which set Electron's userData
- * dir to ~/Library/Application Support/Goalpath. After the rename to
- * Komorebi, that path becomes ~/Library/Application Support/Komorebi —
- * which is empty, so all goals/suggestions/reflections would vanish.
+ * The app was previously called "Goalpath". Electron's userData dir was
+ * ~/Library/Application Support/Goalpath; after the rename it's
+ * ~/Library/Application Support/Komorebi. The new dir is created by
+ * Electron the first time the app runs (for Cookies, Cache, etc.) even
+ * if our app data hasn't moved over — so checking "is the whole userData
+ * dir missing?" is wrong. We just care about our own `data/` subdir.
  *
- * If the legacy dir exists and the new one doesn't, rename it once. Runs
- * before any store reads.
+ * If legacy/data exists and new/data doesn't, move it. Runs once at
+ * startup before any store reads.
  */
 function migrateLegacyUserData(): void {
   try {
     const newDir = app.getPath("userData");
     const legacyDir = path.join(path.dirname(newDir), "Goalpath");
-    if (fs.existsSync(legacyDir) && !fs.existsSync(newDir)) {
-      fs.renameSync(legacyDir, newDir);
-      console.log(`[migrate] moved ${legacyDir} → ${newDir}`);
+    const newData = path.join(newDir, "data");
+    const legacyData = path.join(legacyDir, "data");
+    if (fs.existsSync(legacyData) && !fs.existsSync(newData)) {
+      fs.mkdirSync(newDir, { recursive: true });
+      fs.renameSync(legacyData, newData);
+      console.log(`[migrate] moved ${legacyData} → ${newData}`);
     }
   } catch (err) {
     console.error("[migrate] userData rename failed (continuing):", err);
