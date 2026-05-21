@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { IntegrationView } from "~/main/integrations/service";
 import type { ConnectionSummary } from "~/main/integrations/composio";
 import type { ChecklistDay } from "~/main/checklist/orchestrator";
-import type { Goal, Reflection, Suggestion, SuggestionStatus } from "~/shared/types";
+import type { Goal, Reflection, Suggestion, SuggestionRating, SuggestionStatus } from "~/shared/types";
 
 const api = {
   getVersion: (): Promise<string> => ipcRenderer.invoke("app:version"),
@@ -32,7 +32,9 @@ const api = {
   suggestions: {
     get: (id: string): Promise<Suggestion | null> => ipcRenderer.invoke("suggestion:get", id),
     setStatus: (input: { id: string; status: SuggestionStatus }): Promise<Suggestion> =>
-      ipcRenderer.invoke("suggestion:set-status", input)
+      ipcRenderer.invoke("suggestion:set-status", input),
+    setRating: (input: { id: string; rating: SuggestionRating }): Promise<Suggestion> =>
+      ipcRenderer.invoke("suggestion:set-rating", input)
   },
   reflections: {
     list: (suggestionId: string): Promise<Reflection[]> =>

@@ -17,13 +17,14 @@ import {
 } from "./checklist/orchestrator";
 import {
   getSuggestion,
+  updateSuggestionRating,
   updateSuggestionStatus
 } from "./store/suggestions";
 import {
   addReflection,
   listReflectionsForSuggestion
 } from "./store/reflections";
-import type { SuggestionStatus } from "~/shared/types";
+import type { SuggestionRating, SuggestionStatus } from "~/shared/types";
 
 const moduleDir =
   typeof __dirname === "string"
@@ -100,6 +101,9 @@ ipcMain.handle("checklist:generate", () => generateTodayChecklist());
 ipcMain.handle("suggestion:get", (_event, id: string) => getSuggestion(id));
 ipcMain.handle("suggestion:set-status", (_event, input: { id: string; status: SuggestionStatus }) =>
   updateSuggestionStatus(input.id, input.status)
+);
+ipcMain.handle("suggestion:set-rating", (_event, input: { id: string; rating: SuggestionRating }) =>
+  updateSuggestionRating(input.id, input.rating)
 );
 
 ipcMain.handle("reflection:list", (_event, suggestionId: string) =>

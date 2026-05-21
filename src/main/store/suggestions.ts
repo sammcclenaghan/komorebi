@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { makeStore } from "./file-store";
-import type { Suggestion, SuggestionDraft, SuggestionStatus } from "~/shared/types";
+import type { Suggestion, SuggestionDraft, SuggestionRating, SuggestionStatus } from "~/shared/types";
 
 const store = makeStore<Suggestion[]>("suggestions.json", () => []);
 
@@ -10,14 +10,21 @@ export type InsertSuggestionInput = {
   draft: SuggestionDraft;
 };
 
+/** Hydrate any pre-existing rows missing the `rating` field. */
+function hydrate(s: Suggestion): Suggestion {
+  return { ...s, rating: s.rating ?? null };
+}
+
 export async function listAllSuggestions(): Promise<Suggestion[]> {
-  return store.load();
+  const all = await store.load();
+  return all.map(hydrate);
 }
 
 export async function listSuggestionsForDate(date: string): Promise<Suggestion[]> {
   const all = await store.load();
   return all
     .filter((s) => s.date === date)
+    .map(hydrate)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
@@ -28,6 +35,7 @@ export async function listRecentSuggestionsForGoal(
   const all = await store.load();
   return all
     .filter((s) => s.goalId === goalId)
+    .map(hydrate)
     .sort((a, b) =>
       b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)
     )
@@ -36,7 +44,8 @@ export async function listRecentSuggestionsForGoal(
 
 export async function getSuggestion(id: string): Promise<Suggestion | null> {
   const all = await store.load();
-  return all.find((s) => s.id === id) ?? null;
+  const found = all.find((s) => s.id === id);
+  return found ? hydrate(found) : null;
 }
 
 export async function insertSuggestion(input: InsertSuggestionInput): Promise<Suggestion> {
@@ -52,6 +61,7 @@ export async function insertSuggestion(input: InsertSuggestionInput): Promise<Su
       resourceUrl: input.draft.resourceUrl,
       estimatedMinutes: input.draft.estimatedMinutes,
       status: "pending",
+      rating: null,
       createdAt: now,
       completedAt: null
     };
@@ -66,12 +76,27 @@ export async function updateSuggestionStatus(
   return store.mutate((current) => {
     const idx = current.findIndex((s) => s.id === id);
     if (idx === -1) throw new Error(`Suggestion not found: ${id}`);
-    const existing = current[idx]!;
+    const existing = hydrate(current[idx]!);
     const next: Suggestion = {
       ...existing,
       status,
       completedAt: status === "done" ? new Date().toISOString() : existing.completedAt
     };
+    const nextList = [...current];
+    nextList[idx] = next;
+    return { next: nextList, result: next };
+  });
+}
+
+export async function updateSuggestionRating(
+  id: string,
+  rating: SuggestionRating
+): Promise<Suggestion> {
+  return store.mutate((current) => {
+    const idx = current.findIndex((s) => s.id === id);
+    if (idx === -1) throw new Error(`Suggestion not found: ${id}`);
+    const existing = hydrate(current[idx]!);
+    const next: Suggestion = { ...existing, rating };
     const nextList = [...current];
     nextList[idx] = next;
     return { next: nextList, result: next };

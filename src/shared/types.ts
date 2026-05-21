@@ -12,6 +12,8 @@ export type Goal = {
 
 export type SuggestionStatus = "pending" | "in_progress" | "done" | "skipped";
 
+export type SuggestionRating = "up" | "down" | null;
+
 export type Suggestion = {
   id: string;
   goalId: string;
@@ -22,6 +24,7 @@ export type Suggestion = {
   resourceUrl: string | null;
   estimatedMinutes: number | null;
   status: SuggestionStatus;
+  rating: SuggestionRating;
   createdAt: string;
   completedAt: string | null;
 };

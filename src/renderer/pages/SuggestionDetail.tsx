@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowUpRight, Check, Clock, Loader2, RotateCcw, ThumbsDown, ThumbsUp } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { MarkdownView } from "../components/MarkdownView";
-import type { Suggestion } from "~/shared/types";
+import type { Suggestion, SuggestionRating } from "~/shared/types";
 
 type Props = {
   suggestionId: string;
@@ -149,6 +149,7 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
 
             <ReflectionCapture
               suggestionId={suggestionId}
+              rating={suggestion.rating}
               hasReflection={(reflectionsQuery.data?.length ?? 0) > 0}
             />
           </div>
@@ -189,86 +190,99 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 function ReflectionCapture({
   suggestionId,
+  rating,
   hasReflection
 }: {
   suggestionId: string;
+  rating: SuggestionRating;
   hasReflection: boolean;
 }) {
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
-  const [rating, setRating] = useState<"up" | "down" | null>(null);
-  const [done, setDone] = useState(hasReflection);
+  const [textDone, setTextDone] = useState(hasReflection);
 
-  const add = useMutation({
+  const setRating = useMutation({
+    mutationFn: (next: SuggestionRating) =>
+      window.goalpath.suggestions.setRating({ id: suggestionId, rating: next }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["suggestion", suggestionId] });
+      void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
+    }
+  });
+
+  const addText = useMutation({
     mutationFn: () =>
       window.goalpath.reflections.add({
         suggestionId,
-        text: text.trim(),
-        rating
+        text: text.trim()
       }),
     onSuccess: () => {
-      setDone(true);
+      setText("");
+      setTextDone(true);
       void queryClient.invalidateQueries({ queryKey: ["reflections", suggestionId] });
     }
   });
 
-  if (done) {
-    return (
-      <div className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3 text-[12.5px] text-[var(--color-ink-2)]">
-        Thanks — saved. Claude will use this next time it composes for this goal.
-      </div>
-    );
+  function toggle(next: "up" | "down") {
+    setRating.mutate(rating === next ? null : next);
   }
 
   return (
     <div className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-canvas)] px-4 py-4">
-      <label className="text-[12px] font-medium text-[var(--color-ink)]">
-        How was it?
-        <span className="ml-1.5 font-mono text-[9.5px] uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
-          optional
-        </span>
-      </label>
+      <div className="flex items-baseline justify-between">
+        <label className="text-[12px] font-medium text-[var(--color-ink)]">
+          How was it?
+          <span className="ml-1.5 font-mono text-[9.5px] uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
+            optional
+          </span>
+        </label>
+        <div className="flex items-center gap-1">
+          <RatingButton active={rating === "up"} onClick={() => toggle("up")}>
+            <ThumbsUp className="h-3 w-3" strokeWidth={2} fill={rating === "up" ? "currentColor" : "none"} />
+          </RatingButton>
+          <RatingButton active={rating === "down"} onClick={() => toggle("down")}>
+            <ThumbsDown className="h-3 w-3" strokeWidth={2} fill={rating === "down" ? "currentColor" : "none"} />
+          </RatingButton>
+        </div>
+      </div>
       <p className="mt-1 text-[11.5px] text-[var(--color-ink-3)]">
-        One line is fine. Skip if you'd rather not.
+        {textDone
+          ? "Saved. Add another note any time."
+          : "Quick rating, or jot a one-liner Claude will see next time. Skip if you'd rather not."}
       </p>
 
       <textarea
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value);
+          if (textDone && e.target.value.length > 0) setTextDone(false);
+        }}
         rows={2}
         placeholder="Notes for next time…"
         className="mt-2.5 w-full resize-none rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3 py-2 text-[13px] text-[var(--color-ink)] placeholder:text-[var(--color-ink-3)] focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
       />
 
-      <div className="mt-3 flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <RatingButton active={rating === "up"} onClick={() => setRating(rating === "up" ? null : "up")}>
-            <ThumbsUp className="h-3 w-3" strokeWidth={2} />
-          </RatingButton>
-          <RatingButton active={rating === "down"} onClick={() => setRating(rating === "down" ? null : "down")}>
-            <ThumbsDown className="h-3 w-3" strokeWidth={2} />
-          </RatingButton>
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="mt-3 flex items-center justify-end gap-2">
+        {!textDone && text.trim() && (
           <button
-            onClick={() => setDone(true)}
+            onClick={() => setText("")}
             className="text-[11.5px] text-[var(--color-ink-3)] transition-colors hover:text-[var(--color-ink)]"
           >
-            Skip
+            Clear
           </button>
-          <button
-            onClick={() => add.mutate()}
-            disabled={!text.trim() || add.isPending}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-medium",
-              "bg-[var(--color-ink)] text-[var(--color-canvas)]",
-              "transition-colors hover:bg-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-            )}
-          >
-            {add.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
-            Save
-          </button>
-        </div>
+        )}
+        <button
+          onClick={() => addText.mutate()}
+          disabled={!text.trim() || addText.isPending}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-medium",
+            "bg-[var(--color-ink)] text-[var(--color-canvas)]",
+            "transition-colors hover:bg-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+          )}
+        >
+          {addText.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+          Save note
+        </button>
       </div>
     </div>
   );

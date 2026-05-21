@@ -1,7 +1,8 @@
-import { generateSuggestion } from "../claude/generate";
+import { generateSuggestion, type HistoryItem } from "../claude/generate";
 import { buildContextBlocks } from "../context/registry";
 import { getUserId, listConnections } from "../integrations/composio";
 import { listActiveGoals } from "../store/goals";
+import { listReflectionsForSuggestion } from "../store/reflections";
 import {
   insertSuggestion,
   listRecentSuggestionsForGoal,
@@ -67,7 +68,13 @@ export async function generateTodayChecklist(): Promise<ChecklistDay> {
 
   const newSuggestions = await Promise.all(
     goalsToGenerate.map(async (goal) => {
-      const history = await listRecentSuggestionsForGoal(goal.id, 14);
+      const recent = await listRecentSuggestionsForGoal(goal.id, 14);
+      const history: HistoryItem[] = await Promise.all(
+        recent.map(async (s) => ({
+          suggestion: s,
+          reflections: await listReflectionsForSuggestion(s.id)
+        }))
+      );
       const draft = await generateSuggestion({
         goal,
         history,

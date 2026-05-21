@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronRight, Clock } from "lucide-react";
+import { Check, ChevronRight, Clock, ThumbsDown, ThumbsUp } from "lucide-react";
 import { cn } from "~/lib/cn";
-import type { Goal, Suggestion } from "~/shared/types";
+import type { Goal, Suggestion, SuggestionRating } from "~/shared/types";
 
 type Props = {
   suggestion: Suggestion;
@@ -9,24 +9,28 @@ type Props = {
   onOpen: () => void;
 };
 
+type ChecklistCache = { items: Suggestion[] } & Record<string, unknown>;
+
 export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
   const queryClient = useQueryClient();
+
+  function patchCache(patch: (s: Suggestion) => Suggestion): { prev: ChecklistCache | undefined } {
+    const prev = queryClient.getQueryData<ChecklistCache>(["checklist", "today"]);
+    if (prev) {
+      queryClient.setQueryData(["checklist", "today"], {
+        ...prev,
+        items: prev.items.map((s) => (s.id === suggestion.id ? patch(s) : s))
+      });
+    }
+    return { prev };
+  }
 
   const setStatus = useMutation({
     mutationFn: (next: Suggestion["status"]) =>
       window.goalpath.suggestions.setStatus({ id: suggestion.id, status: next }),
     onMutate: async (next) => {
       await queryClient.cancelQueries({ queryKey: ["checklist", "today"] });
-      const prev = queryClient.getQueryData<{ items: Suggestion[] }>(["checklist", "today"]);
-      if (prev) {
-        queryClient.setQueryData(["checklist", "today"], {
-          ...prev,
-          items: prev.items.map((s) =>
-            s.id === suggestion.id ? { ...s, status: next } : s
-          )
-        });
-      }
-      return { prev };
+      return patchCache((s) => ({ ...s, status: next }));
     },
     onError: (_err, _next, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(["checklist", "today"], ctx.prev);
@@ -36,14 +40,36 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
     }
   });
 
+  const setRating = useMutation({
+    mutationFn: (next: SuggestionRating) =>
+      window.goalpath.suggestions.setRating({ id: suggestion.id, rating: next }),
+    onMutate: async (next) => {
+      await queryClient.cancelQueries({ queryKey: ["checklist", "today"] });
+      return patchCache((s) => ({ ...s, rating: next }));
+    },
+    onError: (_err, _next, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["checklist", "today"], ctx.prev);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
+      void queryClient.invalidateQueries({ queryKey: ["suggestion", suggestion.id] });
+    }
+  });
+
   const isDone = suggestion.status === "done";
+  const rating = suggestion.rating;
+
+  function toggleRating(next: "up" | "down") {
+    setRating.mutate(rating === next ? null : next);
+  }
 
   return (
     <article
       className={cn(
         "group relative flex items-start gap-4 rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-4 py-3.5",
         "transition-all hover:border-[var(--color-rule-2)] hover:bg-[var(--color-panel-hover)]",
-        isDone && "opacity-60"
+        isDone && !rating && "opacity-60",
+        isDone && rating && "opacity-90"
       )}
     >
       <button
@@ -62,10 +88,7 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
         {isDone && <Check className="h-3 w-3" strokeWidth={3} />}
       </button>
 
-      <button
-        onClick={onOpen}
-        className="flex-1 min-w-0 text-left"
-      >
+      <button onClick={onOpen} className="flex-1 min-w-0 text-left">
         <h3
           className={cn(
             "text-[14.5px] font-medium leading-snug text-[var(--color-ink)] transition-colors",
@@ -79,9 +102,7 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
         </p>
         <div className="mt-2 flex items-center gap-2.5 text-[10.5px] text-[var(--color-ink-3)]">
           {goal && (
-            <span className="font-mono uppercase tracking-[0.14em]">
-              {goal.title}
-            </span>
+            <span className="font-mono uppercase tracking-[0.14em]">{goal.title}</span>
           )}
           {suggestion.estimatedMinutes != null && (
             <span className="flex items-center gap-1 font-mono">
@@ -92,10 +113,72 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
         </div>
       </button>
 
+      {isDone && (
+        <div
+          className="mt-1.5 flex shrink-0 items-center gap-0.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <RatingThumb
+            kind="up"
+            active={rating === "up"}
+            disabled={setRating.isPending}
+            onClick={() => toggleRating("up")}
+          />
+          <RatingThumb
+            kind="down"
+            active={rating === "down"}
+            disabled={setRating.isPending}
+            onClick={() => toggleRating("down")}
+          />
+        </div>
+      )}
+
       <ChevronRight
-        className="mt-3 h-4 w-4 shrink-0 text-[var(--color-ink-3)] opacity-0 transition-opacity group-hover:opacity-100"
+        className={cn(
+          "mt-3 h-4 w-4 shrink-0 text-[var(--color-ink-3)] transition-opacity",
+          isDone ? "opacity-0 group-hover:opacity-60" : "opacity-0 group-hover:opacity-100"
+        )}
         strokeWidth={1.5}
       />
     </article>
+  );
+}
+
+function RatingThumb({
+  kind,
+  active,
+  disabled,
+  onClick
+}: {
+  kind: "up" | "down";
+  active: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const Icon = kind === "up" ? ThumbsUp : ThumbsDown;
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      disabled={disabled}
+      className={cn(
+        "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+        active
+          ? "text-[var(--color-accent-strong)]"
+          : "text-[var(--color-ink-3)]/70 opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)] hover:text-[var(--color-ink-2)]",
+        active && "opacity-100",
+        disabled && "cursor-not-allowed"
+      )}
+      aria-label={kind === "up" ? "Rate good" : "Rate poor"}
+      aria-pressed={active}
+    >
+      <Icon
+        className="h-3.5 w-3.5"
+        strokeWidth={active ? 2.5 : 2}
+        fill={active ? "currentColor" : "none"}
+      />
+    </button>
   );
 }

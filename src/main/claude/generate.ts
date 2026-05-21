@@ -1,6 +1,6 @@
 import { runClaude } from "./cli";
 import { ClaudeCliError } from "./cli";
-import type { Goal, Suggestion, SuggestionDraft } from "~/shared/types";
+import type { Goal, Reflection, Suggestion, SuggestionDraft } from "~/shared/types";
 import type { ContextBlock } from "../context/types";
 
 const DEFAULT_MODEL = "claude-opus-4-7";
@@ -12,7 +12,12 @@ For the given goal, produce ONE specific action the user can do today that meani
 Rules:
 - Be concrete. "Read about React hooks" is bad. "Read 'A Complete Guide to useEffect' by Dan Abramov (overreacted.io)" is good.
 - Use WebSearch to find real, current, high-quality resources. Always include a real URL when one exists.
-- Match difficulty to what the user has done before. Don't repeat suggestions in the history.
+- Don't repeat past suggestions in the history. Match difficulty and style to what the user actually engaged with.
+- READ the history carefully:
+   - 👍 means the user liked it → produce more in that direction.
+   - 👎 means the user didn't → change the level, style, or angle.
+   - [skipped] means they bounced off it → likely too long, too generic, or wrong time of day.
+   - "↳" lines are the user's own notes about how it went. These outrank everything else.
 - If a "Context" section is provided, USE it — match the time estimate to actual open time, don't suggest something that conflicts with scheduled events, and let what's happening today shape the suggestion.
 - Respect estimated time. Default to 20–40 minutes unless the user's context implies otherwise.
 - The detailMarkdown is the page the user opens — include the link, why this resource, and what to focus on. Markdown formatting OK.
@@ -26,9 +31,14 @@ You MUST respond with ONLY a JSON object (no prose, no code fences). Shape:
   "estimatedMinutes": number | null
 }`;
 
+export type HistoryItem = {
+  suggestion: Suggestion;
+  reflections: Reflection[];
+};
+
 export type GenerateInput = {
   goal: Goal;
-  history: Suggestion[];
+  history: HistoryItem[];
   date: string;
   contextBlocks?: ContextBlock[];
   model?: string;
@@ -58,13 +68,7 @@ function buildPrompt(input: GenerateInput): string {
     .join("\n");
 
   const historyBlock = history.length
-    ? history
-        .map(
-          (s) =>
-            `- ${s.date} [${s.status}] ${s.title}` +
-            (s.resourceUrl ? ` (${s.resourceUrl})` : "")
-        )
-        .join("\n")
+    ? history.map(formatHistoryItem).join("\n")
     : "(none yet — this is the first suggestion for this goal)";
 
   const contextSection = contextBlocks?.length
@@ -87,6 +91,18 @@ ${goalBlock}
 ${historyBlock}
 
 Generate one suggestion now.`;
+}
+
+function formatHistoryItem({ suggestion: s, reflections }: HistoryItem): string {
+  const ratingMark = s.rating === "up" ? "👍 " : s.rating === "down" ? "👎 " : "";
+  const head =
+    `- ${s.date} [${s.status}] ${ratingMark}${s.title}` +
+    (s.resourceUrl ? ` (${s.resourceUrl})` : "");
+  if (reflections.length === 0) return head;
+  const notes = reflections
+    .map((r) => `  ↳ "${r.text.replace(/\s+/g, " ").trim()}"`)
+    .join("\n");
+  return `${head}\n${notes}`;
 }
 
 function parseDraft(raw: string): SuggestionDraft {

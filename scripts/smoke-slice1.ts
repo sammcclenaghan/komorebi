@@ -13,7 +13,8 @@ import os from "node:os";
 import path from "node:path";
 import { addGoal } from "../src/main/store/goals";
 import { insertSuggestion, listRecentSuggestionsForGoal } from "../src/main/store/suggestions";
-import { generateSuggestion } from "../src/main/claude/generate";
+import { listReflectionsForSuggestion } from "../src/main/store/reflections";
+import { generateSuggestion, type HistoryItem } from "../src/main/claude/generate";
 
 async function main(): Promise<void> {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "goalpath-smoke-"));
@@ -28,7 +29,13 @@ async function main(): Promise<void> {
   });
   console.log(`[smoke] seeded goal: ${goal.id} — "${goal.title}"`);
 
-  const history = await listRecentSuggestionsForGoal(goal.id, 14);
+  const recent = await listRecentSuggestionsForGoal(goal.id, 14);
+  const history: HistoryItem[] = await Promise.all(
+    recent.map(async (s) => ({
+      suggestion: s,
+      reflections: await listReflectionsForSuggestion(s.id)
+    }))
+  );
   console.log(`[smoke] history rows: ${history.length}`);
 
   console.log(`[smoke] calling claude (may take ~30-60s with WebSearch)...`);
