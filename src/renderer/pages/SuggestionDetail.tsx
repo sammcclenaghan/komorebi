@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowUpRight, Check, Clock, Loader2, RotateCcw, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Check, Clock, Loader2, RotateCcw, RotateCw, SkipForward, ThumbsDown, ThumbsUp } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { MarkdownView } from "../components/MarkdownView";
 import type { Suggestion, SuggestionRating } from "~/shared/types";
@@ -37,6 +37,15 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
     }
   });
 
+  const skipRegen = useMutation({
+    mutationFn: () => window.goalpath.suggestions.skipAndRegenerate(suggestionId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["suggestion", suggestionId] });
+      void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
+      onBack();
+    }
+  });
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onBack();
@@ -69,6 +78,7 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
 
   const goal = goalsQuery.data?.find((g) => g.id === suggestion.goalId);
   const isDone = suggestion.status === "done";
+  const isSkipped = suggestion.status === "skipped";
 
   return (
     <div className="mx-auto max-w-2xl px-10 pt-12 pb-24">
@@ -153,23 +163,57 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
               hasReflection={(reflectionsQuery.data?.length ?? 0) > 0}
             />
           </div>
+        ) : isSkipped ? (
+          <div className="flex items-center justify-between rounded-lg border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3">
+            <div className="flex items-center gap-2 text-[13px] text-[var(--color-ink-2)]">
+              <SkipForward className="h-3.5 w-3.5" strokeWidth={2} />
+              <span>Skipped — a fresh one's on Today.</span>
+            </div>
+            <button
+              onClick={() => setStatus.mutate("pending")}
+              disabled={setStatus.isPending}
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11.5px] text-[var(--color-ink-2)] transition-colors hover:bg-[var(--color-canvas)] hover:text-[var(--color-ink)]"
+            >
+              <RotateCcw className="h-3 w-3" strokeWidth={2} />
+              Undo skip
+            </button>
+          </div>
         ) : (
-          <button
-            onClick={() => setStatus.mutate("done")}
-            disabled={setStatus.isPending}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[13px] font-medium",
-              "bg-[var(--color-ink)] text-[var(--color-canvas)]",
-              "transition-colors hover:bg-[var(--color-accent)] disabled:opacity-60"
-            )}
-          >
-            {setStatus.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
-            )}
-            Mark done
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setStatus.mutate("done")}
+              disabled={setStatus.isPending || skipRegen.isPending}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[13px] font-medium",
+                "bg-[var(--color-ink)] text-[var(--color-canvas)]",
+                "transition-colors hover:bg-[var(--color-accent)] disabled:opacity-60"
+              )}
+            >
+              {setStatus.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+              )}
+              Mark done
+            </button>
+
+            <button
+              onClick={() => skipRegen.mutate()}
+              disabled={skipRegen.isPending || setStatus.isPending}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3.5 py-2.5 text-[12.5px]",
+                "text-[var(--color-ink-2)] transition-colors hover:border-[var(--color-rule-2)] hover:text-[var(--color-ink)]",
+                "disabled:opacity-60 disabled:cursor-not-allowed"
+              )}
+            >
+              {skipRegen.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RotateCw className="h-3.5 w-3.5" strokeWidth={2} />
+              )}
+              {skipRegen.isPending ? "Composing another…" : "Skip — try another"}
+            </button>
+          </div>
         )}
       </section>
     </div>

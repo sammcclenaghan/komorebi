@@ -2,29 +2,37 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { X, Loader2 } from "lucide-react";
 import { cn } from "~/lib/cn";
+import type { Goal } from "~/shared/types";
 
 type Props = {
   open: boolean;
+  /** When provided, modal opens in edit mode for that goal. */
+  goal?: Goal | null;
   onClose: () => void;
-  onCreated?: (goalId: string) => void;
+  onSaved?: (goalId: string) => void;
 };
 
-export function AddGoalModal({ open, onClose, onCreated }: Props) {
+export function GoalModal({ open, goal, onClose, onSaved }: Props) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [context, setContext] = useState("");
   const titleRef = useRef<HTMLInputElement | null>(null);
+  const isEdit = Boolean(goal);
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    if (goal) {
+      setTitle(goal.title);
+      setDescription(goal.description ?? "");
+      setContext(goal.context ?? "");
+    } else {
       setTitle("");
       setDescription("");
       setContext("");
-      // Autofocus after the modal mounts
-      setTimeout(() => titleRef.current?.focus(), 50);
     }
-  }, [open]);
+    setTimeout(() => titleRef.current?.focus(), 50);
+  }, [open, goal]);
 
   useEffect(() => {
     if (!open) return;
@@ -35,17 +43,28 @@ export function AddGoalModal({ open, onClose, onCreated }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const create = useMutation({
-    mutationFn: () =>
-      window.goalpath.goals.add({
+  const save = useMutation({
+    mutationFn: async () => {
+      if (goal) {
+        return window.goalpath.goals.update({
+          id: goal.id,
+          updates: {
+            title: title.trim(),
+            description: description.trim() || null,
+            context: context.trim() || null
+          }
+        });
+      }
+      return window.goalpath.goals.add({
         title: title.trim(),
         description: description.trim() || undefined,
         context: context.trim() || undefined
-      }),
-    onSuccess: (goal) => {
+      });
+    },
+    onSuccess: (savedGoal) => {
       void queryClient.invalidateQueries({ queryKey: ["goals"] });
       void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
-      onCreated?.(goal.id);
+      onSaved?.(savedGoal.id);
       onClose();
     }
   });
@@ -67,7 +86,7 @@ export function AddGoalModal({ open, onClose, onCreated }: Props) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="add-goal-title"
+        aria-labelledby="goal-modal-title"
         className={cn(
           "relative w-full max-w-lg rounded-2xl border border-[var(--color-rule)] bg-[var(--color-canvas)]",
           "shadow-[0_30px_60px_-20px_oklch(20%_0.01_60/0.25),0_8px_20px_-8px_oklch(20%_0.01_60/0.15)]"
@@ -76,10 +95,10 @@ export function AddGoalModal({ open, onClose, onCreated }: Props) {
         <header className="flex items-center justify-between border-b border-[var(--color-rule)] px-6 py-4">
           <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--color-ink-3)]">
-              new goal
+              {isEdit ? "edit goal" : "new goal"}
             </div>
-            <h2 id="add-goal-title" className="mt-1 text-[17px] font-semibold tracking-tight text-[var(--color-ink)]">
-              What are you working toward?
+            <h2 id="goal-modal-title" className="mt-1 text-[17px] font-semibold tracking-tight text-[var(--color-ink)]">
+              {isEdit ? "Refine your goal" : "What are you working toward?"}
             </h2>
           </div>
           <button
@@ -94,8 +113,8 @@ export function AddGoalModal({ open, onClose, onCreated }: Props) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (!title.trim() || create.isPending) return;
-            create.mutate();
+            if (!title.trim() || save.isPending) return;
+            save.mutate();
           }}
           className="px-6 py-5"
         >
@@ -141,9 +160,9 @@ export function AddGoalModal({ open, onClose, onCreated }: Props) {
             />
           </Field>
 
-          {create.isError && (
+          {save.isError && (
             <div className="mb-3 rounded-md border border-[var(--color-rule)] bg-[var(--color-panel)] px-3 py-2 text-[12px] text-[var(--color-ink-2)]">
-              {(create.error as Error).message}
+              {(save.error as Error).message}
             </div>
           )}
 
@@ -157,7 +176,7 @@ export function AddGoalModal({ open, onClose, onCreated }: Props) {
             </button>
             <button
               type="submit"
-              disabled={!title.trim() || create.isPending}
+              disabled={!title.trim() || save.isPending}
               className={cn(
                 "inline-flex items-center gap-2 rounded-md px-4 py-2 text-[12px] font-medium",
                 "bg-[var(--color-ink)] text-[var(--color-canvas)]",
@@ -165,8 +184,8 @@ export function AddGoalModal({ open, onClose, onCreated }: Props) {
                 "disabled:cursor-not-allowed disabled:opacity-50"
               )}
             >
-              {create.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
-              Save goal
+              {save.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+              {isEdit ? "Save changes" : "Save goal"}
             </button>
           </div>
         </form>

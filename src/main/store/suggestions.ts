@@ -102,3 +102,14 @@ export async function updateSuggestionRating(
     return { next: nextList, result: next };
   });
 }
+
+/** Returns the IDs of the suggestions that were removed. */
+export async function deleteSuggestionsForGoal(goalId: string): Promise<string[]> {
+  return store.mutate((current) => {
+    const removed = current.filter((s) => s.goalId === goalId).map((s) => s.id);
+    return {
+      next: current.filter((s) => s.goalId !== goalId),
+      result: removed
+    };
+  });
+}

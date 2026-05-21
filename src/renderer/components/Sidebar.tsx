@@ -1,7 +1,7 @@
-import { Sunrise, Plug, Settings } from "lucide-react";
+import { Sunrise, Target, Plug, Settings } from "lucide-react";
 import { cn } from "~/lib/cn";
 
-export type View = "today" | "integrations";
+export type View = "today" | "goals" | "integrations";
 
 type NavItem = {
   id: View;
@@ -11,6 +11,7 @@ type NavItem = {
 
 const items: NavItem[] = [
   { id: "today", label: "Today", Icon: Sunrise },
+  { id: "goals", label: "Goals", Icon: Target },
   { id: "integrations", label: "Integrations", Icon: Plug }
 ];
 
@@ -18,9 +19,10 @@ type Props = {
   active: View;
   onSelect: (view: View) => void;
   connectedCount: number;
+  goalCount: number;
 };
 
-export function Sidebar({ active, onSelect, connectedCount }: Props) {
+export function Sidebar({ active, onSelect, connectedCount, goalCount }: Props) {
   return (
     <aside
       className={cn(
@@ -49,6 +51,13 @@ export function Sidebar({ active, onSelect, connectedCount }: Props) {
       <nav className="no-drag mt-9 flex flex-col gap-px px-2">
         {items.map((item) => {
           const isActive = item.id === active;
+          const badge =
+            item.id === "integrations" && connectedCount > 0
+              ? connectedCount
+              : item.id === "goals" && goalCount > 0
+                ? goalCount
+                : null;
+
           return (
             <button
               key={item.id}
@@ -69,14 +78,14 @@ export function Sidebar({ active, onSelect, connectedCount }: Props) {
               />
               <item.Icon className="h-[15px] w-[15px]" strokeWidth={1.5} />
               <span className="leading-none">{item.label}</span>
-              {item.id === "integrations" && connectedCount > 0 && (
+              {badge != null && (
                 <span
                   className={cn(
                     "ml-auto font-mono text-[10px] tracking-wide tabular-nums",
                     isActive ? "text-[var(--color-accent)]" : "text-[var(--color-ink-3)]"
                   )}
                 >
-                  {connectedCount}
+                  {badge}
                 </span>
               )}
             </button>

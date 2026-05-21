@@ -34,3 +34,12 @@ export async function addReflection(input: AddReflectionInput): Promise<Reflecti
     return { next: [...current, reflection], result: reflection };
   });
 }
+
+export async function deleteReflectionsForSuggestions(suggestionIds: string[]): Promise<void> {
+  if (suggestionIds.length === 0) return;
+  const ids = new Set(suggestionIds);
+  await store.mutate((current) => ({
+    next: current.filter((r) => !ids.has(r.suggestionId)),
+    result: undefined
+  }));
+}

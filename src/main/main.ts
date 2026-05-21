@@ -10,10 +10,12 @@ import {
   getIntegrations,
   refreshConnections
 } from "./integrations/service";
-import { addGoal, deleteGoal, listGoals, updateGoal } from "./store/goals";
+import { addGoal, listGoals, updateGoal } from "./store/goals";
 import {
+  deleteGoalCascade,
   generateTodayChecklist,
-  getTodayChecklist
+  getTodayChecklist,
+  skipAndRegenerate
 } from "./checklist/orchestrator";
 import {
   getSuggestion,
@@ -93,7 +95,7 @@ ipcMain.handle("goals:add", (_event, input: { title: string; description?: strin
 ipcMain.handle("goals:update", (_event, input: { id: string; updates: Parameters<typeof updateGoal>[1] }) =>
   updateGoal(input.id, input.updates)
 );
-ipcMain.handle("goals:delete", (_event, id: string) => deleteGoal(id));
+ipcMain.handle("goals:delete", (_event, id: string) => deleteGoalCascade(id));
 
 ipcMain.handle("checklist:today", () => getTodayChecklist());
 ipcMain.handle("checklist:generate", () => generateTodayChecklist());
@@ -105,6 +107,7 @@ ipcMain.handle("suggestion:set-status", (_event, input: { id: string; status: Su
 ipcMain.handle("suggestion:set-rating", (_event, input: { id: string; rating: SuggestionRating }) =>
   updateSuggestionRating(input.id, input.rating)
 );
+ipcMain.handle("suggestion:skip-regenerate", (_event, id: string) => skipAndRegenerate(id));
 
 ipcMain.handle("reflection:list", (_event, suggestionId: string) =>
   listReflectionsForSuggestion(suggestionId)

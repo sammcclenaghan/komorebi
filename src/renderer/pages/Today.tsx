@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Sparkles, Loader2, Sunrise } from "lucide-react";
 import { cn } from "~/lib/cn";
-import { AddGoalModal } from "../components/AddGoalModal";
+import { GoalModal } from "../components/GoalModal";
 import { ChecklistRow } from "../components/ChecklistRow";
 import type { Goal, Suggestion } from "~/shared/types";
 
@@ -99,7 +99,7 @@ export function Today({ onOpenSuggestion }: Props) {
         )}
       </div>
 
-      <AddGoalModal open={showAddGoal} onClose={() => setShowAddGoal(false)} />
+      <GoalModal open={showAddGoal} onClose={() => setShowAddGoal(false)} />
     </>
   );
 }

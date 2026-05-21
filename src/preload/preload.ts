@@ -34,7 +34,9 @@ const api = {
     setStatus: (input: { id: string; status: SuggestionStatus }): Promise<Suggestion> =>
       ipcRenderer.invoke("suggestion:set-status", input),
     setRating: (input: { id: string; rating: SuggestionRating }): Promise<Suggestion> =>
-      ipcRenderer.invoke("suggestion:set-rating", input)
+      ipcRenderer.invoke("suggestion:set-rating", input),
+    skipAndRegenerate: (id: string): Promise<Suggestion> =>
+      ipcRenderer.invoke("suggestion:skip-regenerate", id)
   },
   reflections: {
     list: (suggestionId: string): Promise<Reflection[]> =>
