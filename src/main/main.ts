@@ -52,8 +52,8 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1180,
     height: 780,
-    minWidth: 980,
-    minHeight: 640,
+    minWidth: 680,
+    minHeight: 560,
     title: "Komorebi",
     backgroundColor: "#fbfbf9",
     titleBarStyle: "hiddenInset",
