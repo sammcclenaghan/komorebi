@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sidebar, type View } from "./components/Sidebar";
 import { Today } from "./pages/Today";
+import { History } from "./pages/History";
 import { Goals } from "./pages/Goals";
 import { Integrations } from "./pages/Integrations";
 import { SuggestionDetail } from "./pages/SuggestionDetail";
@@ -33,6 +34,8 @@ export function App() {
             />
           ) : view === "today" ? (
             <Today onOpenSuggestion={setOpenSuggestionId} />
+          ) : view === "history" ? (
+            <History onOpenSuggestion={setOpenSuggestionId} />
           ) : view === "goals" ? (
             <Goals />
           ) : (

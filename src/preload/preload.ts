@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { IntegrationView } from "~/main/integrations/service";
 import type { ConnectionSummary } from "~/main/integrations/composio";
-import type { ChecklistDay, GenerationProgress } from "~/main/checklist/orchestrator";
+import type { ChecklistDay, GenerationProgress, HistoryDay } from "~/main/checklist/orchestrator";
 import type { Goal, Reflection, Suggestion, SuggestionRating, SuggestionStatus } from "~/shared/types";
 import type { WeatherSummary } from "~/main/weather/service";
 
@@ -55,6 +55,10 @@ const api = {
   weather: {
     current: (location: string): Promise<WeatherSummary | null> =>
       ipcRenderer.invoke("weather:current", location)
+  },
+  history: {
+    list: (daysBack?: number): Promise<HistoryDay[]> =>
+      ipcRenderer.invoke("history:list", daysBack)
   }
 };
 

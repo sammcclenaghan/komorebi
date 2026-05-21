@@ -15,6 +15,7 @@ import { addGoal, listGoals, updateGoal } from "./store/goals";
 import {
   deleteGoalCascade,
   generateTodayChecklist,
+  getHistory,
   getTodayChecklist,
   skipAndRegenerate
 } from "./checklist/orchestrator";
@@ -127,6 +128,8 @@ ipcMain.handle("goals:delete", (_event, id: string) => deleteGoalCascade(id));
 
 ipcMain.handle("checklist:today", () => getTodayChecklist());
 ipcMain.handle("checklist:generate", () => generateTodayChecklist());
+
+ipcMain.handle("history:list", (_event, daysBack?: number) => getHistory(daysBack));
 
 ipcMain.handle("suggestion:get", (_event, id: string) => getSuggestion(id));
 ipcMain.handle("suggestion:set-status", (_event, input: { id: string; status: SuggestionStatus }) =>

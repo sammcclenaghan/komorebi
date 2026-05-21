@@ -5,17 +5,19 @@ import { getUserId, listConnections } from "../integrations/composio";
 import { deleteGoal, getGoal, listActiveGoals } from "../store/goals";
 import {
   deleteReflectionsForSuggestions,
+  listAllReflections,
   listReflectionsForSuggestion
 } from "../store/reflections";
 import {
   deleteSuggestionsForGoal,
   getSuggestion,
   insertSuggestion,
+  listAllSuggestions,
   listRecentSuggestionsForGoal,
   listSuggestionsForDate,
   updateSuggestionStatus
 } from "../store/suggestions";
-import type { Suggestion } from "~/shared/types";
+import type { Reflection, Suggestion } from "~/shared/types";
 
 /** YYYY-MM-DD in the user's local timezone. */
 export function localDate(d: Date = new Date()): string {
@@ -136,6 +138,56 @@ export async function generateTodayChecklist(): Promise<ChecklistDay> {
   emitProgress({ phase: "done", items });
 
   return { date, items, hasGoals: true };
+}
+
+export type HistoryDay = {
+  date: string;
+  items: Suggestion[];
+  reflectionsByItem: Record<string, Reflection[]>;
+};
+
+/**
+ * Past days, newest first, with each day's suggestions and the
+ * reflections attached to each one. Excludes today (which has its
+ * own tab). Capped at `daysBack`.
+ */
+export async function getHistory(daysBack: number = 30): Promise<HistoryDay[]> {
+  const today = localDate();
+  const [allSuggestions, allReflections] = await Promise.all([
+    listAllSuggestions(),
+    listAllReflections()
+  ]);
+
+  const byDate = new Map<string, Suggestion[]>();
+  for (const s of allSuggestions) {
+    if (s.date >= today) continue;
+    const bucket = byDate.get(s.date) ?? [];
+    bucket.push(s);
+    byDate.set(s.date, bucket);
+  }
+
+  const reflectionsBySuggestion = new Map<string, Reflection[]>();
+  for (const r of allReflections) {
+    const bucket = reflectionsBySuggestion.get(r.suggestionId) ?? [];
+    bucket.push(r);
+    reflectionsBySuggestion.set(r.suggestionId, bucket);
+  }
+
+  const dates = [...byDate.keys()].sort().reverse().slice(0, daysBack);
+
+  return dates.map((date) => {
+    const items = (byDate.get(date) ?? []).sort((a, b) =>
+      a.createdAt.localeCompare(b.createdAt)
+    );
+    const reflectionsByItem: Record<string, Reflection[]> = {};
+    for (const item of items) {
+      const refs = (reflectionsBySuggestion.get(item.id) ?? []).slice().sort((a, b) =>
+        a.createdAt.localeCompare(b.createdAt)
+      );
+      if (refs.length > 0) reflectionsByItem[item.id] = refs;
+    }
+    return { date, items, reflectionsByItem };
+  });
 }
 
 /**

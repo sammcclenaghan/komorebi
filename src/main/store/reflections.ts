@@ -19,6 +19,10 @@ export async function listReflectionsForSuggestion(
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
+export async function listAllReflections(): Promise<Reflection[]> {
+  return store.load();
+}
+
 export async function addReflection(input: AddReflectionInput): Promise<Reflection> {
   const trimmed = input.text.trim();
   if (!trimmed) throw new Error("Reflection text is required");
