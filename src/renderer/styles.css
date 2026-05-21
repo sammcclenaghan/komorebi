@@ -45,22 +45,12 @@
     overflow: hidden;
   }
 
+  /* Hide scrollbars entirely — content still scrolls via wheel/trackpad. */
+  * {
+    scrollbar-width: none;
+  }
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: var(--color-rule-2);
-    border-radius: 999px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-ink-3);
-    background-clip: padding-box;
+    display: none;
   }
 
   ::selection {

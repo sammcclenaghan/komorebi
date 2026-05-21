@@ -16,7 +16,8 @@
     "smoke:composio": "tsx --env-file=.env.local scripts/smoke-composio.ts",
     "smoke:context": "tsx --env-file=.env.local scripts/smoke-context.ts",
     "icon": "node scripts/build-icon.mjs",
-    "package": "pnpm icon && pnpm build && electron-builder --mac --arm64 --dir"
+    "package": "pnpm icon && pnpm build && electron-builder --mac --arm64 --dir",
+    "install:app": "pnpm package && rm -rf /Applications/Komorebi.app && cp -R release/mac-arm64/Komorebi.app /Applications/ && echo '\\n✔ Komorebi installed to /Applications. Launch via Spotlight or Launchpad.'"
   },
   "dependencies": {
     "@composio/core": "^0.10.0",
