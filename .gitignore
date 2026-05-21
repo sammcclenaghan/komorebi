@@ -12,7 +12,7 @@ release/
 .env
 .env.local
 .env.*.local
-.goalpath/
+.komorebi/
 *.db
 *.db-journal
 *.db-wal

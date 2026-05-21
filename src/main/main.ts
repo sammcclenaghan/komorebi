@@ -37,7 +37,6 @@ const moduleDir =
 
 app.setName("Komorebi");
 
-migrateLegacyUserData();
 setupFileLogging();
 loadEnv();
 
@@ -200,33 +199,6 @@ function setupFileLogging(): void {
     });
   } catch (err) {
     console.error("[logging] setup failed:", err);
-  }
-}
-
-/**
- * The app was previously called "Goalpath". Electron's userData dir was
- * ~/Library/Application Support/Goalpath; after the rename it's
- * ~/Library/Application Support/Komorebi. The new dir is created by
- * Electron the first time the app runs (for Cookies, Cache, etc.) even
- * if our app data hasn't moved over — so checking "is the whole userData
- * dir missing?" is wrong. We just care about our own `data/` subdir.
- *
- * If legacy/data exists and new/data doesn't, move it. Runs once at
- * startup before any store reads.
- */
-function migrateLegacyUserData(): void {
-  try {
-    const newDir = app.getPath("userData");
-    const legacyDir = path.join(path.dirname(newDir), "Goalpath");
-    const newData = path.join(newDir, "data");
-    const legacyData = path.join(legacyDir, "data");
-    if (fs.existsSync(legacyData) && !fs.existsSync(newData)) {
-      fs.mkdirSync(newDir, { recursive: true });
-      fs.renameSync(legacyData, newData);
-      console.log(`[migrate] moved ${legacyData} → ${newData}`);
-    }
-  } catch (err) {
-    console.error("[migrate] userData rename failed (continuing):", err);
   }
 }
 
