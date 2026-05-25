@@ -111,7 +111,14 @@ function WeatherTooltip({ summary }: { summary: WeatherSummary }) {
   );
 }
 
-type InFlightGoal = { id: string; title: string; state: "pending" | "in-progress" | "error"; error?: string };
+type InFlightGoal = {
+  id: string;
+  title: string;
+  state: "pending" | "in-progress" | "error";
+  error?: string;
+  /** Latest status phrase from the agent (e.g. "Searching: …"). */
+  status?: string;
+};
 
 function useChecklistProgress() {
   const queryClient = useQueryClient();
@@ -135,6 +142,15 @@ function useChecklistProgress() {
             const next = new Map(prev);
             const cur = next.get(event.goalId);
             if (cur) next.set(event.goalId, { ...cur, state: "in-progress" });
+            return next;
+          });
+          break;
+        }
+        case "goal-status": {
+          setInFlight((prev) => {
+            const next = new Map(prev);
+            const cur = next.get(event.goalId);
+            if (cur) next.set(event.goalId, { ...cur, status: event.label });
             return next;
           });
           break;
@@ -473,7 +489,7 @@ function ChecklistView({
               animation: `fade-up 320ms ${Math.min(idx + items.length, 6) * 40}ms backwards ease-out`
             }}
           >
-            <GeneratingRow goalTitle={p.title} />
+            <GeneratingRow goalTitle={p.title} status={p.status} />
           </li>
         ))}
       </ul>

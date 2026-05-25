@@ -1,4 +1,4 @@
-import { runClaude } from "./cli";
+import { runClaude, type ClaudeStreamEvent } from "./cli";
 import { ClaudeCliError } from "./cli";
 import type { Goal, Reflection, Suggestion, SuggestionDraft } from "~/shared/types";
 import type { ContextBlock } from "../context/types";
@@ -42,6 +42,12 @@ export type GenerateInput = {
   date: string;
   contextBlocks?: ContextBlock[];
   model?: string;
+  /**
+   * Called with a short, human-readable phrase whenever the underlying agent
+   * changes what it's doing (starts a web search, fetches a page, begins
+   * drafting). Used to power per-row "what's happening" placeholders.
+   */
+  onStatus?: (label: string) => void;
 };
 
 export async function generateSuggestion(input: GenerateInput): Promise<SuggestionDraft> {
@@ -49,10 +55,76 @@ export async function generateSuggestion(input: GenerateInput): Promise<Suggesti
   const raw = await runClaude({
     prompt,
     model: input.model ?? DEFAULT_MODEL,
-    allowedTools: ["WebSearch"]
+    allowedTools: ["WebSearch"],
+    onEvent: input.onStatus ? makeStatusTranslator(input.onStatus) : undefined
   });
 
   return parseDraft(raw);
+}
+
+function makeStatusTranslator(
+  onStatus: (label: string) => void
+): (event: ClaudeStreamEvent) => void {
+  let sawFirstTextAfterTool = false;
+  let toolTurns = 0;
+
+  return (event) => {
+    if (event.type === "system") {
+      // CLI is initialized and the agent is starting.
+      onStatus("Reading your goal…");
+      return;
+    }
+
+    if (event.type === "assistant") {
+      const content = (event as { message?: { content?: Array<Record<string, unknown>> } })
+        .message?.content;
+      if (!Array.isArray(content)) return;
+
+      for (const block of content) {
+        const blockType = block.type;
+        if (blockType === "tool_use") {
+          toolTurns++;
+          const name = typeof block.name === "string" ? block.name : "";
+          const inputObj = (block.input ?? {}) as Record<string, unknown>;
+
+          if (name === "WebSearch") {
+            const q = typeof inputObj.query === "string" ? inputObj.query.trim() : "";
+            onStatus(q ? `Searching: ${truncate(q, 48)}` : "Searching the web…");
+          } else if (name === "WebFetch") {
+            const url = typeof inputObj.url === "string" ? inputObj.url : "";
+            const host = hostnameOf(url);
+            onStatus(host ? `Reading ${host}…` : "Fetching a source…");
+          } else if (name) {
+            onStatus(`Running ${name}…`);
+          }
+        } else if (blockType === "text") {
+          // The first substantive text block after at least one tool call
+          // means the agent has stopped researching and started writing.
+          const text = typeof block.text === "string" ? block.text.trim() : "";
+          if (!text) continue;
+          if (toolTurns > 0 && !sawFirstTextAfterTool) {
+            sawFirstTextAfterTool = true;
+            onStatus("Drafting today's action…");
+          }
+        }
+      }
+      return;
+    }
+    // user / result events: nothing to surface — result text is the final JSON.
+  };
+}
+
+function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return s.slice(0, max - 1).trimEnd() + "…";
+}
+
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
 }
 
 function buildPrompt(input: GenerateInput): string {

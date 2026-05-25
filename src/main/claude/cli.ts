@@ -1,7 +1,22 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+
+export type ClaudeStreamEvent =
+  | { type: "system"; subtype?: string; [key: string]: unknown }
+  | {
+      type: "assistant";
+      message: { content: Array<Record<string, unknown>> };
+      [key: string]: unknown;
+    }
+  | {
+      type: "user";
+      message: { content: Array<Record<string, unknown>> };
+      [key: string]: unknown;
+    }
+  | { type: "result"; subtype?: string; is_error?: boolean; result: string }
+  | { type: string; [key: string]: unknown };
 
 export type ClaudeOptions = {
   prompt: string;
@@ -11,6 +26,12 @@ export type ClaudeOptions = {
   maxBuffer?: number;
   /** Override path to the claude binary (defaults to whatever's on PATH). */
   binary?: string;
+  /**
+   * When provided, the CLI is invoked in stream-json mode and each parsed
+   * event is forwarded here as it arrives. The final assistant text is still
+   * returned from `runClaude` (extracted from the "result" event).
+   */
+  onEvent?: (event: ClaudeStreamEvent) => void;
 };
 
 type ClaudeJsonResult = {
@@ -34,14 +55,17 @@ export class ClaudeCliError extends Error {
  * Uses --output-format json so we get a structured wrapper around the result.
  */
 export async function runClaude(opts: ClaudeOptions): Promise<string> {
+  const streaming = typeof opts.onEvent === "function";
+
   const args: string[] = [
     "-p",
     opts.prompt,
     "--output-format",
-    "json",
+    streaming ? "stream-json" : "json",
     "--permission-mode",
     "bypassPermissions"
   ];
+  if (streaming) args.push("--verbose");
 
   if (opts.model) args.push("--model", opts.model);
   if (opts.allowedTools?.length) {
@@ -68,12 +92,15 @@ export async function runClaude(opts: ClaudeOptions): Promise<string> {
     .filter(Boolean)
     .join(":");
 
+  const env = { ...process.env, PATH: augmentedPath };
+
+  if (streaming) {
+    return runClaudeStreaming(binary, args, env, opts.onEvent!);
+  }
+
   let stdout: string;
   try {
-    const result = await execFileAsync(binary, args, {
-      maxBuffer,
-      env: { ...process.env, PATH: augmentedPath }
-    });
+    const result = await execFileAsync(binary, args, { maxBuffer, env });
     stdout = result.stdout;
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
@@ -95,4 +122,76 @@ export async function runClaude(opts: ClaudeOptions): Promise<string> {
   }
 
   return parsed.result;
+}
+
+function runClaudeStreaming(
+  binary: string,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  onEvent: (event: ClaudeStreamEvent) => void
+): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const proc = spawn(binary, args, { env });
+
+    let buffer = "";
+    let stderrBuf = "";
+    let finalResult: string | undefined;
+    let finalIsError = false;
+
+    proc.stdout.setEncoding("utf8");
+    proc.stdout.on("data", (chunk: string) => {
+      buffer += chunk;
+      let idx: number;
+      while ((idx = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, idx).trim();
+        buffer = buffer.slice(idx + 1);
+        if (!line) continue;
+        let event: ClaudeStreamEvent;
+        try {
+          event = JSON.parse(line) as ClaudeStreamEvent;
+        } catch {
+          continue;
+        }
+        if (event.type === "result") {
+          const r = event as { result: string; is_error?: boolean };
+          finalResult = r.result;
+          finalIsError = !!r.is_error;
+        }
+        try {
+          onEvent(event);
+        } catch (err) {
+          console.error("[claude/cli] onEvent threw:", err);
+        }
+      }
+    });
+
+    proc.stderr.setEncoding("utf8");
+    proc.stderr.on("data", (chunk: string) => {
+      stderrBuf += chunk;
+    });
+
+    proc.on("error", (err) => {
+      reject(new ClaudeCliError(`claude CLI spawn failed (binary=${binary}): ${err.message}`));
+    });
+
+    proc.on("close", (code) => {
+      if (code !== 0 && finalResult === undefined) {
+        reject(
+          new ClaudeCliError(
+            `claude CLI exited with code ${code}${stderrBuf ? `\n${stderrBuf}` : ""}`
+          )
+        );
+        return;
+      }
+      if (finalIsError) {
+        reject(new ClaudeCliError(`claude CLI reported an error: ${finalResult ?? ""}`));
+        return;
+      }
+      if (finalResult === undefined) {
+        reject(new ClaudeCliError(`claude CLI completed without a result event`));
+        return;
+      }
+      resolve(finalResult);
+    });
+  });
 }

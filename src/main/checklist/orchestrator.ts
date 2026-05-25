@@ -37,6 +37,7 @@ export type GenerationProgress =
   | { phase: "start"; goals: Array<{ id: string; title: string }> }
   | { phase: "context-fetched"; labels: string[] }
   | { phase: "goal-start"; goalId: string }
+  | { phase: "goal-status"; goalId: string; label: string }
   | { phase: "goal-done"; goalId: string; suggestion: Suggestion }
   | { phase: "goal-error"; goalId: string; message: string }
   | { phase: "done"; items: Suggestion[] };
@@ -118,7 +119,9 @@ export async function generateTodayChecklist(): Promise<ChecklistDay> {
           goal,
           history,
           date,
-          contextBlocks
+          contextBlocks,
+          onStatus: (label) =>
+            emitProgress({ phase: "goal-status", goalId: goal.id, label })
         });
         const inserted = await insertSuggestion({ goalId: goal.id, date, draft });
         emitProgress({ phase: "goal-done", goalId: goal.id, suggestion: inserted });
@@ -239,7 +242,14 @@ export async function skipAndRegenerate(suggestionId: string): Promise<Suggestio
     );
 
     const date = localDate();
-    const draft = await generateSuggestion({ goal, history, date, contextBlocks });
+    const draft = await generateSuggestion({
+      goal,
+      history,
+      date,
+      contextBlocks,
+      onStatus: (label) =>
+        emitProgress({ phase: "goal-status", goalId: goal.id, label })
+    });
     const inserted = await insertSuggestion({ goalId: goal.id, date, draft });
     emitProgress({ phase: "goal-done", goalId: goal.id, suggestion: inserted });
     emitProgress({ phase: "done", items: [inserted] });
