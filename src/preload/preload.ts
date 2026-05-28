@@ -4,6 +4,7 @@ import type { ConnectionSummary } from "~/main/integrations/composio";
 import type { ChecklistDay, GenerationProgress, HistoryDay } from "~/main/checklist/orchestrator";
 import type { Goal, Reflection, Suggestion, SuggestionRating, SuggestionStatus } from "~/shared/types";
 import type { WeatherSummary } from "~/main/weather/service";
+import type { LinkPreview } from "~/main/links/preview";
 
 const api = {
   getVersion: (): Promise<string> => ipcRenderer.invoke("app:version"),
@@ -55,6 +56,9 @@ const api = {
   weather: {
     current: (location: string): Promise<WeatherSummary | null> =>
       ipcRenderer.invoke("weather:current", location)
+  },
+  links: {
+    preview: (url: string): Promise<LinkPreview> => ipcRenderer.invoke("link:preview", url)
   },
   history: {
     list: (daysBack?: number): Promise<HistoryDay[]> =>

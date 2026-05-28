@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronRight, Clock, Loader2, RotateCw, ThumbsDown, ThumbsUp } from "lucide-react";
 import { cn } from "~/lib/cn";
@@ -14,6 +15,8 @@ type ChecklistCache = ChecklistDay;
 
 export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
   const queryClient = useQueryClient();
+  // Bumped each time the item is freshly completed, to retrigger the burst.
+  const [burstKey, setBurstKey] = useState(0);
 
   function patchCache(patch: (s: Suggestion) => Suggestion): { prev: ChecklistCache | undefined } {
     const prev = queryClient.getQueryData<ChecklistCache>(["checklist", "today"]);
@@ -89,26 +92,30 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
         isSkipped && "opacity-50"
       )}
     >
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          if (isSkipped) return;
-          setStatus.mutate(isDone ? "pending" : "done");
-        }}
-        disabled={isSkipped}
-        className={cn(
-          "mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-[1.5px] transition-all",
-          isDone
-            ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-canvas)]"
-            : isSkipped
-              ? "border-[var(--color-rule-2)] bg-[var(--color-panel)] text-[var(--color-ink-3)]"
-              : "border-[var(--color-rule-2)] bg-[var(--color-canvas)] hover:border-[var(--color-accent)]/60"
-        )}
-        aria-label={isDone ? "Mark as not done" : isSkipped ? "Skipped" : "Mark as done"}
-      >
-        {isDone && <Check className="h-3 w-3" strokeWidth={3} />}
-        {isSkipped && <span className="block h-[2px] w-[8px] bg-current rounded-full" aria-hidden />}
-      </button>
+      <div className="relative mt-0.5 shrink-0">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isSkipped) return;
+            if (!isDone) setBurstKey((k) => k + 1);
+            setStatus.mutate(isDone ? "pending" : "done");
+          }}
+          disabled={isSkipped}
+          className={cn(
+            "flex h-[18px] w-[18px] items-center justify-center rounded-full border-[1.5px] transition-all",
+            isDone
+              ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-canvas)]"
+              : isSkipped
+                ? "border-[var(--color-rule-2)] bg-[var(--color-panel)] text-[var(--color-ink-3)]"
+                : "border-[var(--color-rule-2)] bg-[var(--color-canvas)] hover:border-[var(--color-accent)]/60"
+          )}
+          aria-label={isDone ? "Mark as not done" : isSkipped ? "Skipped" : "Mark as done"}
+        >
+          {isDone && <Check className="h-3 w-3" strokeWidth={3} />}
+          {isSkipped && <span className="block h-[2px] w-[8px] bg-current rounded-full" aria-hidden />}
+        </button>
+        {burstKey > 0 && isDone && <CompletionBurst key={burstKey} />}
+      </div>
 
       <button onClick={onOpen} className="flex-1 min-w-0 text-left">
         <h3
@@ -189,6 +196,54 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
         strokeWidth={1.5}
       />
     </article>
+  );
+}
+
+/**
+ * A short burst of light flecks flung outward from the checkbox the
+ * moment an item is completed. Pure CSS — mounts on a fresh `key`, plays
+ * once, then sits invisible until the next completion remounts it.
+ */
+function CompletionBurst() {
+  // Evenly-ish spread directions with a little variety in distance/size.
+  const particles = [
+    { angle: -90, dist: 22, size: 5 },
+    { angle: -40, dist: 26, size: 4 },
+    { angle: 12, dist: 24, size: 5 },
+    { angle: 58, dist: 27, size: 3.5 },
+    { angle: 120, dist: 23, size: 4.5 },
+    { angle: 168, dist: 25, size: 4 },
+    { angle: 218, dist: 21, size: 3.5 },
+    { angle: -150, dist: 24, size: 4.5 }
+  ];
+  return (
+    <span className="pointer-events-none absolute left-1/2 top-1/2 z-10" aria-hidden>
+      {particles.map((p, i) => {
+        const rad = (p.angle * Math.PI) / 180;
+        const tx = `${Math.cos(rad) * p.dist}px`;
+        const ty = `${Math.sin(rad) * p.dist}px`;
+        const warm = i % 2 === 0;
+        return (
+          <span
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              width: p.size,
+              height: p.size,
+              marginLeft: -p.size / 2,
+              marginTop: -p.size / 2,
+              background: warm
+                ? "oklch(78% 0.13 130)"
+                : "var(--color-accent)",
+              ["--tx" as string]: tx,
+              ["--ty" as string]: ty,
+              ["--r" as string]: `${p.angle}deg`,
+              animation: `leaf-burst 620ms cubic-bezier(0.22, 0.61, 0.36, 1) ${i * 8}ms both`
+            }}
+          />
+        );
+      })}
+    </span>
   );
 }
 

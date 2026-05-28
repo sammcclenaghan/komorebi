@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowUpRight, Check, Clock, Loader2, RotateCcw, RotateCw, SkipForward, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ArrowLeft, Check, Clock, Loader2, RotateCcw, RotateCw, SkipForward, ThumbsDown, ThumbsUp } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { MarkdownView } from "../components/MarkdownView";
+import { MediaEmbed } from "../components/MediaEmbed";
 import type { Suggestion, SuggestionRating } from "~/shared/types";
 
 type Props = {
@@ -109,22 +110,7 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
           {suggestion.summary}
         </p>
 
-        {suggestion.resourceUrl && (
-          <a
-            href={suggestion.resourceUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            className={cn(
-              "mt-5 inline-flex items-center gap-2 rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3.5 py-2",
-              "text-[12.5px] text-[var(--color-ink)] transition-colors hover:border-[var(--color-accent)]/40 hover:bg-[var(--color-accent-tint)]"
-            )}
-          >
-            <span className="truncate max-w-[28ch] text-[var(--color-ink-2)] font-mono text-[11.5px]">
-              {prettifyUrl(suggestion.resourceUrl)}
-            </span>
-            <ArrowUpRight className="h-3 w-3 shrink-0" strokeWidth={2} />
-          </a>
-        )}
+        {suggestion.resourceUrl && <MediaEmbed url={suggestion.resourceUrl} />}
       </header>
 
       <hr className="my-8 border-0 border-t border-[var(--color-rule)]" />
@@ -354,16 +340,6 @@ function RatingButton({
       {children}
     </button>
   );
-}
-
-function prettifyUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    const path = u.pathname.length > 1 ? u.pathname : "";
-    return `${u.hostname.replace(/^www\./, "")}${path}`;
-  } catch {
-    return url;
-  }
 }
 
 function formatRelative(iso: string): string {

@@ -28,6 +28,7 @@ import {
   addReflection,
   listReflectionsForSuggestion
 } from "./store/reflections";
+import { fetchLinkPreview } from "./links/preview";
 import type { SuggestionRating, SuggestionStatus } from "~/shared/types";
 
 const moduleDir =
@@ -72,6 +73,46 @@ function createWindow(): void {
   }
 
   routeExternalLinks(mainWindow);
+  fixEmbedReferer(mainWindow);
+}
+
+/**
+ * Packaged builds load the renderer from file://, so iframes to YouTube
+ * et al. go out with a null/empty Referer — which their player rejects
+ * with "Error 153 / config error". Stamp a legitimate Referer + Origin
+ * on requests to the video hosts so embeds play. Scoped by URL filter so
+ * it never touches anything else.
+ */
+function fixEmbedReferer(win: BrowserWindow): void {
+  const filter = {
+    urls: [
+      "*://*.youtube.com/*",
+      "*://*.youtube-nocookie.com/*",
+      "*://*.ytimg.com/*",
+      "*://*.googlevideo.com/*",
+      "*://*.vimeo.com/*",
+      "*://*.loom.com/*"
+    ]
+  };
+  win.webContents.session.webRequest.onBeforeSendHeaders(filter, (details, callback) => {
+    const host = (() => {
+      try {
+        return new URL(details.url).hostname;
+      } catch {
+        return "";
+      }
+    })();
+    const origin = host.includes("vimeo")
+      ? "https://vimeo.com"
+      : host.includes("loom")
+        ? "https://www.loom.com"
+        : "https://www.youtube.com";
+    // Referer + Origin must agree — under file:// the Origin goes out as
+    // "null", which mismatches the Referer and trips YouTube error 152.
+    details.requestHeaders["Referer"] = `${origin}/`;
+    details.requestHeaders["Origin"] = origin;
+    callback({ requestHeaders: details.requestHeaders });
+  });
 }
 
 /**
@@ -149,6 +190,8 @@ ipcMain.handle("reflection:add", (_event, input: { suggestionId: string; text: s
 );
 
 ipcMain.handle("weather:current", (_event, location: string) => getCurrentWeather(location));
+
+ipcMain.handle("link:preview", (_event, url: string) => fetchLinkPreview(url));
 
 /**
  * When running from a packaged .app there's no terminal to print to.
