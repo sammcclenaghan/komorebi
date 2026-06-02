@@ -1,0 +1,13 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Plain LINEAR sunrise gradient — this is the native Icon Composer
+       background. Recreate in IC: Background -> Gradient -> Linear,
+       angle 90 (top -> bottom):
+         Top    : #ffe3a0
+         Bottom : #f5821f
+       The "glow behind the sun" lives in the sphere layer's halo, not here. -->
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%"   stop-color="#ffe3a0"/>
+    <stop offset="100%" stop-color="#f5821f"/>
+  </linearGradient>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+</svg>

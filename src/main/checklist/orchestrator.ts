@@ -61,6 +61,14 @@ export async function getTodayChecklist(): Promise<ChecklistDay> {
 }
 
 /**
+ * Coalesce concurrent generations for the same day into one. Both the daily
+ * scheduler (main) and the Today page's auto-fire (renderer→IPC) can kick off
+ * a generation on first launch; without this they'd each read an empty list
+ * and insert duplicate suggestions for every goal.
+ */
+let inFlightToday: { date: string; promise: Promise<ChecklistDay> } | null = null;
+
+/**
  * Generate one suggestion for each active goal for today.
  * Skips goals that already have a suggestion today (idempotent).
  * Emits progress events the renderer can subscribe to so the UI can
@@ -68,6 +76,19 @@ export async function getTodayChecklist(): Promise<ChecklistDay> {
  */
 export async function generateTodayChecklist(): Promise<ChecklistDay> {
   const date = localDate();
+  if (inFlightToday && inFlightToday.date === date) {
+    return inFlightToday.promise;
+  }
+  const promise = runGenerateTodayChecklist(date);
+  inFlightToday = { date, promise };
+  try {
+    return await promise;
+  } finally {
+    if (inFlightToday?.promise === promise) inFlightToday = null;
+  }
+}
+
+async function runGenerateTodayChecklist(date: string): Promise<ChecklistDay> {
   const [activeGoals, existing] = await Promise.all([
     listActiveGoals(),
     listSuggestionsForDate(date)

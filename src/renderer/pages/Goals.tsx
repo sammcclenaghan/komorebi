@@ -226,7 +226,7 @@ function ConfirmDelete({
     >
       <div
         aria-hidden
-        className="absolute inset-0 bg-[var(--color-ink)]/15 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-[var(--color-overlay)] backdrop-blur-[2px]"
       />
       <div
         role="alertdialog"

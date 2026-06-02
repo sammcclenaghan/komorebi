@@ -16,7 +16,8 @@
     "smoke:composio": "tsx --env-file=.env.local scripts/smoke-composio.ts",
     "smoke:context": "tsx --env-file=.env.local scripts/smoke-context.ts",
     "icon": "node scripts/build-icon.mjs",
-    "package": "pnpm icon && pnpm build && electron-builder --mac --arm64 --dir",
+    "icon:icns": "node scripts/build-icns.mjs",
+    "package": "pnpm icon && pnpm icon:icns && pnpm build && electron-builder --mac --arm64 --dir",
     "install:app": "pnpm package && rm -rf /Applications/Komorebi.app && cp -R release/mac-arm64/Komorebi.app /Applications/ && echo '\\n✔ Komorebi installed to /Applications. Launch via Spotlight or Launchpad.'"
   },
   "dependencies": {
@@ -62,13 +63,15 @@
       "!**/.env*"
     ],
     "extraResources": [
-      ".env.local"
+      ".env.local",
+      { "from": "build/trayTemplate.png", "to": "trayTemplate.png" },
+      { "from": "build/trayTemplate@2x.png", "to": "trayTemplate@2x.png" }
     ],
     "directories": {
       "output": "release"
     },
     "mac": {
-      "icon": "build/icon.png",
+      "icon": "build/icon.icns",
       "target": [
         {
           "target": "dir",
@@ -77,7 +80,7 @@
       ],
       "identity": null,
       "category": "public.app-category.productivity",
-      "darkModeSupport": false,
+      "darkModeSupport": true,
       "hardenedRuntime": false,
       "gatekeeperAssess": false
     },

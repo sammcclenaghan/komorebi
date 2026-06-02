@@ -24,6 +24,35 @@
   --color-accent-strong: oklch(45% 0.13 245);
   --color-accent-soft: oklch(95.5% 0.018 245);
   --color-accent-tint: oklch(96.5% 0.015 245);
+
+  /* Scrim used by modal backdrops — stays dark regardless of theme so
+     "ink with alpha" doesn't invert into a bright overlay. */
+  --color-overlay: oklch(20% 0.01 60 / 0.18);
+}
+
+/* Dark palette — warm-tinted neutrals so the app keeps its paper feel.
+   Applied when the user picks "dark", or when "system" resolves to dark. */
+:root[data-theme="dark"] {
+  --color-canvas: oklch(18% 0.006 80);
+  --color-panel: oklch(22% 0.006 80);
+  --color-panel-2: oklch(26% 0.006 80);
+  --color-panel-hover: oklch(24% 0.006 80);
+
+  --color-ink: oklch(94% 0.005 85);
+  --color-ink-2: oklch(74% 0.005 85);
+  --color-ink-3: oklch(56% 0.006 80);
+
+  --color-rule: oklch(30% 0.006 80);
+  --color-rule-2: oklch(38% 0.006 80);
+
+  --color-accent: oklch(72% 0.12 245);
+  --color-accent-strong: oklch(80% 0.12 245);
+  --color-accent-soft: oklch(28% 0.05 245);
+  --color-accent-tint: oklch(25% 0.04 245);
+
+  --color-overlay: oklch(0% 0 0 / 0.55);
+
+  color-scheme: dark;
 }
 
 @layer base {

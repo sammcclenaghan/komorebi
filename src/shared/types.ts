@@ -44,3 +44,20 @@ export type SuggestionDraft = {
   resourceUrl: string | null;
   estimatedMinutes: number | null;
 };
+
+export type ScheduleSettings = {
+  /** When on, the app composes the day's checklist at `time` and notifies. */
+  enabled: boolean;
+  /** Local time of day, "HH:MM" (24h). */
+  time: string;
+  /** YYYY-MM-DD of the last scheduled run, so we only fire once per day. */
+  lastRunDate: string | null;
+};
+
+/** Color theme preference. "system" tracks the OS appearance live. */
+export type Theme = "light" | "dark" | "system";
+
+export type AppSettings = {
+  schedule: ScheduleSettings;
+  theme: Theme;
+};

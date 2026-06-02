@@ -1,0 +1,55 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Rising-sun foreground on a TRANSPARENT background. The sun sits low and
+       crests up from the bottom; a baked-in "uprise" glow lights the sky above
+       it so the Icon Composer background can stay a plain native LINEAR
+       gradient and still read as a sunrise. Keep IC's specular/Liquid Glass
+       OFF on this layer. -->
+  <defs>
+    <!-- Broad glow rising off the sun into the sky above. -->
+    <radialGradient id="uprise" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#fff3c2" stop-opacity="0.7"/>
+      <stop offset="60%" stop-color="#fff1ba" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#fff1ba" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Tight halo hugging the sun's edge. -->
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="55%" stop-color="#fff4d0" stop-opacity="0.95"/>
+      <stop offset="72%" stop-color="#fff0c0" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#fff0c0" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Body: clear light->dark falloff from upper-left. -->
+    <radialGradient id="body" cx="38%" cy="31%" r="78%">
+      <stop offset="0%"  stop-color="#ffffff"/>
+      <stop offset="30%" stop-color="#fcf8ef"/>
+      <stop offset="62%" stop-color="#f1e3c6"/>
+      <stop offset="86%" stop-color="#e4cb9c"/>
+      <stop offset="100%" stop-color="#d8b97f"/>
+    </radialGradient>
+
+    <!-- Warm reflected light into the lower edge. -->
+    <radialGradient id="bounce" cx="58%" cy="84%" r="42%">
+      <stop offset="0%"  stop-color="#fff6e0" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#fff6e0" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Small crisp specular glint, upper-left. -->
+    <radialGradient id="spec" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="70%" stop-color="#ffffff" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- broad uprise glow, centered above the sun -->
+  <circle cx="512" cy="600" r="520" fill="url(#uprise)"/>
+
+  <!-- sun: radius 300, sat low at cy=760 so it crests the bottom edge -->
+  <circle cx="512" cy="760" r="468" fill="url(#halo)"/>
+  <circle cx="512" cy="760" r="300" fill="url(#body)"/>
+  <circle cx="512" cy="760" r="300" fill="url(#bounce)"/>
+
+  <!-- glint, upper-left of the sun -->
+  <ellipse cx="416" cy="637" rx="78" ry="58" fill="url(#spec)"/>
+</svg>

@@ -1,8 +1,9 @@
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, ipcMain } from "electron";
 import * as dotenv from "dotenv";
+import { createMainWindow, showMainWindow } from "./window";
 import {
   awaitConnect,
   beginConnect,
@@ -29,6 +30,9 @@ import {
   listReflectionsForSuggestion
 } from "./store/reflections";
 import { fetchLinkPreview } from "./links/preview";
+import { getSettings, updateSettings, type SettingsUpdate } from "./store/settings";
+import { rescheduleScheduler, startScheduler } from "./scheduler/scheduler";
+import { initTray } from "./tray/tray";
 import type { SuggestionRating, SuggestionStatus } from "~/shared/types";
 
 const moduleDir =
@@ -41,109 +45,16 @@ app.setName("Komorebi");
 setupFileLogging();
 loadEnv();
 
-const devServerUrl = process.env.VITE_DEV_SERVER_URL;
-
-let mainWindow: BrowserWindow | null = null;
-
 if (process.platform === "linux") {
   app.commandLine.appendSwitch("--no-sandbox");
 }
 
-function createWindow(): void {
-  mainWindow = new BrowserWindow({
-    width: 1180,
-    height: 780,
-    minWidth: 680,
-    minHeight: 560,
-    title: "Komorebi",
-    backgroundColor: "#fbfbf9",
-    titleBarStyle: "hiddenInset",
-    webPreferences: {
-      preload: path.join(moduleDir, "preload.cjs"),
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  });
-
-  if (devServerUrl) {
-    void mainWindow.loadURL(devServerUrl);
-    mainWindow.webContents.openDevTools({ mode: "detach" });
-  } else {
-    void mainWindow.loadFile(path.join(moduleDir, "..", "dist", "renderer", "index.html"));
-  }
-
-  routeExternalLinks(mainWindow);
-  fixEmbedReferer(mainWindow);
-}
-
-/**
- * Packaged builds load the renderer from file://, so iframes to YouTube
- * et al. go out with a null/empty Referer — which their player rejects
- * with "Error 153 / config error". Stamp a legitimate Referer + Origin
- * on requests to the video hosts so embeds play. Scoped by URL filter so
- * it never touches anything else.
- */
-function fixEmbedReferer(win: BrowserWindow): void {
-  const filter = {
-    urls: [
-      "*://*.youtube.com/*",
-      "*://*.youtube-nocookie.com/*",
-      "*://*.ytimg.com/*",
-      "*://*.googlevideo.com/*",
-      "*://*.vimeo.com/*",
-      "*://*.loom.com/*"
-    ]
-  };
-  win.webContents.session.webRequest.onBeforeSendHeaders(filter, (details, callback) => {
-    const host = (() => {
-      try {
-        return new URL(details.url).hostname;
-      } catch {
-        return "";
-      }
-    })();
-    const origin = host.includes("vimeo")
-      ? "https://vimeo.com"
-      : host.includes("loom")
-        ? "https://www.loom.com"
-        : "https://www.youtube.com";
-    // Referer + Origin must agree — under file:// the Origin goes out as
-    // "null", which mismatches the Referer and trips YouTube error 152.
-    details.requestHeaders["Referer"] = `${origin}/`;
-    details.requestHeaders["Origin"] = origin;
-    callback({ requestHeaders: details.requestHeaders });
-  });
-}
-
-/**
- * Send every http/https/mailto link the renderer tries to navigate to
- * out to the system default browser instead of opening it inside the
- * Electron window. Covers both `<a target="_blank">` (window.open path)
- * and plain `<a href>` (will-navigate path).
- */
-function routeExternalLinks(win: BrowserWindow): void {
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^(https?|mailto):/.test(url)) {
-      void shell.openExternal(url);
-    }
-    return { action: "deny" };
-  });
-
-  win.webContents.on("will-navigate", (event, url) => {
-    const allowed =
-      url.startsWith("file://") || (devServerUrl ? url.startsWith(devServerUrl) : false);
-    if (allowed) return;
-    if (/^(https?|mailto):/.test(url)) {
-      event.preventDefault();
-      void shell.openExternal(url);
-    }
-  });
-}
-
 app.whenReady().then(() => {
-  createWindow();
+  createMainWindow();
+  initTray();
+  startScheduler();
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    showMainWindow();
   });
 });
 
@@ -192,6 +103,17 @@ ipcMain.handle("reflection:add", (_event, input: { suggestionId: string; text: s
 ipcMain.handle("weather:current", (_event, location: string) => getCurrentWeather(location));
 
 ipcMain.handle("link:preview", (_event, url: string) => fetchLinkPreview(url));
+
+ipcMain.handle("settings:get", () => getSettings());
+ipcMain.handle("settings:update", async (_event, update: SettingsUpdate) => {
+  const next = await updateSettings(update);
+  // Only reschedule when the schedule actually changed; theme-only updates
+  // shouldn't bounce timers.
+  if ("enabled" in update || "time" in update) {
+    await rescheduleScheduler();
+  }
+  return next;
+});
 
 /**
  * When running from a packaged .app there's no terminal to print to.

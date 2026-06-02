@@ -1,9 +1,10 @@
 import type { ConnectionSummary } from "../integrations/composio";
 import type { ContextBlock, ContextProvider } from "./types";
 import { googleCalendarProvider } from "./providers/googleCalendar";
+import { stravaProvider } from "./providers/strava";
 import { fetchWeatherContext } from "./providers/weather";
 
-const providers: ContextProvider[] = [googleCalendarProvider];
+const providers: ContextProvider[] = [googleCalendarProvider, stravaProvider];
 const bySlug = new Map(providers.map((p) => [p.toolkitSlug, p]));
 
 export function getProvider(slug: string): ContextProvider | undefined {

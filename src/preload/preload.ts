@@ -2,7 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { IntegrationView } from "~/main/integrations/service";
 import type { ConnectionSummary } from "~/main/integrations/composio";
 import type { ChecklistDay, GenerationProgress, HistoryDay } from "~/main/checklist/orchestrator";
-import type { Goal, Reflection, Suggestion, SuggestionRating, SuggestionStatus } from "~/shared/types";
+import type { AppSettings, Goal, Reflection, Suggestion, SuggestionRating, SuggestionStatus } from "~/shared/types";
+import type { SettingsUpdate } from "~/main/store/settings";
 import type { WeatherSummary } from "~/main/weather/service";
 import type { LinkPreview } from "~/main/links/preview";
 
@@ -63,6 +64,19 @@ const api = {
   history: {
     list: (daysBack?: number): Promise<HistoryDay[]> =>
       ipcRenderer.invoke("history:list", daysBack)
+  },
+  settings: {
+    get: (): Promise<AppSettings> => ipcRenderer.invoke("settings:get"),
+    update: (update: SettingsUpdate): Promise<AppSettings> =>
+      ipcRenderer.invoke("settings:update", update)
+  },
+  /** Main asks the renderer to switch views (e.g. on notification click). */
+  onNavigate: (handler: (view: string) => void): (() => void) => {
+    const listener = (_: unknown, view: string) => handler(view);
+    ipcRenderer.on("app:navigate", listener);
+    return () => {
+      ipcRenderer.off("app:navigate", listener);
+    };
   }
 };
 

@@ -12,6 +12,15 @@
     />
   </head>
   <body>
+    <script>
+      // Pre-paint: pick light/dark from the OS so there's no flash before
+      // the React app loads the user's saved preference and possibly
+      // overrides this.
+      try {
+        var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = prefersDark ? "dark" : "light";
+      } catch (_) {}
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/renderer/main.tsx"></script>
   </body>
