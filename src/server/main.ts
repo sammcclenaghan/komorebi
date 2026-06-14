@@ -5,7 +5,7 @@ import { startServer } from "./http";
 
 loadEnv();
 
-const port = Number(process.env.KOMOREBI_PORT ?? 3847);
+const port = Number(process.env.PORT ?? process.env.KOMOREBI_PORT ?? 3847);
 const host = process.env.KOMOREBI_HOST ?? "0.0.0.0";
 const apiToken = process.env.KOMOREBI_API_TOKEN?.trim() || undefined;
 
