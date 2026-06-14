@@ -101,6 +101,14 @@
   .no-drag {
     -webkit-app-region: no-drag;
   }
+
+  .page-shell {
+    @apply mx-auto max-w-2xl px-5 pt-10 pb-24 md:px-10 md:pt-16 md:pb-20;
+  }
+
+  .page-shell-wide {
+    @apply mx-auto max-w-6xl px-5 pt-10 pb-24 md:px-10 md:pt-16 md:pb-20;
+  }
 }
 
 @keyframes pulse-soft {

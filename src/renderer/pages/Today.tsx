@@ -297,7 +297,7 @@ export function Today({ onOpenSuggestion }: Props) {
 
   return (
     <>
-      <div className="mx-auto max-w-2xl px-10 pt-16 pb-20">
+      <div className="page-shell">
         <header className="flex items-center justify-between">
           <div className="group relative flex items-center gap-3 text-[var(--color-ink-3)]">
             <div className="relative">

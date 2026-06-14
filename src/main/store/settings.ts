@@ -1,3 +1,4 @@
+import { getDb } from "./db";
 import { makeStore } from "./file-store";
 import type { AppSettings, ScheduleSettings, Theme } from "~/shared/types";
 
@@ -18,8 +19,18 @@ function structuredCloneDefaults(): AppSettings {
   return { schedule: { ...DEFAULTS.schedule }, theme: DEFAULTS.theme };
 }
 
-/** Load settings, merging in defaults so older/partial files stay valid. */
 export async function getSettings(): Promise<AppSettings> {
+  const db = await getDb();
+  if (db) {
+    const rs = await db.execute("SELECT data FROM settings WHERE id = 1");
+    if (rs.rows.length === 0) return structuredCloneDefaults();
+    const raw = JSON.parse((rs.rows[0] as Record<string, unknown>).data as string) as Partial<AppSettings>;
+    return {
+      schedule: { ...DEFAULTS.schedule, ...(raw?.schedule ?? {}) },
+      theme: normalizeTheme(raw?.theme)
+    };
+  }
+
   const raw = await store.load();
   return {
     schedule: { ...DEFAULTS.schedule, ...(raw?.schedule ?? {}) },
@@ -31,8 +42,26 @@ export type SettingsUpdate = Partial<Pick<ScheduleSettings, "enabled" | "time">>
   theme?: Theme;
 };
 
-/** Update user-facing settings (not lastRunDate — see markScheduledRun). */
 export async function updateSettings(update: SettingsUpdate): Promise<AppSettings> {
+  const db = await getDb();
+  if (db) {
+    const current = await getSettings();
+    const schedule: ScheduleSettings = {
+      ...DEFAULTS.schedule,
+      ...current.schedule,
+      ...("enabled" in update && update.enabled !== undefined ? { enabled: update.enabled } : {}),
+      ...("time" in update && update.time ? { time: normalizeTime(update.time) } : {})
+    };
+    const theme: Theme =
+      update.theme !== undefined ? normalizeTheme(update.theme) : normalizeTheme(current.theme);
+    const next: AppSettings = { schedule, theme };
+    await db.execute({
+      sql: "UPDATE settings SET data = ? WHERE id = 1",
+      args: [JSON.stringify(next)]
+    });
+    return next;
+  }
+
   return store.mutate((current) => {
     const base = current ?? structuredCloneDefaults();
     const schedule: ScheduleSettings = {
@@ -48,8 +77,21 @@ export async function updateSettings(update: SettingsUpdate): Promise<AppSetting
   });
 }
 
-/** Record that the scheduled generation ran for `date` (YYYY-MM-DD). */
 export async function markScheduledRun(date: string): Promise<void> {
+  const db = await getDb();
+  if (db) {
+    const current = await getSettings();
+    const next: AppSettings = {
+      ...current,
+      schedule: { ...DEFAULTS.schedule, ...current.schedule, lastRunDate: date }
+    };
+    await db.execute({
+      sql: "UPDATE settings SET data = ? WHERE id = 1",
+      args: [JSON.stringify(next)]
+    });
+    return;
+  }
+
   await store.mutate((current) => {
     const base = current ?? structuredCloneDefaults();
     const next: AppSettings = {
@@ -61,7 +103,6 @@ export async function markScheduledRun(date: string): Promise<void> {
   });
 }
 
-/** Clamp "H:M"/"HH:MM" to a valid 24h "HH:MM"; falls back to the default. */
 function normalizeTime(input: string): string {
   const m = input.trim().match(/^(\d{1,2}):(\d{2})$/);
   if (!m) return DEFAULTS.schedule.time;

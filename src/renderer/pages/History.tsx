@@ -55,7 +55,7 @@ export function History({ onOpenSuggestion }: Props) {
   const hasAny = byDate.size > 0 && [...byDate.values()].some((d) => d.items.length > 0);
 
   return (
-    <div className="mx-auto max-w-2xl px-10 pt-16 pb-20">
+    <div className="page-shell">
       <header>
         <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
           <HistoryIcon className="h-4 w-4" strokeWidth={1.5} />

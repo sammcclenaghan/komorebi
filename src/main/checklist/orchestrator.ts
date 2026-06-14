@@ -1,5 +1,5 @@
-import { BrowserWindow } from "electron";
 import { generateSuggestion, type HistoryItem } from "../claude/generate";
+import { emitProgress } from "../progress";
 import { buildContextBlocks } from "../context/registry";
 import { getUserId, listConnections } from "../integrations/composio";
 import { deleteGoal, getGoal, listActiveGoals } from "../store/goals";
@@ -41,15 +41,6 @@ export type GenerationProgress =
   | { phase: "goal-done"; goalId: string; suggestion: Suggestion }
   | { phase: "goal-error"; goalId: string; message: string }
   | { phase: "done"; items: Suggestion[] };
-
-const CHANNEL = "checklist:progress";
-
-function emitProgress(payload: GenerationProgress): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    if (win.isDestroyed()) continue;
-    win.webContents.send(CHANNEL, payload);
-  }
-}
 
 export async function getTodayChecklist(): Promise<ChecklistDay> {
   const date = localDate();

@@ -19,5 +19,11 @@ export default defineConfig([
   {
     ...shared,
     entry: ["src/preload/preload.ts"]
+  },
+  {
+    ...shared,
+    entry: ["src/server/main.ts"],
+    outDir: "dist-server",
+    clean: true
   }
 ]);

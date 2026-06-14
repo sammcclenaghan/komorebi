@@ -23,7 +23,7 @@ export function Settings() {
   const theme = settingsQuery.data?.theme;
 
   return (
-    <div className="mx-auto max-w-2xl px-10 pt-16 pb-20">
+    <div className="page-shell">
       <header>
         <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
           <SettingsIcon className="h-4 w-4" strokeWidth={1.5} />

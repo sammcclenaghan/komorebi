@@ -17,14 +17,19 @@ export function resolvePaths(override?: { dataDir?: string }): KomorebiPaths {
 function defaultDataDir(): string {
   if (process.env.KOMOREBI_DATA_DIR) return process.env.KOMOREBI_DATA_DIR;
 
-  // Lazy-load electron only when running inside Electron.
-  try {
-    const electron = require("electron");
-    if (electron?.app?.getPath) {
-      return path.join(electron.app.getPath("userData"), "data");
+  if (process.versions.electron) {
+    try {
+      const { app } = require("electron") as typeof import("electron");
+      if (app?.getPath) {
+        return path.join(app.getPath("userData"), "data");
+      }
+    } catch {
+      // fall through
     }
-  } catch {
-    // Not inside Electron — fall through to OS default.
+  }
+
+  if (process.platform === "darwin") {
+    return path.join(os.homedir(), "Library", "Application Support", "Komorebi", "data");
   }
 
   return path.join(os.homedir(), ".komorebi");

@@ -57,7 +57,7 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
 
   if (suggestionQuery.isLoading) {
     return (
-      <div className="mx-auto max-w-2xl px-10 pt-16 pb-20">
+      <div className="page-shell">
         <BackButton onClick={onBack} />
         <div className="mt-10 h-8 w-2/3 rounded-md bg-[var(--color-panel)]" />
         <div className="mt-4 h-4 w-1/2 rounded-md bg-[var(--color-panel)]" />
@@ -68,7 +68,7 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
   const suggestion = suggestionQuery.data;
   if (!suggestion) {
     return (
-      <div className="mx-auto max-w-2xl px-10 pt-16 pb-20">
+      <div className="page-shell">
         <BackButton onClick={onBack} />
         <h1 className="mt-10 text-[24px] font-semibold text-[var(--color-ink)]">
           Suggestion not found.
@@ -82,7 +82,7 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
   const isSkipped = suggestion.status === "skipped";
 
   return (
-    <div className="mx-auto max-w-2xl px-10 pt-12 pb-24">
+    <div className="page-shell pt-10 md:pt-12">
       <BackButton onClick={onBack} />
 
       <header className="mt-8">

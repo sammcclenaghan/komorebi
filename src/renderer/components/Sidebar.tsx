@@ -39,7 +39,7 @@ export function Sidebar({ active, open, onSelect }: Props) {
       aria-hidden={!open}
       style={{ width: open ? OPEN_WIDTH : 0 }}
       className={cn(
-        "drag-region flex shrink-0 flex-col overflow-hidden",
+        "drag-region hidden shrink-0 flex-col overflow-hidden md:flex",
         "transition-[width] duration-200 ease-out"
       )}
     >

@@ -1,0 +1,45 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fbfbf9"/>
+      <stop offset="100%" stop-color="#fff1d6"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="78%" r="55%">
+      <stop offset="0%" stop-color="#f5c878" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#f5c878" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Rounded-square background (Apple-style ~22% corner radius) -->
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#glow)"/>
+
+  <!-- Sunrise mark, recentered + scaled from lucide's Sunrise icon.
+       Original viewBox 24x24, here scaled ~33x and translated so the
+       horizon sits at roughly 70% down the canvas. -->
+  <g
+    transform="translate(116 116) scale(33.333)"
+    fill="none"
+    stroke="#2a2724"
+    stroke-width="0.78"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <!-- Up-arrow shaft above sun -->
+    <path d="M12 2v8"/>
+    <!-- Up-arrow head -->
+    <path d="m8 6 4-4 4 4"/>
+    <!-- Ray top-left -->
+    <path d="m4.93 10.93 1.41 1.41"/>
+    <!-- Ray top-right -->
+    <path d="m19.07 10.93-1.41 1.41"/>
+    <!-- Ray left -->
+    <path d="M2 18h2"/>
+    <!-- Ray right -->
+    <path d="M20 18h2"/>
+    <!-- Horizon line -->
+    <path d="M22 22H2"/>
+    <!-- Sun (half-circle on the horizon) -->
+    <path d="M16 18a4 4 0 0 0-8 0" fill="#f0b768" fill-opacity="0.85"/>
+  </g>
+</svg>

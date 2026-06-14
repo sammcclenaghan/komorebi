@@ -5,7 +5,6 @@
  * No local SQLite cache — Composio is authoritative for connection state,
  * and the renderer caches the joined view via TanStack Query.
  */
-import { shell } from "electron";
 import { Composio } from "@composio/core";
 import {
   ComposioConfigError,
@@ -70,12 +69,20 @@ export type ConnectStart = {
   redirectUrl: string | null;
 };
 
+function openExternal(url: string): void {
+  if (!process.versions.electron) return;
+  try {
+    const { shell } = require("electron") as typeof import("electron");
+    void shell.openExternal(url);
+  } catch {
+    // Web server — the client opens the OAuth URL.
+  }
+}
+
 export async function beginConnect(toolkitSlug: string): Promise<ConnectStart> {
   const userId = getUserId();
   const result = await startConnection(toolkitSlug, userId);
-  if (result.redirectUrl) {
-    void shell.openExternal(result.redirectUrl);
-  }
+  if (result.redirectUrl) openExternal(result.redirectUrl);
   return result;
 }
 
@@ -87,7 +94,7 @@ export async function awaitConnect(toolkitSlug: string): Promise<ConnectionSumma
   const composio = new Composio({ apiKey });
   const authConfigId = await ensureManagedAuthConfig(toolkitSlug);
   const request = await composio.connectedAccounts.link(userId, authConfigId);
-  if (request.redirectUrl) void shell.openExternal(request.redirectUrl);
+  if (request.redirectUrl) openExternal(request.redirectUrl);
 
   await request.waitForConnection(180_000);
   const fresh = await fetchRemoteConnections(userId);

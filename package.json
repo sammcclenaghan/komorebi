@@ -6,12 +6,16 @@
   "main": "dist-electron/main.cjs",
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "dev:web": "node scripts/dev-web.mjs",
     "build": "tsdown && vite build",
+    "build:web": "tsdown && KOMOREBI_WEB=1 vite build",
     "build:main": "tsdown",
     "build:renderer": "vite build",
     "start": "node scripts/start.mjs",
+    "start:web": "node scripts/start-web.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
+    "migrate:turso": "node scripts/migrate-to-turso.mjs",
     "smoke:slice1": "tsx scripts/smoke-slice1.ts",
     "smoke:composio": "tsx --env-file=.env.local scripts/smoke-composio.ts",
     "smoke:context": "tsx --env-file=.env.local scripts/smoke-context.ts",
@@ -22,6 +26,7 @@
   },
   "dependencies": {
     "@composio/core": "^0.10.0",
+    "@libsql/client": "^0.17.3",
     "@tanstack/react-query": "^5.90.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -64,8 +69,14 @@
     ],
     "extraResources": [
       ".env.local",
-      { "from": "build/trayTemplate.png", "to": "trayTemplate.png" },
-      { "from": "build/trayTemplate@2x.png", "to": "trayTemplate@2x.png" }
+      {
+        "from": "build/trayTemplate.png",
+        "to": "trayTemplate.png"
+      },
+      {
+        "from": "build/trayTemplate@2x.png",
+        "to": "trayTemplate@2x.png"
+      }
     ],
     "directories": {
       "output": "release"
