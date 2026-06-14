@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { X, Loader2 } from "lucide-react";
 import { cn } from "~/lib/cn";
-import type { Goal } from "~/shared/types";
+import type { Goal, GoalPriority } from "~/shared/types";
 
 type Props = {
   open: boolean;
@@ -17,6 +17,7 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [context, setContext] = useState("");
+  const [priority, setPriority] = useState<GoalPriority>("medium");
   const titleRef = useRef<HTMLInputElement | null>(null);
   const isEdit = Boolean(goal);
 
@@ -26,10 +27,12 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
       setTitle(goal.title);
       setDescription(goal.description ?? "");
       setContext(goal.context ?? "");
+      setPriority(goal.priority ?? "medium");
     } else {
       setTitle("");
       setDescription("");
       setContext("");
+      setPriority("medium");
     }
     setTimeout(() => titleRef.current?.focus(), 50);
   }, [open, goal]);
@@ -51,14 +54,16 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
           updates: {
             title: title.trim(),
             description: description.trim() || null,
-            context: context.trim() || null
+            context: context.trim() || null,
+            priority
           }
         });
       }
       return window.komorebi.goals.add({
         title: title.trim(),
         description: description.trim() || undefined,
-        context: context.trim() || undefined
+        context: context.trim() || undefined,
+        priority
       });
     },
     onSuccess: (savedGoal) => {
@@ -133,6 +138,13 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
           </Field>
 
           <Field
+            label="Priority"
+            hint="On busy days Komorebi composes fewer actions. Higher-priority goals get the slots first; lower ones rotate in over the next few days."
+          >
+            <PriorityPicker value={priority} onChange={setPriority} />
+          </Field>
+
+          <Field
             label="Description"
             optional
             hint="Optional. One sentence on the underlying intent."
@@ -190,6 +202,49 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+const PRIORITY_OPTIONS: { value: GoalPriority; label: string }[] = [
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" }
+];
+
+function PriorityPicker({
+  value,
+  onChange
+}: {
+  value: GoalPriority;
+  onChange: (next: GoalPriority) => void;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Priority"
+      className="inline-flex items-center gap-0.5 rounded-md border border-[var(--color-rule)] bg-[var(--color-panel)] p-0.5"
+    >
+      {PRIORITY_OPTIONS.map(({ value: optValue, label }) => {
+        const selected = value === optValue;
+        return (
+          <button
+            key={optValue}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(optValue)}
+            className={cn(
+              "rounded px-3 py-1.5 text-[12px] transition-colors",
+              selected
+                ? "bg-[var(--color-canvas)] text-[var(--color-ink)] shadow-sm"
+                : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)]"
+            )}
+          >
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }

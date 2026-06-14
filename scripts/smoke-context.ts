@@ -62,6 +62,7 @@ async function main(): Promise<void> {
     context:
       "Strong React + Node. Weakest on distributed systems and DB internals. Prefers articles and short coding exercises. Has ~30 min on weekdays.",
     status: "active" as const,
+    priority: "medium" as const,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };

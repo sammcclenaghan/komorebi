@@ -1,10 +1,22 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "./db";
 import { makeStore } from "./file-store";
-import type { Goal, GoalStatus } from "~/shared/types";
+import type { Goal, GoalPriority, GoalStatus } from "~/shared/types";
 import type { InValue } from "@libsql/client";
 
 const store = makeStore<Goal[]>("goals.json", () => []);
+
+const VALID_PRIORITIES: ReadonlySet<GoalPriority> = new Set<GoalPriority>([
+  "high",
+  "medium",
+  "low"
+]);
+
+function normalizePriority(input: unknown): GoalPriority {
+  return typeof input === "string" && VALID_PRIORITIES.has(input as GoalPriority)
+    ? (input as GoalPriority)
+    : "medium";
+}
 
 function rowToGoal(row: Record<string, unknown>): Goal {
   return {
@@ -13,6 +25,7 @@ function rowToGoal(row: Record<string, unknown>): Goal {
     description: row.description as string | null,
     context: row.context as string | null,
     status: row.status as GoalStatus,
+    priority: normalizePriority(row.priority),
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string
   };
@@ -22,9 +35,12 @@ export type AddGoalInput = {
   title: string;
   description?: string | null;
   context?: string | null;
+  priority?: GoalPriority;
 };
 
-export type UpdateGoalInput = Partial<Pick<Goal, "title" | "description" | "context" | "status">>;
+export type UpdateGoalInput = Partial<
+  Pick<Goal, "title" | "description" | "context" | "status" | "priority">
+>;
 
 export async function listGoals(): Promise<Goal[]> {
   const db = await getDb();
@@ -60,6 +76,8 @@ export async function addGoal(input: AddGoalInput): Promise<Goal> {
   const trimmed = input.title.trim();
   if (!trimmed) throw new Error("Goal title is required");
 
+  const priority = normalizePriority(input.priority);
+
   const db = await getDb();
   if (db) {
     const now = new Date().toISOString();
@@ -69,12 +87,13 @@ export async function addGoal(input: AddGoalInput): Promise<Goal> {
       description: input.description?.trim() || null,
       context: input.context?.trim() || null,
       status: "active",
+      priority,
       createdAt: now,
       updatedAt: now
     };
     await db.execute({
-      sql: "INSERT INTO goals (id, title, description, context, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      args: [goal.id, goal.title, goal.description, goal.context, goal.status, goal.createdAt, goal.updatedAt]
+      sql: "INSERT INTO goals (id, title, description, context, status, priority, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [goal.id, goal.title, goal.description, goal.context, goal.status, goal.priority, goal.createdAt, goal.updatedAt]
     });
     return goal;
   }
@@ -87,6 +106,7 @@ export async function addGoal(input: AddGoalInput): Promise<Goal> {
       description: input.description?.trim() || null,
       context: input.context?.trim() || null,
       status: "active",
+      priority,
       createdAt: now,
       updatedAt: now
     };
@@ -117,6 +137,10 @@ export async function updateGoal(id: string, updates: UpdateGoalInput): Promise<
       sets.push("status = ?");
       args.push(updates.status);
     }
+    if ("priority" in updates && updates.priority) {
+      sets.push("priority = ?");
+      args.push(normalizePriority(updates.priority));
+    }
 
     if (sets.length > 0) {
       sets.push("updated_at = ?");
@@ -143,6 +167,9 @@ export async function updateGoal(id: string, updates: UpdateGoalInput): Promise<
       ...("description" in updates ? { description: updates.description?.trim() || null } : {}),
       ...("context" in updates ? { context: updates.context?.trim() || null } : {}),
       ...("status" in updates && updates.status ? { status: updates.status as GoalStatus } : {}),
+      ...("priority" in updates && updates.priority
+        ? { priority: normalizePriority(updates.priority) }
+        : {}),
       updatedAt: new Date().toISOString()
     };
     const nextList = [...current];

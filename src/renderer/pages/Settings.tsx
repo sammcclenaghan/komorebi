@@ -21,6 +21,7 @@ export function Settings() {
 
   const schedule = settingsQuery.data?.schedule;
   const theme = settingsQuery.data?.theme;
+  const dailyTarget = settingsQuery.data?.dailyTarget;
 
   return (
     <div className="page-shell">
@@ -41,7 +42,7 @@ export function Settings() {
       </header>
 
       <div className="mt-10 space-y-6">
-        {settingsQuery.isLoading || !schedule || !theme ? (
+        {settingsQuery.isLoading || !schedule || !theme || dailyTarget === undefined ? (
           <div
             className="h-[148px] rounded-xl border border-[var(--color-rule)] bg-[var(--color-panel)]"
             style={{ animation: "fade-up 400ms ease-out" }}
@@ -83,6 +84,19 @@ export function Settings() {
                   "transition focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20",
                   "disabled:cursor-not-allowed disabled:opacity-50"
                 )}
+              />
+            </Row>
+
+            <Row
+              title="Actions per day"
+              description="How many items Komorebi puts on today's list. Active goals beyond this rotate in on later days — highest-priority first — so a busy day never feels unwinnable."
+            >
+              <Stepper
+                value={dailyTarget}
+                min={1}
+                max={12}
+                disabled={update.isPending}
+                onChange={(next) => update.mutate({ dailyTarget: next })}
               />
             </Row>
 
@@ -174,6 +188,60 @@ function ThemePicker({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function Stepper({
+  value,
+  min,
+  max,
+  disabled,
+  onChange
+}: {
+  value: number;
+  min: number;
+  max: number;
+  disabled?: boolean;
+  onChange: (next: number) => void;
+}) {
+  const clamp = (n: number) => Math.min(max, Math.max(min, n));
+  return (
+    <div
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-md border border-[var(--color-rule)] bg-[var(--color-panel)] p-0.5",
+        disabled && "opacity-60"
+      )}
+    >
+      <button
+        type="button"
+        aria-label="Fewer"
+        disabled={disabled || value <= min}
+        onClick={() => onChange(clamp(value - 1))}
+        className={cn(
+          "rounded px-2.5 py-1 text-[14px] leading-none text-[var(--color-ink-2)] transition-colors",
+          "hover:bg-[var(--color-canvas)] hover:text-[var(--color-ink)]",
+          "disabled:cursor-not-allowed disabled:opacity-40"
+        )}
+      >
+        −
+      </button>
+      <span className="min-w-[2ch] text-center text-[13px] tabular-nums text-[var(--color-ink)]">
+        {value}
+      </span>
+      <button
+        type="button"
+        aria-label="More"
+        disabled={disabled || value >= max}
+        onClick={() => onChange(clamp(value + 1))}
+        className={cn(
+          "rounded px-2.5 py-1 text-[14px] leading-none text-[var(--color-ink-2)] transition-colors",
+          "hover:bg-[var(--color-canvas)] hover:text-[var(--color-ink)]",
+          "disabled:cursor-not-allowed disabled:opacity-40"
+        )}
+      >
+        +
+      </button>
     </div>
   );
 }

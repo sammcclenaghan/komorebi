@@ -3,6 +3,8 @@ import { emitProgress } from "../progress";
 import { buildContextBlocks } from "../context/registry";
 import { getUserId, listConnections } from "../integrations/composio";
 import { deleteGoal, getGoal, listActiveGoals } from "../store/goals";
+import { getSettings } from "../store/settings";
+import { selectGoalsForToday } from "./selection";
 import {
   deleteReflectionsForSuggestions,
   listAllReflections,
@@ -92,7 +94,18 @@ async function runGenerateTodayChecklist(date: string): Promise<ChecklistDay> {
   const alreadyCovered = new Set(
     existing.filter((s) => s.status !== "skipped").map((s) => s.goalId)
   );
-  const goalsToGenerate = activeGoals.filter((g) => !alreadyCovered.has(g.id));
+
+  // Size today to the user's target. Goals already covered today count toward
+  // it; the rest of the slots go to the highest-priority goals, rotating in
+  // the least-recently-suggested within a tier so lower tiers still surface.
+  const { dailyTarget } = await getSettings();
+  const remainingSlots = Math.max(0, dailyTarget - alreadyCovered.size);
+  const candidates = activeGoals.filter((g) => !alreadyCovered.has(g.id));
+
+  const goalsToGenerate =
+    remainingSlots === 0
+      ? []
+      : selectGoalsForToday(candidates, await listAllSuggestions(), remainingSlots);
 
   if (goalsToGenerate.length === 0) {
     return { date, items: existing, hasGoals: true };

@@ -1,7 +1,7 @@
 import type { IntegrationView } from "~/main/integrations/service";
 import type { ConnectionSummary } from "~/main/integrations/composio";
 import type { ChecklistDay, GenerationProgress, HistoryDay } from "~/main/checklist/orchestrator";
-import type { AppSettings, Goal, Reflection, Suggestion, SuggestionRating, SuggestionStatus } from "~/shared/types";
+import type { AppSettings, Goal, GoalPriority, Reflection, Suggestion, SuggestionRating, SuggestionStatus } from "~/shared/types";
 import type { SettingsUpdate } from "~/main/store/settings";
 import type { WeatherSummary } from "~/main/weather/service";
 import type { LinkPreview } from "~/main/links/preview";
@@ -17,10 +17,15 @@ export type KomorebiApi = {
   };
   goals: {
     list: () => Promise<Goal[]>;
-    add: (input: { title: string; description?: string; context?: string }) => Promise<Goal>;
+    add: (input: {
+      title: string;
+      description?: string;
+      context?: string;
+      priority?: GoalPriority;
+    }) => Promise<Goal>;
     update: (input: {
       id: string;
-      updates: Partial<Pick<Goal, "title" | "description" | "context" | "status">>;
+      updates: Partial<Pick<Goal, "title" | "description" | "context" | "status" | "priority">>;
     }) => Promise<Goal>;
     delete: (id: string) => Promise<void>;
   };

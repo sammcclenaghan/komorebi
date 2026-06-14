@@ -71,7 +71,7 @@ ipcMain.handle("integrations:await-connect", (_event, slug: string) => awaitConn
 ipcMain.handle("integrations:disconnect", (_event, slug: string) => disconnectIntegration(slug));
 
 ipcMain.handle("goals:list", () => listGoals());
-ipcMain.handle("goals:add", (_event, input: { title: string; description?: string; context?: string }) =>
+ipcMain.handle("goals:add", (_event, input: Parameters<typeof addGoal>[0]) =>
   addGoal(input)
 );
 ipcMain.handle("goals:update", (_event, input: { id: string; updates: Parameters<typeof updateGoal>[1] }) =>

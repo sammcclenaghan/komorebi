@@ -8,15 +8,30 @@ const DEFAULTS: AppSettings = {
     time: "07:00",
     lastRunDate: null
   },
-  theme: "system"
+  theme: "system",
+  dailyTarget: 4
 };
+
+/** Clamp the daily target to a sane range so a stray value can't break a day. */
+const MIN_DAILY_TARGET = 1;
+const MAX_DAILY_TARGET = 12;
 
 const VALID_THEMES: ReadonlySet<Theme> = new Set<Theme>(["light", "dark", "system"]);
 
 const store = makeStore<AppSettings>("settings.json", () => structuredCloneDefaults());
 
 function structuredCloneDefaults(): AppSettings {
-  return { schedule: { ...DEFAULTS.schedule }, theme: DEFAULTS.theme };
+  return {
+    schedule: { ...DEFAULTS.schedule },
+    theme: DEFAULTS.theme,
+    dailyTarget: DEFAULTS.dailyTarget
+  };
+}
+
+function normalizeDailyTarget(input: unknown): number {
+  const n = typeof input === "number" ? Math.round(input) : NaN;
+  if (!Number.isFinite(n)) return DEFAULTS.dailyTarget;
+  return Math.min(MAX_DAILY_TARGET, Math.max(MIN_DAILY_TARGET, n));
 }
 
 export async function getSettings(): Promise<AppSettings> {
@@ -27,19 +42,22 @@ export async function getSettings(): Promise<AppSettings> {
     const raw = JSON.parse((rs.rows[0] as Record<string, unknown>).data as string) as Partial<AppSettings>;
     return {
       schedule: { ...DEFAULTS.schedule, ...(raw?.schedule ?? {}) },
-      theme: normalizeTheme(raw?.theme)
+      theme: normalizeTheme(raw?.theme),
+      dailyTarget: normalizeDailyTarget(raw?.dailyTarget)
     };
   }
 
   const raw = await store.load();
   return {
     schedule: { ...DEFAULTS.schedule, ...(raw?.schedule ?? {}) },
-    theme: normalizeTheme(raw?.theme)
+    theme: normalizeTheme(raw?.theme),
+    dailyTarget: normalizeDailyTarget(raw?.dailyTarget)
   };
 }
 
 export type SettingsUpdate = Partial<Pick<ScheduleSettings, "enabled" | "time">> & {
   theme?: Theme;
+  dailyTarget?: number;
 };
 
 export async function updateSettings(update: SettingsUpdate): Promise<AppSettings> {
@@ -54,7 +72,11 @@ export async function updateSettings(update: SettingsUpdate): Promise<AppSetting
     };
     const theme: Theme =
       update.theme !== undefined ? normalizeTheme(update.theme) : normalizeTheme(current.theme);
-    const next: AppSettings = { schedule, theme };
+    const dailyTarget =
+      update.dailyTarget !== undefined
+        ? normalizeDailyTarget(update.dailyTarget)
+        : normalizeDailyTarget(current.dailyTarget);
+    const next: AppSettings = { schedule, theme, dailyTarget };
     await db.execute({
       sql: "UPDATE settings SET data = ? WHERE id = 1",
       args: [JSON.stringify(next)]
@@ -72,7 +94,11 @@ export async function updateSettings(update: SettingsUpdate): Promise<AppSetting
     };
     const theme: Theme =
       update.theme !== undefined ? normalizeTheme(update.theme) : normalizeTheme(base.theme);
-    const next: AppSettings = { ...base, schedule, theme };
+    const dailyTarget =
+      update.dailyTarget !== undefined
+        ? normalizeDailyTarget(update.dailyTarget)
+        : normalizeDailyTarget(base.dailyTarget);
+    const next: AppSettings = { ...base, schedule, theme, dailyTarget };
     return { next, result: next };
   });
 }

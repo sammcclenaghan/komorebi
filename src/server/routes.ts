@@ -25,7 +25,7 @@ import {
 import { addReflection, listReflectionsForSuggestion } from "~/main/store/reflections";
 import { fetchLinkPreview } from "~/main/links/preview";
 import { getSettings, updateSettings, type SettingsUpdate } from "~/main/store/settings";
-import type { Goal, SuggestionRating, SuggestionStatus } from "~/shared/types";
+import type { Goal, GoalPriority, SuggestionRating, SuggestionStatus } from "~/shared/types";
 
 const appVersion = readAppVersion();
 
@@ -75,12 +75,14 @@ export async function handleApi(
 
   if (method === "GET" && pathname === "/api/goals") return listGoals();
   if (method === "POST" && pathname === "/api/goals") {
-    return addGoal(body as { title: string; description?: string; context?: string });
+    return addGoal(
+      body as { title: string; description?: string; context?: string; priority?: GoalPriority }
+    );
   }
   if (method === "PATCH" && pathname.startsWith("/api/goals/")) {
     const id = decodeURIComponent(pathname.slice("/api/goals/".length));
     const input = body as {
-      updates: Partial<Pick<Goal, "title" | "description" | "context" | "status">>;
+      updates: Partial<Pick<Goal, "title" | "description" | "context" | "status" | "priority">>;
     };
     return updateGoal(id, input.updates);
   }

@@ -28,6 +28,7 @@ async function initSchema(): Promise<void> {
       description TEXT,
       context TEXT,
       status TEXT NOT NULL DEFAULT 'active',
+      priority TEXT NOT NULL DEFAULT 'medium',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`,
@@ -58,13 +59,26 @@ async function initSchema(): Promise<void> {
     )`
   ]);
 
+  // Migrate existing tables created before a column was added. ADD COLUMN
+  // throws if the column already exists, so each is best-effort.
+  await addColumnIfMissing(db, "goals", "priority TEXT NOT NULL DEFAULT 'medium'");
+
   await db.execute({
     sql: `INSERT OR IGNORE INTO settings (id, data) VALUES (1, ?)`,
     args: [
       JSON.stringify({
         schedule: { enabled: true, time: "07:00", lastRunDate: null },
-        theme: "system"
+        theme: "system",
+        dailyTarget: 4
       })
     ]
   });
+}
+
+async function addColumnIfMissing(db: Client, table: string, columnDef: string): Promise<void> {
+  try {
+    await db.execute(`ALTER TABLE ${table} ADD COLUMN ${columnDef}`);
+  } catch {
+    // Column already exists — nothing to do.
+  }
 }
