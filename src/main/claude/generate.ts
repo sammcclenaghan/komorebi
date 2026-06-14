@@ -3,7 +3,7 @@ import { ClaudeCliError } from "./cli";
 import type { Goal, Reflection, Suggestion, SuggestionDraft } from "~/shared/types";
 import type { ContextBlock } from "../context/types";
 
-const DEFAULT_MODEL = "claude-opus-4-7";
+const DEFAULT_MODEL = "claude-haiku-4-5";
 
 const SYSTEM_INSTRUCTIONS = `You are Komorebi, a personal AI that turns long-term goals into one concrete daily action.
 

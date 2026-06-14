@@ -799,7 +799,7 @@ function runClaudeStreaming(binary, args, env, onEvent) {
 
 //#endregion
 //#region src/main/claude/generate.ts
-const DEFAULT_MODEL = "claude-opus-4-7";
+const DEFAULT_MODEL = "claude-haiku-4-5";
 const SYSTEM_INSTRUCTIONS = `You are Komorebi, a personal AI that turns long-term goals into one concrete daily action.
 
 For the given goal, produce ONE specific action the user can do today that meaningfully advances the goal.
