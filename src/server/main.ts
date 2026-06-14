@@ -14,6 +14,6 @@ const moduleDir =
     ? __dirname
     : path.dirname(fileURLToPath(import.meta.url));
 
-const staticDir = path.join(moduleDir, "..", "..", "dist", "renderer");
+const staticDir = path.join(moduleDir, "..", "dist", "renderer");
 
 startServer({ port, host, staticDir, apiToken });

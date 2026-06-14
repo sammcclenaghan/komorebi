@@ -29,7 +29,7 @@ export type ServerOptions = {
 };
 
 export function createServer(options: ServerOptions): http.Server {
-  const staticDir = options.staticDir ?? path.join(moduleDir, "..", "..", "dist", "renderer");
+  const staticDir = options.staticDir ?? path.join(moduleDir, "..", "dist", "renderer");
 
   return http.createServer(async (req, res) => {
     try {
