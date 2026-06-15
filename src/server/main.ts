@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { loadEnv } from "./env";
 import { startServer } from "./http";
 
-// Prefer IPv4 for all outbound connections. Render's containers lack working
+// Prefer IPv4 for outbound connections in hosted/self-hosted environments that lack working
 // IPv6 egress, so Node's default Happy Eyeballs (IPv6-first) makes outbound
 // fetch (weather, Composio, …) hang until ETIMEDOUT. ipv4first avoids that.
 dns.setDefaultResultOrder("ipv4first");

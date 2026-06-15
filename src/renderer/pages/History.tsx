@@ -65,7 +65,7 @@ export function History({ onOpenSuggestion }: Props) {
           What you've been <span className="font-normal text-[var(--color-ink-2)]">working on.</span>
         </h1>
         <p className="mt-3 max-w-lg text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
-          Your last {WEEKS} weeks at a glance. Pick any day to see what Claude
+          Your last {WEEKS} weeks at a glance. Pick any day to see what Komorebi
           composed, what you finished, and the notes you left.
         </p>
       </header>

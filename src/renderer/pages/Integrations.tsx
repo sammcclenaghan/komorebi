@@ -44,11 +44,11 @@ export function Integrations() {
         </div>
 
         <h1 className="mt-3 text-[30px] font-semibold leading-[1.15] tracking-tight text-[var(--color-ink)]">
-          The tools <span className="font-normal text-[var(--color-ink-2)]">Claude can use.</span>
+          The tools <span className="font-normal text-[var(--color-ink-2)]">Komorebi can use.</span>
         </h1>
 
         <p className="mt-3 max-w-lg text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
-          Connect what you already use. Each one becomes context Claude can
+          Connect what you already use. Each one becomes context Komorebi can
           draw on when composing your daily checklist.
         </p>
 

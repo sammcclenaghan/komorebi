@@ -373,7 +373,7 @@ function NoGoalsState({ onAdd }: { onAdd: () => void }) {
         Start with one goal.
       </h1>
       <p className="mt-4 max-w-md text-[14.5px] leading-relaxed text-[var(--color-ink-2)]">
-        Tell Claude what you're working toward — anything from "lose 10 lbs" to
+        Tell Komorebi what you're working toward - anything from "lose 10 lbs" to
         "become a better dev." It'll compose a small, specific checklist for
         you each day.
       </p>
@@ -412,8 +412,8 @@ function NoChecklistYet({
       </h1>
       <p className="mt-3 max-w-md text-[14px] leading-relaxed text-[var(--color-ink-2)]">
         {goals.length === 1
-          ? "Claude will compose today's action for your goal."
-          : `Claude will compose today's action for each of your ${goals.length} active goals.`}{" "}
+          ? "Komorebi will compose today's action for your goal."
+          : `Komorebi will compose today's action for each of your ${goals.length} active goals.`}{" "}
         Takes roughly 30 seconds per goal.
       </p>
 

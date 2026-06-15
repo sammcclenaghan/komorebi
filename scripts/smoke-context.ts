@@ -3,9 +3,9 @@
  *
  * 1. Lists connections from Composio.
  * 2. Builds context blocks via the provider registry.
- * 3. Calls Claude with the context blocks attached to the prompt.
+ * 3. Calls Ollama with the context blocks attached to the prompt.
  * 4. Prints both the context that fed the prompt and the resulting suggestion
- *    so we can see whether Claude actually used it.
+ *    so we can see whether Komorebi actually used it.
  *
  * Run with: pnpm smoke:context
  *
@@ -16,7 +16,7 @@
 import "dotenv/config";
 import { getUserId, listConnections } from "../src/main/integrations/composio";
 import { buildContextBlocks, supportedToolkitSlugs } from "../src/main/context/registry";
-import { generateSuggestion } from "../src/main/claude/generate";
+import { generateSuggestion } from "../src/main/ollama/generate";
 
 async function main(): Promise<void> {
   const userId = getUserId();
@@ -67,7 +67,7 @@ async function main(): Promise<void> {
     updatedAt: new Date().toISOString()
   };
 
-  console.log("\n[smoke] calling claude with context attached (≈30–60s)...");
+  console.log("\n[smoke] calling ollama with context attached (about 30-60s)...");
   const t0 = Date.now();
   const draft = await generateSuggestion({
     goal,
@@ -85,7 +85,7 @@ async function main(): Promise<void> {
   console.log("\n--- detail markdown ---");
   console.log(draft.detailMarkdown);
   console.log("--- end ---\n");
-  console.log("[smoke] If Claude referenced your calendar / open time in the suggestion, the context worked.");
+  console.log("[smoke] If Komorebi referenced your calendar / open time in the suggestion, the context worked.");
 }
 
 main().catch((err) => {

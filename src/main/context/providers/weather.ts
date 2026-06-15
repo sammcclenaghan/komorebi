@@ -1,7 +1,7 @@
 import { getCurrentWeather } from "../../weather/service";
 
 /**
- * Daily weather summary for Claude. Critically: the *day's* shape, not the
+ * Daily weather summary for Komorebi. Critically: the *day's* shape, not the
  * moment of generation. Otherwise a checklist composed at 7am full of "great
  * for tonight" suggestions arrives at the user's evening read.
  */
