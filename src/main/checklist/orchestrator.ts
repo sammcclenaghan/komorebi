@@ -1,4 +1,4 @@
-import { generateSuggestion, type HistoryItem } from "../claude/generate";
+import { generateSuggestion, type HistoryItem } from "../ollama/generate";
 import { emitProgress } from "../progress";
 import { buildContextBlocks } from "../context/registry";
 import { getUserId, listConnections } from "../integrations/composio";

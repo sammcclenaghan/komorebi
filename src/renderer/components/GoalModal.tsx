@@ -159,7 +159,7 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
           </Field>
 
           <Field
-            label="Context for Claude"
+            label="Context for Komorebi"
             optional
             hint="Optional but recommended. Level, preferences, how much time you have. The more specific you are, the less generic the suggestions."
           >

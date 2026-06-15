@@ -278,7 +278,7 @@ function ReflectionCapture({
       <p className="mt-1 text-[11.5px] text-[var(--color-ink-3)]">
         {textDone
           ? "Saved. Add another note any time."
-          : "Quick rating, or jot a one-liner Claude will see next time. Skip if you'd rather not."}
+          : "Quick rating, or jot a one-liner Komorebi will see next time. Skip if you'd rather not."}
       </p>
 
       <textarea

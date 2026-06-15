@@ -156,7 +156,7 @@ function GoalCard({
       {goal.context && (
         <div className="mt-3 border-t border-[var(--color-rule)] pt-3">
           <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
-            context for Claude
+            context for Komorebi
           </div>
           <p className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--color-ink-2)] whitespace-pre-wrap">
             {goal.context}

@@ -3,7 +3,7 @@
  *
  * Free, no API key. One call gives us current conditions (for the header
  * icon + tooltip "right now") AND a daily summary (max/min temp,
- * precipitation probability, dominant condition) which is what Claude
+ * precipitation probability, dominant condition) which is what Komorebi
  * actually needs when composing today's checklist — the day's shape,
  * not the moment of generation.
  *
@@ -38,7 +38,7 @@ export type WeatherSummary = {
   temperatureC: number;
   isNight: boolean;
   resolvedName: string;
-  // "Today" — feeds the Claude context provider + the tooltip.
+  // "Today" - feeds the suggestion context provider + the tooltip.
   daily: DailyForecast;
 };
 
