@@ -75,4 +75,10 @@ export type AppSettings = {
    * feeling unwinnable.
    */
   dailyTarget: number;
+  /**
+   * Ollama model tag used to compose suggestions (e.g. "qwen3:32b").
+   * null means "use the server default" (the OLLAMA_MODEL env var, or the
+   * built-in fallback). An explicit choice here takes precedence over the env.
+   */
+  model: string | null;
 };

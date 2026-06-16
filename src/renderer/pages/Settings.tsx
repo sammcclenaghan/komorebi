@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Loader2, Monitor, Moon, Palette, Settings as SettingsIcon, Sun } from "lucide-react";
+import { Bell, Cpu, Loader2, Monitor, Moon, Palette, Settings as SettingsIcon, Sun } from "lucide-react";
 import { cn } from "~/lib/cn";
 import type { AppSettings, Theme } from "~/shared/types";
 import type { SettingsUpdate } from "~/main/store/settings";
@@ -22,6 +23,7 @@ export function Settings() {
   const schedule = settingsQuery.data?.schedule;
   const theme = settingsQuery.data?.theme;
   const dailyTarget = settingsQuery.data?.dailyTarget;
+  const model = settingsQuery.data?.model ?? null;
 
   return (
     <div className="page-shell">
@@ -134,6 +136,26 @@ export function Settings() {
               />
             </Row>
           </section>
+
+          <section className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-5 py-4">
+            <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
+              <Cpu className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span className="font-mono text-[9.5px] uppercase tracking-[0.2em]">
+                model
+              </span>
+            </div>
+
+            <Row
+              title="Composer model"
+              description="The Ollama model that drafts each suggestion. A bigger or instruction-tuned model finds higher-quality resources. Leave blank to use the server default. Must already be available on your Ollama host."
+            >
+              <ModelField
+                value={model}
+                disabled={update.isPending}
+                onCommit={(next) => update.mutate({ model: next })}
+              />
+            </Row>
+          </section>
         </>
         )}
       </div>
@@ -188,6 +210,80 @@ function ThemePicker({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/** A few solid self-hosted picks; the field still accepts any Ollama tag. */
+const MODEL_PRESETS = ["qwen3:32b", "llama3.3:70b", "gpt-oss:120b"];
+
+function ModelField({
+  value,
+  disabled,
+  onCommit
+}: {
+  value: string | null;
+  disabled?: boolean;
+  onCommit: (next: string) => void;
+}) {
+  const [draft, setDraft] = useState(value ?? "");
+
+  // Keep the input in sync when the saved value changes (e.g. another commit).
+  useEffect(() => {
+    setDraft(value ?? "");
+  }, [value]);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed === (value ?? "")) return;
+    onCommit(trimmed);
+  };
+
+  return (
+    <div className="flex flex-col items-end gap-2">
+      <input
+        type="text"
+        value={draft}
+        disabled={disabled}
+        placeholder="server default"
+        spellCheck={false}
+        autoCapitalize="off"
+        autoCorrect="off"
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setDraft(value ?? "");
+        }}
+        className={cn(
+          "w-[200px] rounded-md border border-[var(--color-rule)] bg-[var(--color-panel)] px-2.5 py-1.5",
+          "font-mono text-[12.5px] text-[var(--color-ink)]",
+          "transition focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20",
+          "disabled:cursor-not-allowed disabled:opacity-50"
+        )}
+      />
+      <div className="flex flex-wrap items-center justify-end gap-1">
+        {MODEL_PRESETS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              setDraft(preset);
+              if (preset !== (value ?? "")) onCommit(preset);
+            }}
+            className={cn(
+              "rounded border border-[var(--color-rule)] px-1.5 py-0.5 font-mono text-[10.5px] transition-colors",
+              value === preset
+                ? "bg-[var(--color-canvas)] text-[var(--color-ink)]"
+                : "text-[var(--color-ink-3)] hover:text-[var(--color-ink)]",
+              "disabled:cursor-not-allowed disabled:opacity-50"
+            )}
+          >
+            {preset}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

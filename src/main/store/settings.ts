@@ -9,8 +9,12 @@ const DEFAULTS: AppSettings = {
     lastRunDate: null
   },
   theme: "system",
-  dailyTarget: 4
+  dailyTarget: 4,
+  model: null
 };
+
+/** Keep model tags short and on a single line; trim/clamp pasted junk. */
+const MAX_MODEL_LENGTH = 120;
 
 /** Clamp the daily target to a sane range so a stray value can't break a day. */
 const MIN_DAILY_TARGET = 1;
@@ -24,8 +28,16 @@ function structuredCloneDefaults(): AppSettings {
   return {
     schedule: { ...DEFAULTS.schedule },
     theme: DEFAULTS.theme,
-    dailyTarget: DEFAULTS.dailyTarget
+    dailyTarget: DEFAULTS.dailyTarget,
+    model: DEFAULTS.model
   };
+}
+
+/** Normalize a model tag: trim, clamp, and treat blank as "use default". */
+function normalizeModel(input: unknown): string | null {
+  if (typeof input !== "string") return DEFAULTS.model;
+  const trimmed = input.trim().slice(0, MAX_MODEL_LENGTH);
+  return trimmed.length === 0 ? null : trimmed;
 }
 
 function normalizeDailyTarget(input: unknown): number {
@@ -43,7 +55,8 @@ export async function getSettings(): Promise<AppSettings> {
     return {
       schedule: { ...DEFAULTS.schedule, ...(raw?.schedule ?? {}) },
       theme: normalizeTheme(raw?.theme),
-      dailyTarget: normalizeDailyTarget(raw?.dailyTarget)
+      dailyTarget: normalizeDailyTarget(raw?.dailyTarget),
+      model: normalizeModel(raw?.model)
     };
   }
 
@@ -51,13 +64,16 @@ export async function getSettings(): Promise<AppSettings> {
   return {
     schedule: { ...DEFAULTS.schedule, ...(raw?.schedule ?? {}) },
     theme: normalizeTheme(raw?.theme),
-    dailyTarget: normalizeDailyTarget(raw?.dailyTarget)
+    dailyTarget: normalizeDailyTarget(raw?.dailyTarget),
+    model: normalizeModel(raw?.model)
   };
 }
 
 export type SettingsUpdate = Partial<Pick<ScheduleSettings, "enabled" | "time">> & {
   theme?: Theme;
   dailyTarget?: number;
+  /** Pass "" or null to clear back to the server default. */
+  model?: string | null;
 };
 
 export async function updateSettings(update: SettingsUpdate): Promise<AppSettings> {
@@ -76,7 +92,9 @@ export async function updateSettings(update: SettingsUpdate): Promise<AppSetting
       update.dailyTarget !== undefined
         ? normalizeDailyTarget(update.dailyTarget)
         : normalizeDailyTarget(current.dailyTarget);
-    const next: AppSettings = { schedule, theme, dailyTarget };
+    const model =
+      update.model !== undefined ? normalizeModel(update.model) : normalizeModel(current.model);
+    const next: AppSettings = { schedule, theme, dailyTarget, model };
     await db.execute({
       sql: "UPDATE settings SET data = ? WHERE id = 1",
       args: [JSON.stringify(next)]
@@ -98,7 +116,9 @@ export async function updateSettings(update: SettingsUpdate): Promise<AppSetting
       update.dailyTarget !== undefined
         ? normalizeDailyTarget(update.dailyTarget)
         : normalizeDailyTarget(base.dailyTarget);
-    const next: AppSettings = { ...base, schedule, theme, dailyTarget };
+    const model =
+      update.model !== undefined ? normalizeModel(update.model) : normalizeModel(base.model);
+    const next: AppSettings = { ...base, schedule, theme, dailyTarget, model };
     return { next, result: next };
   });
 }

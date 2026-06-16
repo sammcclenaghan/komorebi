@@ -98,7 +98,7 @@ async function runGenerateTodayChecklist(date: string): Promise<ChecklistDay> {
   // Size today to the user's target. Goals already covered today count toward
   // it; the rest of the slots go to the highest-priority goals, rotating in
   // the least-recently-suggested within a tier so lower tiers still surface.
-  const { dailyTarget } = await getSettings();
+  const { dailyTarget, model } = await getSettings();
   const remainingSlots = Math.max(0, dailyTarget - alreadyCovered.size);
   const candidates = activeGoals.filter((g) => !alreadyCovered.has(g.id));
 
@@ -145,6 +145,7 @@ async function runGenerateTodayChecklist(date: string): Promise<ChecklistDay> {
           history,
           date,
           contextBlocks,
+          model: model ?? undefined,
           onStatus: (label) =>
             emitProgress({ phase: "goal-status", goalId: goal.id, label })
         });
@@ -267,11 +268,13 @@ export async function skipAndRegenerate(suggestionId: string): Promise<Suggestio
     );
 
     const date = localDate();
+    const { model } = await getSettings();
     const draft = await generateSuggestion({
       goal,
       history,
       date,
       contextBlocks,
+      model: model ?? undefined,
       onStatus: (label) =>
         emitProgress({ phase: "goal-status", goalId: goal.id, label })
     });
