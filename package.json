@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "main": "dist-electron/main.cjs",
+  "packageManager": "pnpm@10.33.2",
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:web": "node scripts/dev-web.mjs",
@@ -54,6 +55,11 @@
     "typescript": "^5.7.3",
     "vite": "^7.0.0",
     "vitest": "^4.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "build": {
     "appId": "dev.sammcclenaghan.komorebi",
