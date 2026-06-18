@@ -3,8 +3,16 @@ import type { ContextBlock } from "../context/types";
 
 const LOCAL_HOST = "http://localhost:11434";
 const CLOUD_HOST = "https://ollama.com";
+const EXA_SEARCH_URL = "https://api.exa.ai/search";
 const DEFAULT_LOCAL_MODEL = "gpt-oss:120b-cloud";
 const DEFAULT_CLOUD_MODEL = "gpt-oss:120b";
+
+const QUERY_SYSTEM_INSTRUCTIONS = `You generate web search queries. Given a personal goal (and any context), output 1-3 concise, high-signal web search queries that would surface specific, current, high-quality resources (articles, tutorials, docs, tools) the user could act on today.
+
+Rules:
+- Prefer concrete nouns and specifics over filler words like "best" or "how to".
+- Each query should target a different angle when more than one is useful.
+- Respond with ONLY a JSON object (no prose, no code fences): {"queries": string[]}`;
 
 const SYSTEM_INSTRUCTIONS = `You are Komorebi, a personal AI that turns long-term goals into one concrete daily action.
 
@@ -12,7 +20,8 @@ For the given goal, produce ONE specific action the user can do today that meani
 
 Rules:
 - Be concrete. "Read about React hooks" is bad. "Read 'A Complete Guide to useEffect' by Dan Abramov (overreacted.io)" is good.
-- Use the supplied web search results to choose real, current, high-quality resources. Always include a real URL when one exists.
+- Use the supplied web search results to choose real, current, high-quality resources.
+- URLS ARE STRICTLY ALLOWLISTED: you may ONLY use URLs that appear verbatim in the "Web search results" section below. NEVER invent, guess, autocomplete, or modify a URL. If no result fits, set resourceUrl to null and include no link in detailMarkdown.
 - Don't repeat past suggestions in the history. Match difficulty and style to what the user actually engaged with.
 - READ the history carefully:
    - Thumbs up means the user liked it -> produce more in that direction.
@@ -57,6 +66,10 @@ type OllamaWebSearchResponse = {
   error?: string;
 };
 
+type ExaSearchResponse = {
+  results?: Array<{ title?: string; url?: string; highlights?: string[]; text?: string }>;
+};
+
 export class OllamaError extends Error {
   constructor(message: string, readonly raw?: string) {
     super(message);
@@ -65,35 +78,129 @@ export class OllamaError extends Error {
 }
 
 export async function generateSuggestion(input: GenerateInput): Promise<SuggestionDraft> {
-  input.onStatus?.("Searching the web...");
-  const searchResults = await searchWeb(input);
+  const model = input.model ?? defaultModel();
+
+  const queries = await buildSearchQueries(input, model);
+  const searchResults = await searchWeb(input, queries);
   input.onStatus?.("Drafting today's action...");
 
   const raw = await chat({
-    model: input.model ?? defaultModel(),
+    model,
     prompt: buildPrompt(input, searchResults)
   });
 
-  return parseDraft(raw);
+  return sanitizeUrls(parseDraft(raw), searchResults);
 }
 
-async function searchWeb(
-  input: GenerateInput
-): Promise<Array<{ title: string; url: string; content: string }>> {
-  const apiKey = process.env.OLLAMA_WEB_SEARCH_API_KEY ?? process.env.OLLAMA_API_KEY;
-  if (!apiKey) {
-    input.onStatus?.("No Ollama API key; drafting without web results...");
+/**
+ * Ask the model to turn the goal into focused web search queries. This is far
+ * cheaper/easier than full synthesis, and good queries are what make the
+ * downstream results (and cited URLs) real instead of slop. Falls back to a
+ * keyword query if the model is unavailable or returns nothing usable.
+ */
+async function buildSearchQueries(input: GenerateInput, model: string): Promise<string[]> {
+  if (searchProvider() === "none") return [];
+
+  const fallback = [input.goal.title, input.goal.description, input.goal.context]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  input.onStatus?.("Planning search...");
+  const goalBlock = [
+    `Goal: ${input.goal.title}`,
+    input.goal.description ? `Description: ${input.goal.description}` : null,
+    input.goal.context ? `User context: ${input.goal.context}` : null,
+    `Today's date: ${input.date}`
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    const raw = await chat({ model, system: QUERY_SYSTEM_INSTRUCTIONS, prompt: goalBlock });
+    const parsed = JSON.parse(stripCodeFences(raw).trim()) as { queries?: unknown };
+    const queries = Array.isArray(parsed.queries)
+      ? parsed.queries
+          .filter((q): q is string => typeof q === "string" && q.trim().length > 0)
+          .map((q) => q.trim())
+          .slice(0, 3)
+      : [];
+    return queries.length ? queries : fallback ? [fallback] : [];
+  } catch {
+    return fallback ? [fallback] : [];
+  }
+}
+
+type SearchResult = { title: string; url: string; content: string };
+
+function searchProvider(): "exa" | "ollama" | "none" {
+  if (process.env.EXA_API_KEY) return "exa";
+  if (process.env.OLLAMA_WEB_SEARCH_API_KEY ?? process.env.OLLAMA_API_KEY) return "ollama";
+  return "none";
+}
+
+async function searchWeb(input: GenerateInput, queries: string[]): Promise<SearchResult[]> {
+  const provider = searchProvider();
+  if (provider === "none" || queries.length === 0) {
+    input.onStatus?.("No web search configured; drafting without web results...");
     return [];
   }
 
-  const query = [
-    input.goal.title,
-    input.goal.description,
-    input.goal.context,
-    "best current resource practical action"
-  ]
-    .filter(Boolean)
-    .join(" ");
+  input.onStatus?.("Searching the web...");
+
+  // Run each query, merge, and dedupe by URL so a few angles produce one clean
+  // result set. Cap the total so the prompt stays small.
+  const perQuery = await Promise.all(
+    queries.map((q) => (provider === "exa" ? searchExa(q) : searchOllama(q)))
+  );
+
+  const seen = new Set<string>();
+  const merged: SearchResult[] = [];
+  for (const r of perQuery.flat()) {
+    const key = normalizeUrl(r.url);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(r);
+  }
+  return merged.slice(0, 8);
+}
+
+async function searchExa(query: string): Promise<SearchResult[]> {
+  const apiKey = process.env.EXA_API_KEY;
+  if (!apiKey) return [];
+
+  const res = await fetch(EXA_SEARCH_URL, {
+    method: "POST",
+    headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query,
+      type: "auto",
+      numResults: 5,
+      contents: { highlights: true }
+    })
+  });
+  const text = await res.text();
+  if (!res.ok) throw new OllamaError(`Exa web search failed (${res.status})`, text);
+
+  let parsed: ExaSearchResponse;
+  try {
+    parsed = JSON.parse(text) as ExaSearchResponse;
+  } catch {
+    throw new OllamaError("Exa web search returned non-JSON output", text);
+  }
+
+  return (parsed.results ?? [])
+    .filter((r) => r.title && r.url)
+    .map((r) => ({
+      title: String(r.title),
+      url: String(r.url),
+      content: (r.highlights ?? []).join(" … ").trim() || String(r.text ?? "").slice(0, 1000)
+    }));
+}
+
+async function searchOllama(query: string): Promise<SearchResult[]> {
+  const apiKey = process.env.OLLAMA_WEB_SEARCH_API_KEY ?? process.env.OLLAMA_API_KEY;
+  if (!apiKey) return [];
 
   const res = await fetch(`${CLOUD_HOST}/api/web_search`, {
     method: "POST",
@@ -123,7 +230,7 @@ async function searchWeb(
     }));
 }
 
-async function chat(input: { model: string; prompt: string }): Promise<string> {
+async function chat(input: { model: string; prompt: string; system?: string }): Promise<string> {
   const host = (process.env.OLLAMA_HOST ?? defaultHost()).replace(/\/$/, "");
   const chatApiKey = process.env.OLLAMA_CHAT_API_KEY;
   const cloudApiKey = host === CLOUD_HOST ? process.env.OLLAMA_API_KEY : undefined;
@@ -137,7 +244,7 @@ async function chat(input: { model: string; prompt: string }): Promise<string> {
       model: input.model,
       stream: false,
       messages: [
-        { role: "system", content: SYSTEM_INSTRUCTIONS },
+        { role: "system", content: input.system ?? SYSTEM_INSTRUCTIONS },
         { role: "user", content: input.prompt }
       ],
       format: "json",
@@ -267,4 +374,36 @@ function parseDraft(raw: string): SuggestionDraft {
 function stripCodeFences(text: string): string {
   const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
   return match?.[1] ?? text;
+}
+
+function normalizeUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.protocol}//${u.host.toLowerCase()}${u.pathname.replace(/\/$/, "")}${u.search}`;
+  } catch {
+    return url.trim().replace(/\/$/, "").toLowerCase();
+  }
+}
+
+/**
+ * Final guard against fabricated URLs: the model may only cite links that came
+ * back from search. Anything else is dropped — resourceUrl is nulled, and
+ * markdown links / bare URLs to non-allowlisted destinations are stripped from
+ * the detail. This holds regardless of how weak the underlying model is.
+ */
+function sanitizeUrls(draft: SuggestionDraft, results: SearchResult[]): SuggestionDraft {
+  const allow = new Set(results.map((r) => normalizeUrl(r.url)));
+  const isAllowed = (url: string) => allow.has(normalizeUrl(url));
+
+  const resourceUrl = draft.resourceUrl && isAllowed(draft.resourceUrl) ? draft.resourceUrl : null;
+
+  const detailMarkdown = draft.detailMarkdown
+    // [text](url) -> keep if allowlisted, else collapse to the link text
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_m, label: string, url: string) =>
+      isAllowed(url) ? `[${label}](${url})` : label
+    )
+    // bare URLs not in a markdown link -> drop if not allowlisted
+    .replace(/(?<!\]\()\bhttps?:\/\/[^\s)\]]+/g, (url: string) => (isAllowed(url) ? url : ""));
+
+  return { ...draft, resourceUrl, detailMarkdown };
 }

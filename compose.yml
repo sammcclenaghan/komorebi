@@ -15,6 +15,7 @@ services:
       OLLAMA_HOST: "http://192.168.0.223:11434"
       OLLAMA_MODEL: "gpt-oss:120b-cloud"
       OLLAMA_WEB_SEARCH_API_KEY: "${OLLAMA_WEB_SEARCH_API_KEY:-}"
+      EXA_API_KEY: "${EXA_API_KEY:-}"
       COMPOSIO_API_KEY: "${COMPOSIO_API_KEY:-}"
       KOMOREBI_API_TOKEN: "${KOMOREBI_API_TOKEN:-}"
     volumes:
