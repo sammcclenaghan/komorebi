@@ -11,6 +11,7 @@ import {
   listReflectionsForSuggestion
 } from "../store/reflections";
 import {
+  deleteSuggestionsForDate,
   deleteSuggestionsForGoal,
   getSuggestion,
   insertSuggestion,
@@ -19,7 +20,7 @@ import {
   listSuggestionsForDate,
   updateSuggestionStatus
 } from "../store/suggestions";
-import type { Reflection, Suggestion } from "~/shared/types";
+import type { Goal, Reflection, Suggestion } from "~/shared/types";
 
 /** YYYY-MM-DD in the user's local timezone. */
 export function localDate(d: Date = new Date()): string {
@@ -95,25 +96,86 @@ async function runGenerateTodayChecklist(date: string): Promise<ChecklistDay> {
     existing.filter((s) => s.status !== "skipped").map((s) => s.goalId)
   );
 
-  // Size today to the user's target. Goals already covered today count toward
-  // it; the rest of the slots go to the highest-priority goals, rotating in
-  // the least-recently-suggested within a tier so lower tiers still surface.
-  const { dailyTarget, model } = await getSettings();
-  const remainingSlots = Math.max(0, dailyTarget - alreadyCovered.size);
+  // Compose one action for every active goal that isn't already on today's
+  // list — no cap. Ordering is highest-priority and least-recently-suggested
+  // first so the list reads sensibly when there are many goals.
   const candidates = activeGoals.filter((g) => !alreadyCovered.has(g.id));
-
-  const goalsToGenerate =
-    remainingSlots === 0
-      ? []
-      : selectGoalsForToday(candidates, await listAllSuggestions(), remainingSlots);
+  const goalsToGenerate = selectGoalsForToday(
+    candidates,
+    await listAllSuggestions(),
+    candidates.length
+  );
 
   if (goalsToGenerate.length === 0) {
     return { date, items: existing, hasGoals: true };
   }
 
+  const newSuggestions = await composeForGoals(date, goalsToGenerate);
+
+  const items = [...existing, ...newSuggestions].sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt)
+  );
+
+  emitProgress({ phase: "done", items });
+
+  return { date, items, hasGoals: true };
+}
+
+/**
+ * Throw away today's composed list and compose a fresh action for every active
+ * goal. Deletes today's suggestions (and their reflections) so the day starts
+ * clean rather than stacking skipped rows on top.
+ */
+export async function regenerateTodayChecklist(): Promise<ChecklistDay> {
+  const date = localDate();
+  // Let any in-flight first-pass generation settle so we don't race its inserts.
+  if (inFlightToday && inFlightToday.date === date) {
+    await inFlightToday.promise.catch(() => {});
+  }
+  const promise = runRegenerateTodayChecklist(date);
+  inFlightToday = { date, promise };
+  try {
+    return await promise;
+  } finally {
+    if (inFlightToday?.promise === promise) inFlightToday = null;
+  }
+}
+
+async function runRegenerateTodayChecklist(date: string): Promise<ChecklistDay> {
+  const activeGoals = await listActiveGoals();
+  if (activeGoals.length === 0) {
+    return { date, items: [], hasGoals: false };
+  }
+
+  const removedIds = await deleteSuggestionsForDate(date);
+  await deleteReflectionsForSuggestions(removedIds);
+
+  const goalsToGenerate = selectGoalsForToday(
+    activeGoals,
+    await listAllSuggestions(),
+    activeGoals.length
+  );
+  const newSuggestions = await composeForGoals(date, goalsToGenerate);
+
+  const items = [...newSuggestions].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  emitProgress({ phase: "done", items });
+
+  return { date, items, hasGoals: true };
+}
+
+/**
+ * Fetch context once, then compose a fresh suggestion for each goal in
+ * parallel, emitting progress as each completes. Shared by first-pass
+ * generation and the whole-day redo. Callers emit the final "done" event.
+ */
+async function composeForGoals(date: string, goals: Goal[]): Promise<Suggestion[]> {
+  if (goals.length === 0) return [];
+
+  const { model } = await getSettings();
+
   emitProgress({
     phase: "start",
-    goals: goalsToGenerate.map((g) => ({ id: g.id, title: g.title }))
+    goals: goals.map((g) => ({ id: g.id, title: g.title }))
   });
 
   let contextBlocks: Awaited<ReturnType<typeof buildContextBlocks>> = [];
@@ -129,8 +191,8 @@ async function runGenerateTodayChecklist(date: string): Promise<ChecklistDay> {
     labels: contextBlocks.map((b) => b.label)
   });
 
-  const newSuggestions = await Promise.all(
-    goalsToGenerate.map(async (goal) => {
+  return Promise.all(
+    goals.map(async (goal) => {
       emitProgress({ phase: "goal-start", goalId: goal.id });
       try {
         const recent = await listRecentSuggestionsForGoal(goal.id, 14);
@@ -159,14 +221,6 @@ async function runGenerateTodayChecklist(date: string): Promise<ChecklistDay> {
       }
     })
   );
-
-  const items = [...existing, ...newSuggestions].sort((a, b) =>
-    a.createdAt.localeCompare(b.createdAt)
-  );
-
-  emitProgress({ phase: "done", items });
-
-  return { date, items, hasGoals: true };
 }
 
 export type HistoryDay = {

@@ -19,18 +19,9 @@ import { GoalModal } from "../components/GoalModal";
 import { ChecklistRow } from "../components/ChecklistRow";
 import { GeneratingRow } from "../components/GeneratingRow";
 import { AllCaughtUp } from "../components/AllCaughtUp";
-import { StreakSprig } from "../components/StreakSprig";
 import type { Goal, Suggestion } from "~/shared/types";
 import type { WeatherSummary } from "~/main/weather/service";
 import type { GenerationProgress } from "~/main/checklist/orchestrator";
-
-/** YYYY-MM-DD in the user's local timezone (mirrors the main-process helper). */
-function localDate(d: Date = new Date()): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 function locationFromTimezone(): string {
   try {
@@ -217,12 +208,6 @@ export function Today({ onOpenSuggestion }: Props) {
     queryFn: () => window.komorebi.checklist.today()
   });
 
-  const historyQuery = useQuery({
-    queryKey: ["history", 30],
-    queryFn: () => window.komorebi.history.list(30),
-    refetchOnWindowFocus: false
-  });
-
   const generate = useMutation({
     mutationFn: () => window.komorebi.checklist.generate(),
     onSuccess: (data) => {
@@ -308,12 +293,6 @@ export function Today({ onOpenSuggestion }: Props) {
               {today}
             </span>
           </div>
-
-          <StreakSprig
-            history={historyQuery.data}
-            todayItems={items}
-            todayDate={checklist?.date ?? localDate()}
-          />
         </header>
 
         {isLoading ? (

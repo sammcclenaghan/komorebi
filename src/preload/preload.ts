@@ -20,6 +20,7 @@ const api: KomorebiApi = {
   checklist: {
     today: () => ipcRenderer.invoke("checklist:today"),
     generate: () => ipcRenderer.invoke("checklist:generate"),
+    regenerate: () => ipcRenderer.invoke("checklist:regenerate"),
     onProgress: (handler) => {
       const listener = (_: unknown, payload: GenerationProgress) => handler(payload);
       ipcRenderer.on("checklist:progress", listener);

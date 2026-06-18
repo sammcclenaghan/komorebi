@@ -18,6 +18,7 @@ import {
   generateTodayChecklist,
   getHistory,
   getTodayChecklist,
+  regenerateTodayChecklist,
   skipAndRegenerate
 } from "./checklist/orchestrator";
 import {
@@ -81,6 +82,7 @@ ipcMain.handle("goals:delete", (_event, id: string) => deleteGoalCascade(id));
 
 ipcMain.handle("checklist:today", () => getTodayChecklist());
 ipcMain.handle("checklist:generate", () => generateTodayChecklist());
+ipcMain.handle("checklist:regenerate", () => regenerateTodayChecklist());
 
 ipcMain.handle("history:list", (_event, daysBack?: number) => getHistory(daysBack));
 

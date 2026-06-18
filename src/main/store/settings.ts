@@ -9,16 +9,11 @@ const DEFAULTS: AppSettings = {
     lastRunDate: null
   },
   theme: "system",
-  dailyTarget: 4,
   model: null
 };
 
 /** Keep model tags short and on a single line; trim/clamp pasted junk. */
 const MAX_MODEL_LENGTH = 120;
-
-/** Clamp the daily target to a sane range so a stray value can't break a day. */
-const MIN_DAILY_TARGET = 1;
-const MAX_DAILY_TARGET = 12;
 
 const VALID_THEMES: ReadonlySet<Theme> = new Set<Theme>(["light", "dark", "system"]);
 
@@ -28,7 +23,6 @@ function structuredCloneDefaults(): AppSettings {
   return {
     schedule: { ...DEFAULTS.schedule },
     theme: DEFAULTS.theme,
-    dailyTarget: DEFAULTS.dailyTarget,
     model: DEFAULTS.model
   };
 }
@@ -40,12 +34,6 @@ function normalizeModel(input: unknown): string | null {
   return trimmed.length === 0 ? null : trimmed;
 }
 
-function normalizeDailyTarget(input: unknown): number {
-  const n = typeof input === "number" ? Math.round(input) : NaN;
-  if (!Number.isFinite(n)) return DEFAULTS.dailyTarget;
-  return Math.min(MAX_DAILY_TARGET, Math.max(MIN_DAILY_TARGET, n));
-}
-
 export async function getSettings(): Promise<AppSettings> {
   const db = await getDb();
   if (db) {
@@ -55,7 +43,6 @@ export async function getSettings(): Promise<AppSettings> {
     return {
       schedule: { ...DEFAULTS.schedule, ...(raw?.schedule ?? {}) },
       theme: normalizeTheme(raw?.theme),
-      dailyTarget: normalizeDailyTarget(raw?.dailyTarget),
       model: normalizeModel(raw?.model)
     };
   }
@@ -64,14 +51,12 @@ export async function getSettings(): Promise<AppSettings> {
   return {
     schedule: { ...DEFAULTS.schedule, ...(raw?.schedule ?? {}) },
     theme: normalizeTheme(raw?.theme),
-    dailyTarget: normalizeDailyTarget(raw?.dailyTarget),
     model: normalizeModel(raw?.model)
   };
 }
 
 export type SettingsUpdate = Partial<Pick<ScheduleSettings, "enabled" | "time">> & {
   theme?: Theme;
-  dailyTarget?: number;
   /** Pass "" or null to clear back to the server default. */
   model?: string | null;
 };
@@ -88,13 +73,9 @@ export async function updateSettings(update: SettingsUpdate): Promise<AppSetting
     };
     const theme: Theme =
       update.theme !== undefined ? normalizeTheme(update.theme) : normalizeTheme(current.theme);
-    const dailyTarget =
-      update.dailyTarget !== undefined
-        ? normalizeDailyTarget(update.dailyTarget)
-        : normalizeDailyTarget(current.dailyTarget);
     const model =
       update.model !== undefined ? normalizeModel(update.model) : normalizeModel(current.model);
-    const next: AppSettings = { schedule, theme, dailyTarget, model };
+    const next: AppSettings = { schedule, theme, model };
     await db.execute({
       sql: "UPDATE settings SET data = ? WHERE id = 1",
       args: [JSON.stringify(next)]
@@ -112,13 +93,9 @@ export async function updateSettings(update: SettingsUpdate): Promise<AppSetting
     };
     const theme: Theme =
       update.theme !== undefined ? normalizeTheme(update.theme) : normalizeTheme(base.theme);
-    const dailyTarget =
-      update.dailyTarget !== undefined
-        ? normalizeDailyTarget(update.dailyTarget)
-        : normalizeDailyTarget(base.dailyTarget);
     const model =
       update.model !== undefined ? normalizeModel(update.model) : normalizeModel(base.model);
-    const next: AppSettings = { ...base, schedule, theme, dailyTarget, model };
+    const next: AppSettings = { ...base, schedule, theme, model };
     return { next, result: next };
   });
 }

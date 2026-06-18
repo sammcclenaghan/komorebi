@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronRight, Clock, History as HistoryIcon, SkipForward, ThumbsDown, ThumbsUp } from "lucide-react";
 import { cn } from "~/lib/cn";
-import { computeStreak } from "../components/StreakSprig";
 import type { HistoryDay } from "~/main/checklist/orchestrator";
 import type { Goal, Reflection, Suggestion } from "~/shared/types";
 
@@ -83,8 +82,6 @@ export function History({ onOpenSuggestion }: Props) {
           <Heatmap
             byDate={byDate}
             todayDate={todayDate}
-            todayItems={todayItems}
-            history={days}
             selectedDate={selectedDate}
             onSelect={setSelected}
           />
@@ -111,25 +108,16 @@ export function History({ onOpenSuggestion }: Props) {
 function Heatmap({
   byDate,
   todayDate,
-  todayItems,
-  history,
   selectedDate,
   onSelect
 }: {
   byDate: Map<string, HistoryDay>;
   todayDate: string;
-  todayItems: Suggestion[];
-  history: HistoryDay[];
   selectedDate: string;
   onSelect: (date: string) => void;
 }) {
   const { columns, monthLabels } = useMemo(() => buildGrid(byDate, todayDate), [byDate, todayDate]);
 
-  const currentStreak = useMemo(
-    () => computeStreak(history, todayItems, todayDate),
-    [history, todayItems, todayDate]
-  );
-  const longestStreak = useMemo(() => computeLongestStreak(byDate), [byDate]);
   const totalDone = useMemo(
     () => [...byDate.values()].reduce((n, d) => n + d.items.filter((s) => s.status === "done").length, 0),
     [byDate]
@@ -196,8 +184,6 @@ function Heatmap({
       </div>
 
       <div className="flex shrink-0 gap-6 sm:flex-col sm:gap-4">
-        <Stat label="current streak" value={currentStreak} unit={currentStreak === 1 ? "day" : "days"} />
-        <Stat label="longest" value={longestStreak} unit={longestStreak === 1 ? "day" : "days"} />
         <Stat label="completed" value={totalDone} unit={totalDone === 1 ? "task" : "tasks"} />
       </div>
     </div>
@@ -309,26 +295,6 @@ function cellTitle(cell: Cell): string {
   const date = formatLongDate(cell.iso);
   if (cell.total === 0) return `${date} — nothing composed`;
   return `${date} — ${cell.done}/${cell.total} done`;
-}
-
-function computeLongestStreak(byDate: Map<string, HistoryDay>): number {
-  const doneDates = [...byDate.values()]
-    .filter((d) => d.items.some((s) => s.status === "done"))
-    .map((d) => d.date)
-    .sort();
-  let best = 0;
-  let run = 0;
-  let prev: string | null = null;
-  for (const iso of doneDates) {
-    if (prev && isoOf(addDays(toDate(prev), 1)) === iso) {
-      run += 1;
-    } else {
-      run = 1;
-    }
-    if (run > best) best = run;
-    prev = iso;
-  }
-  return best;
 }
 
 // ── Date helpers (local, YYYY-MM-DD) ───────────────────────────────

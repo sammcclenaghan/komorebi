@@ -116,6 +116,7 @@ export function createHttpClient(): KomorebiApi {
     checklist: {
       today: () => apiFetch("/api/checklist/today"),
       generate: () => apiFetch("/api/checklist/generate", { method: "POST" }),
+      regenerate: () => apiFetch("/api/checklist/regenerate", { method: "POST" }),
       onProgress: (handler) => {
         progressHandlers.add(handler);
         ensureProgressSource();

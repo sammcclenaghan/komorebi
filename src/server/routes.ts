@@ -15,6 +15,7 @@ import {
   generateTodayChecklist,
   getHistory,
   getTodayChecklist,
+  regenerateTodayChecklist,
   skipAndRegenerate
 } from "~/main/checklist/orchestrator";
 import {
@@ -94,6 +95,7 @@ export async function handleApi(
 
   if (method === "GET" && pathname === "/api/checklist/today") return getTodayChecklist();
   if (method === "POST" && pathname === "/api/checklist/generate") return generateTodayChecklist();
+  if (method === "POST" && pathname === "/api/checklist/regenerate") return regenerateTodayChecklist();
 
   if (method === "GET" && pathname === "/api/history") {
     const params = new URLSearchParams(search);

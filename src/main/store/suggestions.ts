@@ -193,6 +193,26 @@ export async function updateSuggestionRating(
   });
 }
 
+/** Delete every suggestion on a given day. Returns the removed IDs. */
+export async function deleteSuggestionsForDate(date: string): Promise<string[]> {
+  const db = await getDb();
+  if (db) {
+    const rs = await db.execute({
+      sql: "DELETE FROM suggestions WHERE date = ? RETURNING id",
+      args: [date]
+    });
+    return rs.rows.map((r) => (r as Record<string, unknown>).id as string);
+  }
+
+  return store.mutate((current) => {
+    const removed = current.filter((s) => s.date === date).map((s) => s.id);
+    return {
+      next: current.filter((s) => s.date !== date),
+      result: removed
+    };
+  });
+}
+
 /** Returns the IDs of the suggestions that were removed. */
 export async function deleteSuggestionsForGoal(goalId: string): Promise<string[]> {
   const db = await getDb();

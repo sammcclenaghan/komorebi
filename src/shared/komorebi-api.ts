@@ -32,6 +32,7 @@ export type KomorebiApi = {
   checklist: {
     today: () => Promise<ChecklistDay>;
     generate: () => Promise<ChecklistDay>;
+    regenerate: () => Promise<ChecklistDay>;
     onProgress: (handler: (event: GenerationProgress) => void) => () => void;
   };
   suggestions: {

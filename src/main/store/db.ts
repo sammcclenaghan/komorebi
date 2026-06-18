@@ -68,8 +68,7 @@ async function initSchema(): Promise<void> {
     args: [
       JSON.stringify({
         schedule: { enabled: true, time: "07:00", lastRunDate: null },
-        theme: "system",
-        dailyTarget: 4
+        theme: "system"
       })
     ]
   });
