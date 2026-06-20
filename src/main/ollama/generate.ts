@@ -7,6 +7,17 @@ const EXA_SEARCH_URL = "https://api.exa.ai/search";
 const DEFAULT_LOCAL_MODEL = "gpt-oss:120b-cloud";
 const DEFAULT_CLOUD_MODEL = "gpt-oss:120b";
 
+// Deep search does multi-step planning + reasoning to surface specific, real
+// resources instead of whatever ranks first. "deep-lite" keeps latency ~4s;
+// bump to "deep" for harder goals at the cost of more latency.
+const EXA_SEARCH_TYPE = "deep-lite";
+const EXA_SEARCH_SYSTEM_PROMPT =
+  "Find specific, high-quality, directly actionable resources for the user's goal. " +
+  "Strongly prefer primary and authoritative sources: official docs, the original author's blog or essay, " +
+  "reputable engineering blogs (company or personal), canonical books, and well-known practitioner sites. " +
+  "Avoid SEO content farms, thin listicles, auto-generated roundups, and low-quality aggregators. " +
+  "Each result should be a concrete thing the user can read, watch, or do today.";
+
 const QUERY_SYSTEM_INSTRUCTIONS = `You generate web search queries. Given a personal goal (and any context), output 1-3 concise, high-signal web search queries that would surface specific, current, high-quality resources (articles, tutorials, docs, tools) the user could act on today.
 
 Rules:
@@ -68,6 +79,13 @@ type OllamaWebSearchResponse = {
 
 type ExaSearchResponse = {
   results?: Array<{ title?: string; url?: string; highlights?: string[]; text?: string }>;
+  // Deep search variants synthesize an answer and ground it in vetted citations.
+  output?: {
+    content?: string;
+    grounding?: Array<{
+      citations?: Array<{ url?: string; title?: string }>;
+    }>;
+  };
 };
 
 export class OllamaError extends Error {
@@ -174,8 +192,9 @@ async function searchExa(query: string): Promise<SearchResult[]> {
     headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({
       query,
-      type: "auto",
+      type: EXA_SEARCH_TYPE,
       numResults: 5,
+      systemPrompt: EXA_SEARCH_SYSTEM_PROMPT,
       contents: { highlights: true }
     })
   });
@@ -189,13 +208,29 @@ async function searchExa(query: string): Promise<SearchResult[]> {
     throw new OllamaError("Exa web search returned non-JSON output", text);
   }
 
-  return (parsed.results ?? [])
+  const results: SearchResult[] = (parsed.results ?? [])
     .filter((r) => r.title && r.url)
     .map((r) => ({
       title: String(r.title),
       url: String(r.url),
       content: (r.highlights ?? []).join(" … ").trim() || String(r.text ?? "").slice(0, 1000)
     }));
+
+  // Deep search returns a synthesized answer grounded in citations. Those cited
+  // URLs are Exa's vetted picks, so add any that aren't already in results -
+  // this keeps them on the URL allowlist the model is restricted to. Attach the
+  // synthesized summary as their snippet so the model knows why they matter.
+  const summary = String(parsed.output?.content ?? "").slice(0, 1000);
+  const known = new Set(results.map((r) => normalizeUrl(r.url)));
+  for (const g of parsed.output?.grounding ?? []) {
+    for (const c of g.citations ?? []) {
+      if (!c.url || known.has(normalizeUrl(c.url))) continue;
+      known.add(normalizeUrl(c.url));
+      results.push({ title: String(c.title ?? c.url), url: String(c.url), content: summary });
+    }
+  }
+
+  return results;
 }
 
 async function searchOllama(query: string): Promise<SearchResult[]> {
