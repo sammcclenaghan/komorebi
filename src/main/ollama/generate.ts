@@ -144,7 +144,15 @@ async function buildSearchQueries(input: GenerateInput, model: string): Promise<
           .slice(0, 3)
       : [];
     return queries.length ? queries : fallback ? [fallback] : [];
-  } catch {
+  } catch (err) {
+    // A transport/model error (bad model tag, auth, host down) is not something
+    // we should paper over - the same model is about to draft the suggestion, so
+    // fail loudly now with the real reason instead of silently degrading search.
+    if (err instanceof OllamaError) throw err;
+    // Otherwise the model just returned something we couldn't parse as queries.
+    // That's recoverable: log it and fall back to a keyword query.
+    console.warn("[generate] query planning returned unparseable output, using fallback:", err);
+    input.onStatus?.("Query planning failed; using a keyword search...");
     return fallback ? [fallback] : [];
   }
 }
@@ -199,7 +207,7 @@ async function searchExa(query: string): Promise<SearchResult[]> {
     })
   });
   const text = await res.text();
-  if (!res.ok) throw new OllamaError(`Exa web search failed (${res.status})`, text);
+  if (!res.ok) throw new OllamaError(`Exa web search failed (${res.status}): ${extractError(text)}`, text);
 
   let parsed: ExaSearchResponse;
   try {
@@ -246,7 +254,7 @@ async function searchOllama(query: string): Promise<SearchResult[]> {
     body: JSON.stringify({ query, max_results: 5 })
   });
   const text = await res.text();
-  if (!res.ok) throw new OllamaError(`Ollama web search failed (${res.status})`, text);
+  if (!res.ok) throw new OllamaError(`Ollama web search failed (${res.status}): ${extractError(text)}`, text);
 
   let parsed: OllamaWebSearchResponse;
   try {
@@ -288,7 +296,11 @@ async function chat(input: { model: string; prompt: string; system?: string }): 
   });
 
   const text = await res.text();
-  if (!res.ok) throw new OllamaError(`Ollama chat failed (${res.status})`, text);
+  if (!res.ok) {
+    // Surface the real reason (e.g. "model 'glm5.2:cloud' not found") instead of
+    // just the status code - Ollama returns it in a JSON {error} body.
+    throw new OllamaError(`Ollama chat failed (${res.status}): ${extractError(text)}`, text);
+  }
 
   let parsed: OllamaChatResponse;
   try {
@@ -404,6 +416,21 @@ function parseDraft(raw: string): SuggestionDraft {
         ? Math.round(obj.estimatedMinutes)
         : null
   };
+}
+
+/** Pull a human-readable error out of an Ollama/Exa error body ({"error": "..."}). */
+function extractError(body: string): string {
+  try {
+    const parsed = JSON.parse(body) as { error?: unknown };
+    if (typeof parsed.error === "string" && parsed.error) return parsed.error;
+    if (parsed.error && typeof parsed.error === "object") {
+      const msg = (parsed.error as { message?: unknown }).message;
+      if (typeof msg === "string" && msg) return msg;
+    }
+  } catch {
+    // not JSON
+  }
+  return body.slice(0, 300).trim() || "no error detail";
 }
 
 function stripCodeFences(text: string): string {
