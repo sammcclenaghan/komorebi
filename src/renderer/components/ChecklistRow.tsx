@@ -173,7 +173,10 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
           }}
           disabled={skipRegen.isPending}
           className={cn(
-            "mt-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-ink-3)]/70 transition-colors",
+            // Hover-revealed, so hidden entirely on touch devices — otherwise it's
+            // invisible but still tappable and skips by accident. The detail view
+            // has an explicit skip button for touch.
+            "mt-1.5 hidden h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-ink-3)]/70 transition-colors [@media(hover:hover)]:flex",
             "opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)] hover:text-[var(--color-ink-2)]",
             skipRegen.isPending && "opacity-100 cursor-not-allowed"
           )}
@@ -267,7 +270,10 @@ function RatingThumb({
       }}
       disabled={disabled}
       className={cn(
-        "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+        // Same deal as the skip button: hover-revealed, so touch devices hide it
+        // rather than leave an invisible tap target. Rating lives in the detail
+        // view's reflection capture on touch.
+        "hidden h-7 w-7 items-center justify-center rounded-md transition-colors [@media(hover:hover)]:flex",
         "opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)]",
         active
           ? "text-[var(--color-accent-strong)]"

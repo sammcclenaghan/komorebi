@@ -9,6 +9,7 @@ import { Integrations } from "./pages/Integrations";
 import { Settings } from "./pages/Settings";
 import { SuggestionDetail } from "./pages/SuggestionDetail";
 import { useApplyTheme } from "./lib/use-theme";
+import { useChecklistProgress } from "./lib/use-checklist-progress";
 import { isWebMode } from "./lib/api";
 import { cn } from "~/lib/cn";
 
@@ -20,6 +21,11 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(!isWebMode());
 
   useApplyTheme();
+
+  // Lives here (not in Today) so generation progress keeps flowing — and the
+  // checklist cache keeps getting invalidated — while the user is on another
+  // page. Pages remount on navigation via the keyed <main> below.
+  const progress = useChecklistProgress();
 
   function selectView(next: View) {
     setView(next);
@@ -70,7 +76,7 @@ export function App() {
               onBack={() => setOpenSuggestionId(null)}
             />
           ) : view === "today" ? (
-            <Today onOpenSuggestion={setOpenSuggestionId} />
+            <Today onOpenSuggestion={setOpenSuggestionId} progress={progress} />
           ) : view === "history" ? (
             <History onOpenSuggestion={setOpenSuggestionId} />
           ) : view === "goals" ? (
