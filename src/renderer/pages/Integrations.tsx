@@ -60,7 +60,6 @@ export function Integrations() {
             />
             <input
               type="search"
-              autoFocus
               placeholder="Search integrations…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -73,7 +72,7 @@ export function Integrations() {
             {query && (
               <button
                 onClick={() => setQuery("")}
-                className="absolute top-1/2 right-2 -translate-y-1/2 p-1 text-[var(--color-ink-3)] transition-colors hover:text-[var(--color-ink)]"
+                className="absolute top-1/2 right-2 -translate-y-1/2 p-1 text-[var(--color-ink-3)] transition-colors hover:text-[var(--color-ink)] active:text-[var(--color-ink)]"
                 aria-label="Clear search"
               >
                 <X className="h-3 w-3" />
@@ -149,7 +148,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
       <p className="mt-3 font-mono text-[11.5px] text-[var(--color-ink-3)]">{message}</p>
       <button
         onClick={onRetry}
-        className="mt-6 rounded-md bg-[var(--color-ink)] px-4 py-2 text-[12px] text-[var(--color-canvas)] transition-colors hover:bg-[var(--color-accent)]"
+        className="pressable mt-6 rounded-md bg-[var(--color-ink)] px-4 py-2 text-[12px] text-[var(--color-canvas)] hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)]"
       >
         Try again
       </button>

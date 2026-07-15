@@ -155,7 +155,7 @@ function Heatmap({
                     title={cellTitle(cell)}
                     aria-label={cellTitle(cell)}
                     className={cn(
-                      "h-3.5 w-3.5 rounded-[3px] transition-transform hover:scale-125",
+                      "h-3.5 w-3.5 rounded-[3px] transition-transform hover:scale-125 active:scale-90",
                       cell.iso === selectedDate &&
                         "ring-[1.5px] ring-[var(--color-ink)] ring-offset-1 ring-offset-[var(--color-canvas)]"
                     )}
@@ -299,8 +299,8 @@ function cellTitle(cell: Cell): string {
 
 // ── Date helpers (local, YYYY-MM-DD) ───────────────────────────────
 
-function localDate(d: Date = new Date()): string {
-  return isoOf(d);
+function localDate(): string {
+  return isoOf(new Date());
 }
 
 function isoOf(d: Date): string {
@@ -390,8 +390,8 @@ function HistoryRow({
   return (
     <article
       className={cn(
-        "group rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] transition-colors",
-        "hover:border-[var(--color-rule-2)]",
+        "pressable-row group rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)]",
+        "hover:border-[var(--color-rule-2)] active:border-[var(--color-rule-2)] active:bg-[var(--color-panel-hover)]",
         isSkipped && "opacity-55"
       )}
     >
@@ -507,9 +507,7 @@ function EmptyState() {
 }
 
 function formatLongDate(yyyymmdd: string): string {
-  const [y, m, d] = yyyymmdd.split("-").map(Number);
-  const date = new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
-  return date.toLocaleDateString(undefined, {
+  return toDate(yyyymmdd).toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
     day: "numeric"
@@ -517,8 +515,7 @@ function formatLongDate(yyyymmdd: string): string {
 }
 
 function formatRelativeDay(yyyymmdd: string): string {
-  const [y, m, d] = yyyymmdd.split("-").map(Number);
-  const target = new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+  const target = toDate(yyyymmdd);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const days = Math.round((today.getTime() - target.getTime()) / (24 * 60 * 60 * 1000));

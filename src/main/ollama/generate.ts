@@ -95,6 +95,27 @@ export class OllamaError extends Error {
   }
 }
 
+// Without these, a hung host blocks the coalesced in-flight generation
+// forever — the UI just shows "Composing…" until the process restarts.
+const CHAT_TIMEOUT_MS = 120_000;
+const SEARCH_TIMEOUT_MS = 30_000;
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  what: string
+): Promise<Response> {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+  } catch (err) {
+    if (err instanceof Error && err.name === "TimeoutError") {
+      throw new OllamaError(`${what} timed out after ${Math.round(timeoutMs / 1000)}s`);
+    }
+    throw err;
+  }
+}
+
 export async function generateSuggestion(input: GenerateInput): Promise<SuggestionDraft> {
   const model = input.model ?? defaultModel();
 
@@ -195,17 +216,22 @@ async function searchExa(query: string): Promise<SearchResult[]> {
   const apiKey = process.env.EXA_API_KEY;
   if (!apiKey) return [];
 
-  const res = await fetch(EXA_SEARCH_URL, {
-    method: "POST",
-    headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query,
-      type: EXA_SEARCH_TYPE,
-      numResults: 5,
-      systemPrompt: EXA_SEARCH_SYSTEM_PROMPT,
-      contents: { highlights: true }
-    })
-  });
+  const res = await fetchWithTimeout(
+    EXA_SEARCH_URL,
+    {
+      method: "POST",
+      headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query,
+        type: EXA_SEARCH_TYPE,
+        numResults: 5,
+        systemPrompt: EXA_SEARCH_SYSTEM_PROMPT,
+        contents: { highlights: true }
+      })
+    },
+    SEARCH_TIMEOUT_MS,
+    "Exa web search"
+  );
   const text = await res.text();
   if (!res.ok) throw new OllamaError(`Exa web search failed (${res.status}): ${extractError(text)}`, text);
 
@@ -245,14 +271,19 @@ async function searchOllama(query: string): Promise<SearchResult[]> {
   const apiKey = process.env.OLLAMA_WEB_SEARCH_API_KEY ?? process.env.OLLAMA_API_KEY;
   if (!apiKey) return [];
 
-  const res = await fetch(`${CLOUD_HOST}/api/web_search`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
+  const res = await fetchWithTimeout(
+    `${CLOUD_HOST}/api/web_search`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ query, max_results: 5 })
     },
-    body: JSON.stringify({ query, max_results: 5 })
-  });
+    SEARCH_TIMEOUT_MS,
+    "Ollama web search"
+  );
   const text = await res.text();
   if (!res.ok) throw new OllamaError(`Ollama web search failed (${res.status}): ${extractError(text)}`, text);
 
@@ -280,20 +311,25 @@ async function chat(input: { model: string; prompt: string; system?: string }): 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (chatApiKey || cloudApiKey) headers.Authorization = `Bearer ${chatApiKey ?? cloudApiKey}`;
 
-  const res = await fetch(`${host}/api/chat`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model: input.model,
-      stream: false,
-      messages: [
-        { role: "system", content: input.system ?? SYSTEM_INSTRUCTIONS },
-        { role: "user", content: input.prompt }
-      ],
-      format: "json",
-      options: { temperature: 0.4 }
-    })
-  });
+  const res = await fetchWithTimeout(
+    `${host}/api/chat`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: input.model,
+        stream: false,
+        messages: [
+          { role: "system", content: input.system ?? SYSTEM_INSTRUCTIONS },
+          { role: "user", content: input.prompt }
+        ],
+        format: "json",
+        options: { temperature: 0.4 }
+      })
+    },
+    CHAT_TIMEOUT_MS,
+    "Ollama chat"
+  );
 
   const text = await res.text();
   if (!res.ok) {

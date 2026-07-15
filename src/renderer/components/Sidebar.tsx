@@ -14,10 +14,14 @@ const PRIMARY: NavItem[] = [
   { id: "today", label: "Today", Icon: Sunrise },
   { id: "history", label: "History", Icon: History },
   { id: "goals", label: "Goals", Icon: Target },
-  { id: "integrations", label: "Integrations", Icon: Plug }
+  { id: "integrations", label: "Integrations", Icon: Plug },
 ];
 
-const SETTINGS_ITEM: NavItem = { id: "settings", label: "Settings", Icon: Settings };
+const SETTINGS_ITEM: NavItem = {
+  id: "settings",
+  label: "Settings",
+  Icon: Settings,
+};
 
 /** Open width in pixels — kept in JS so the transition animates a known value. */
 const OPEN_WIDTH = 220;
@@ -40,7 +44,7 @@ export function Sidebar({ active, open, onSelect }: Props) {
       style={{ width: open ? OPEN_WIDTH : 0 }}
       className={cn(
         "drag-region hidden shrink-0 flex-col overflow-hidden md:flex",
-        "transition-[width] duration-200 ease-out"
+        "transition-[width] duration-200 ease-out",
       )}
     >
       {/* Fixed-width inner shell so child layout doesn't reflow as width
@@ -79,7 +83,7 @@ export function Sidebar({ active, open, onSelect }: Props) {
 function NavButton({
   item,
   active,
-  onSelect
+  onSelect,
 }: {
   item: NavItem;
   active: boolean;
@@ -90,10 +94,10 @@ function NavButton({
       onClick={() => onSelect(item.id)}
       title={item.label}
       className={cn(
-        "group flex items-center gap-3 rounded-md px-3 py-2 text-[14px] transition-colors",
+        "pressable-row group flex items-center gap-3 rounded-md px-3 py-2 text-[14px]",
         active
           ? "bg-[var(--color-panel-2)] text-[var(--color-ink)]"
-          : "text-[var(--color-ink-2)] hover:bg-[var(--color-panel-hover)] hover:text-[var(--color-ink)]"
+          : "text-[var(--color-ink-2)] hover:bg-[var(--color-panel-hover)] hover:text-[var(--color-ink)] active:bg-[var(--color-panel-2)]",
       )}
     >
       <item.Icon className="h-[17px] w-[17px] shrink-0" strokeWidth={1.5} />

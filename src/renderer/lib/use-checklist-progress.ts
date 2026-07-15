@@ -82,8 +82,19 @@ export function useChecklistProgress(): ChecklistProgress {
         }
         case "done": {
           setActive(false);
-          // Clear after a beat so any straggler placeholders fade out cleanly.
-          setTimeout(() => setInFlight(new Map()), 400);
+          // Clear settled placeholders after a beat so stragglers fade out
+          // cleanly — but keep errored ones, so a failed goal has a visible
+          // surface (Today renders them with a retry). They're replaced by the
+          // fresh map on the next "start".
+          setTimeout(() => {
+            setInFlight((prev) => {
+              const next = new Map<string, InFlightGoal>();
+              for (const [id, g] of prev) {
+                if (g.state === "error") next.set(id, g);
+              }
+              return next;
+            });
+          }, 400);
           void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
           break;
         }

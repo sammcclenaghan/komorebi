@@ -46,9 +46,9 @@ export function Goals() {
             <button
               onClick={() => setModalGoal(null)}
               className={cn(
-                "shrink-0 whitespace-nowrap",
+                "pressable shrink-0 whitespace-nowrap",
                 "inline-flex items-center gap-1.5 rounded-md bg-[var(--color-ink)] px-3 py-1.5 text-[12.5px] font-medium",
-                "text-[var(--color-canvas)] transition-colors hover:bg-[var(--color-accent)]"
+                "text-[var(--color-canvas)] hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)]"
               )}
             >
               <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -133,10 +133,12 @@ function GoalCard({
           )}
         </div>
 
-        <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+        {/* Hover-revealed on pointer devices; always visible on touch, where an
+            invisible-but-tappable button would delete/edit by accident. */}
+        <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 [@media(hover:none)]:opacity-100">
           <button
             onClick={onEdit}
-            className="rounded-md p-1.5 text-[var(--color-ink-3)] transition-colors hover:bg-[var(--color-panel)] hover:text-[var(--color-ink)]"
+            className="pressable-sm rounded-md p-1.5 text-[var(--color-ink-3)] hover:bg-[var(--color-panel)] hover:text-[var(--color-ink)] active:bg-[var(--color-panel)]"
             aria-label="Edit goal"
             title="Edit"
           >
@@ -144,7 +146,7 @@ function GoalCard({
           </button>
           <button
             onClick={onDelete}
-            className="rounded-md p-1.5 text-[var(--color-ink-3)] transition-colors hover:bg-[var(--color-panel)] hover:text-[var(--color-ink)]"
+            className="pressable-sm rounded-md p-1.5 text-[var(--color-ink-3)] hover:bg-[var(--color-panel)] hover:text-[var(--color-ink)] active:bg-[var(--color-panel)]"
             aria-label="Delete goal"
             title="Delete"
           >
@@ -193,8 +195,8 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       <button
         onClick={onAdd}
         className={cn(
-          "mt-5 inline-flex items-center gap-2 rounded-md bg-[var(--color-ink)] px-4 py-2 text-[12.5px] font-medium",
-          "text-[var(--color-canvas)] transition-colors hover:bg-[var(--color-accent)]"
+          "pressable mt-5 inline-flex items-center gap-2 rounded-md bg-[var(--color-ink)] px-4 py-2 text-[12.5px] font-medium",
+          "text-[var(--color-canvas)] hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)]"
         )}
       >
         <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -244,7 +246,7 @@ function ConfirmDelete({
         <div className="mt-5 flex items-center justify-end gap-2">
           <button
             onClick={onClose}
-            className="rounded-md px-3 py-2 text-[12px] text-[var(--color-ink-2)] transition-colors hover:bg-[var(--color-panel)] hover:text-[var(--color-ink)]"
+            className="pressable rounded-md px-3 py-2 text-[12px] text-[var(--color-ink-2)] hover:bg-[var(--color-panel)] hover:text-[var(--color-ink)] active:bg-[var(--color-panel)]"
           >
             Cancel
           </button>
@@ -252,9 +254,9 @@ function ConfirmDelete({
             onClick={onConfirm}
             disabled={pending}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-[12px] font-medium",
+              "pressable inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-[12px] font-medium",
               "bg-[oklch(58%_0.18_25)] text-[var(--color-canvas)]",
-              "transition-opacity hover:opacity-90 disabled:opacity-60"
+              "hover:opacity-90 disabled:opacity-60"
             )}
           >
             {pending && <Loader2 className="h-3 w-3 animate-spin" />}

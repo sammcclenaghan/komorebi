@@ -92,6 +92,15 @@
   textarea {
     font: inherit;
   }
+
+  /* Our press states replace the OS tap flash; manipulation also removes
+     the double-tap-zoom delay on taps. */
+  button,
+  a,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
 }
 
 @layer components {
@@ -108,6 +117,45 @@
 
   .page-shell-wide {
     @apply mx-auto max-w-6xl px-5 pt-10 pb-24 md:px-10 md:pt-16 md:pb-20;
+  }
+
+  /* Press feedback — respond on pointer-down, not release. A pressable owns
+     its whole transition set; don't combine with Tailwind transition-*
+     utilities (they'd override this shorthand). Pair with active: color
+     utilities per element for the highlight itself. */
+  .pressable,
+  .pressable-sm,
+  .pressable-row {
+    transition:
+      transform 150ms ease-out,
+      background-color 150ms ease-out,
+      border-color 150ms ease-out,
+      color 150ms ease-out,
+      opacity 150ms ease-out,
+      box-shadow 150ms ease-out;
+  }
+  /* Buttons and standalone controls. */
+  .pressable:active {
+    transform: scale(0.97);
+  }
+  /* Small icon buttons — a deeper dip reads better at this size. */
+  .pressable-sm:active {
+    transform: scale(0.92);
+  }
+  /* Full-width rows and cards — barely-there scale; :active also matches
+     when a child button is pressed, so the row acknowledges every touch. */
+  .pressable-row:active {
+    transform: scale(0.99);
+  }
+
+  /* Expands a small control's touch target to ~44px without growing it. */
+  .hit-target {
+    position: relative;
+  }
+  .hit-target::before {
+    content: "";
+    position: absolute;
+    inset: -13px;
   }
 }
 

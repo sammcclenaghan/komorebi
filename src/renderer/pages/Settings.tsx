@@ -173,7 +173,7 @@ export function Settings() {
                     type="button"
                     disabled={regenerate.isPending}
                     onClick={() => setConfirmingRedo(false)}
-                    className="rounded-md border border-[var(--color-rule)] px-3 py-1.5 text-[12.5px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="pressable rounded-md border border-[var(--color-rule)] px-3 py-1.5 text-[12.5px] text-[var(--color-ink-2)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -183,7 +183,7 @@ export function Settings() {
                     onClick={() => {
                       regenerate.mutate(undefined, { onSettled: () => setConfirmingRedo(false) });
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-[oklch(58%_0.18_25)] px-3 py-1.5 text-[12.5px] font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="pressable inline-flex items-center gap-1.5 rounded-md bg-[oklch(58%_0.18_25)] px-3 py-1.5 text-[12.5px] font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {regenerate.isPending ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -197,7 +197,7 @@ export function Settings() {
                 <button
                   type="button"
                   onClick={() => setConfirmingRedo(true)}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-[oklch(58%_0.18_25)]/50 px-3 py-1.5 text-[12.5px] font-medium text-[oklch(58%_0.18_25)] transition-colors hover:bg-[oklch(58%_0.18_25)]/10"
+                  className="pressable inline-flex items-center gap-1.5 rounded-md border border-[oklch(58%_0.18_25)]/50 px-3 py-1.5 text-[12.5px] font-medium text-[oklch(58%_0.18_25)] hover:bg-[oklch(58%_0.18_25)]/10 active:bg-[oklch(58%_0.18_25)]/10"
                 >
                   <RotateCw className="h-3.5 w-3.5" strokeWidth={2} />
                   Redo today's list
@@ -255,10 +255,10 @@ function ThemePicker({
             disabled={disabled}
             onClick={() => onChange(optValue)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[12px] transition-colors",
+              "pressable inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[12px]",
               selected
                 ? "bg-[var(--color-canvas)] text-[var(--color-ink)] shadow-sm"
-                : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)]",
+                : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]",
               "disabled:cursor-not-allowed"
             )}
           >
@@ -330,10 +330,10 @@ function ModelField({
               if (preset !== (value ?? "")) onCommit(preset);
             }}
             className={cn(
-              "rounded border border-[var(--color-rule)] px-1.5 py-0.5 font-mono text-[10.5px] transition-colors",
+              "pressable rounded border border-[var(--color-rule)] px-1.5 py-0.5 font-mono text-[10.5px]",
               value === preset
                 ? "bg-[var(--color-canvas)] text-[var(--color-ink)]"
-                : "text-[var(--color-ink-3)] hover:text-[var(--color-ink)]",
+                : "text-[var(--color-ink-3)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]",
               "disabled:cursor-not-allowed disabled:opacity-50"
             )}
           >
@@ -390,7 +390,7 @@ function Toggle({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative h-[24px] w-[42px] rounded-full transition-colors disabled:opacity-60",
+        "pressable relative h-[24px] w-[42px] rounded-full disabled:opacity-60",
         checked ? "bg-[var(--color-accent)]" : "bg-[var(--color-rule-2)]"
       )}
     >

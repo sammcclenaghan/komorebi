@@ -12,7 +12,7 @@ import {
   Plus,
   Sparkles,
   Sun,
-  Sunrise
+  Sunrise,
 } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { GoalModal } from "../components/GoalModal";
@@ -21,7 +21,15 @@ import { GeneratingRow } from "../components/GeneratingRow";
 import { AllCaughtUp } from "../components/AllCaughtUp";
 import type { Goal, Suggestion } from "~/shared/types";
 import type { WeatherSummary } from "~/main/weather/service";
-import type { ChecklistProgress, InFlightGoal } from "../lib/use-checklist-progress";
+import type {
+  ChecklistProgress,
+  InFlightGoal,
+} from "../lib/use-checklist-progress";
+
+const primaryButton = cn(
+  "pressable inline-flex items-center gap-2 rounded-md bg-[var(--color-ink)] px-4 py-2.5 text-[13px] font-medium text-[var(--color-canvas)]",
+  "hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)]",
+);
 
 function locationFromTimezone(): string {
   try {
@@ -34,7 +42,11 @@ function locationFromTimezone(): string {
   }
 }
 
-function WeatherIcon({ summary }: { summary: WeatherSummary | null | undefined }) {
+function WeatherIcon({
+  summary,
+}: {
+  summary: WeatherSummary | null | undefined;
+}) {
   if (!summary) {
     return <Sunrise className="h-4 w-4" strokeWidth={1.5} />;
   }
@@ -74,7 +86,7 @@ function WeatherTooltip({ summary }: { summary: WeatherSummary }) {
         "opacity-0 -translate-y-1 transition-all duration-150 ease-out",
         "group-hover:opacity-100 group-hover:translate-y-0",
         "rounded-lg border border-[var(--color-rule)] bg-[var(--color-canvas)] p-3",
-        "shadow-[0_18px_36px_-18px_oklch(20%_0.01_60/0.22),0_4px_10px_-4px_oklch(20%_0.01_60/0.10)]"
+        "shadow-[0_18px_36px_-18px_oklch(20%_0.01_60/0.22),0_4px_10px_-4px_oklch(20%_0.01_60/0.10)]",
       )}
     >
       <div className="font-mono text-[9.5px] uppercase tracking-[0.22em] text-[var(--color-ink-3)]">
@@ -123,12 +135,12 @@ export function Today({ onOpenSuggestion, progress }: Props) {
 
   const goalsQuery = useQuery({
     queryKey: ["goals"],
-    queryFn: () => window.komorebi.goals.list()
+    queryFn: () => window.komorebi.goals.list(),
   });
 
   const checklistQuery = useQuery({
     queryKey: ["checklist", "today"],
-    queryFn: () => window.komorebi.checklist.today()
+    queryFn: () => window.komorebi.checklist.today(),
   });
 
   const generate = useMutation({
@@ -138,7 +150,7 @@ export function Today({ onOpenSuggestion, progress }: Props) {
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
-    }
+    },
   });
 
   const { inFlight, active } = progress;
@@ -149,7 +161,7 @@ export function Today({ onOpenSuggestion, progress }: Props) {
     queryFn: () => window.komorebi.weather.current(location),
     enabled: location.length > 0,
     staleTime: 25 * 60 * 1000,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
   });
 
   const goals = goalsQuery.data ?? [];
@@ -165,31 +177,39 @@ export function Today({ onOpenSuggestion, progress }: Props) {
 
   // Hide placeholders for goals that already have a real item in the checklist
   // (the IPC goal-done fires invalidation, so the real item appears).
-  const itemGoalIds = useMemo(() => new Set(items.map((s) => s.goalId)), [items]);
+  const itemGoalIds = useMemo(
+    () => new Set(items.map((s) => s.goalId)),
+    [items],
+  );
   const visiblePlaceholders = useMemo(
     () => [...inFlight.values()].filter((g) => !itemGoalIds.has(g.id)),
-    [inFlight, itemGoalIds]
+    [inFlight, itemGoalIds],
   );
 
   // Active goals that don't have a non-skipped suggestion today are the ones
   // "Top up" would compose for. When this is zero, the button hides.
   const coveredGoalIds = useMemo(
-    () => new Set(items.filter((s) => s.status !== "skipped").map((s) => s.goalId)),
-    [items]
+    () =>
+      new Set(items.filter((s) => s.status !== "skipped").map((s) => s.goalId)),
+    [items],
   );
-  const topUpCount = activeGoals.filter(
-    (g) => !coveredGoalIds.has(g.id) && !inFlight.has(g.id)
-  ).length;
+  const topUpCount = activeGoals.filter((g) => {
+    if (coveredGoalIds.has(g.id)) return false;
+    // A goal whose generation failed is retryable, not in flight.
+    const pending = inFlight.get(g.id);
+    return !pending || pending.state === "error";
+  }).length;
 
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
-    day: "numeric"
+    day: "numeric",
   });
 
   const isLoading = goalsQuery.isLoading || checklistQuery.isLoading;
   const noGoals = activeGoals.length === 0;
-  const showChecklist = items.length > 0 || visiblePlaceholders.length > 0 || active;
+  const showChecklist =
+    items.length > 0 || visiblePlaceholders.length > 0 || active;
 
   // Auto-start generation when Today opens and there's nothing for today yet.
   const autoFiredRef = useRef(false);
@@ -234,7 +254,9 @@ export function Today({ onOpenSuggestion, progress }: Props) {
             allDone={
               items.length > 0 &&
               visiblePlaceholders.length === 0 &&
-              items.every((s) => s.status === "done" || s.status === "skipped") &&
+              items.every(
+                (s) => s.status === "done" || s.status === "skipped",
+              ) &&
               items.some((s) => s.status === "done")
             }
           />
@@ -275,18 +297,12 @@ function NoGoalsState({ onAdd }: { onAdd: () => void }) {
         Start with one goal.
       </h1>
       <p className="mt-4 max-w-md text-[14.5px] leading-relaxed text-[var(--color-ink-2)]">
-        Tell Komorebi what you're working toward - anything from "lose 10 lbs" to
-        "become a better dev." It'll compose a small, specific checklist for
+        Tell Komorebi what you're working toward - anything from "lose 10 lbs"
+        to "become a better dev." It'll compose a small, specific checklist for
         you each day.
       </p>
 
-      <button
-        onClick={onAdd}
-        className={cn(
-          "mt-7 inline-flex items-center gap-2 rounded-md bg-[var(--color-ink)] px-4 py-2.5 text-[13px] font-medium text-[var(--color-canvas)]",
-          "transition-colors hover:bg-[var(--color-accent)]"
-        )}
-      >
+      <button onClick={onAdd} className={cn(primaryButton, "mt-7")}>
         <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
         Add a goal
       </button>
@@ -299,7 +315,7 @@ function NoChecklistYet({
   onGenerate,
   generating,
   error,
-  onAddGoal
+  onAddGoal,
 }: {
   goals: Goal[];
   onGenerate: () => void;
@@ -336,9 +352,8 @@ function NoChecklistYet({
           onClick={onGenerate}
           disabled={generating}
           className={cn(
-            "inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[13px] font-medium",
-            "bg-[var(--color-ink)] text-[var(--color-canvas)]",
-            "transition-colors hover:bg-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-60"
+            primaryButton,
+            "disabled:cursor-not-allowed disabled:opacity-60",
           )}
         >
           {generating ? (
@@ -355,7 +370,7 @@ function NoChecklistYet({
         </button>
         <button
           onClick={onAddGoal}
-          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--color-rule)] px-3 py-2.5 text-[12px] text-[var(--color-ink-2)] transition-colors hover:border-[var(--color-rule-2)] hover:text-[var(--color-ink)]"
+          className="pressable inline-flex items-center gap-1.5 rounded-md border border-[var(--color-rule)] px-3 py-2.5 text-[12px] text-[var(--color-ink-2)] hover:border-[var(--color-rule-2)] hover:text-[var(--color-ink)] active:border-[var(--color-rule-2)] active:text-[var(--color-ink)]"
         >
           <Plus className="h-3 w-3" strokeWidth={2} />
           Add another goal
@@ -379,7 +394,7 @@ function ChecklistView({
   onRefresh,
   generating,
   topUpCount,
-  allDone
+  allDone,
 }: {
   items: Suggestion[];
   placeholders: InFlightGoal[];
@@ -396,7 +411,9 @@ function ChecklistView({
         {items.map((s, idx) => (
           <li
             key={s.id}
-            style={{ animation: `fade-up 320ms ${Math.min(idx, 6) * 40}ms backwards ease-out` }}
+            style={{
+              animation: `fade-up 320ms ${Math.min(idx, 6) * 40}ms backwards ease-out`,
+            }}
           >
             <ChecklistRow
               suggestion={s}
@@ -409,10 +426,15 @@ function ChecklistView({
           <li
             key={`placeholder-${p.id}`}
             style={{
-              animation: `fade-up 320ms ${Math.min(idx + items.length, 6) * 40}ms backwards ease-out`
+              animation: `fade-up 320ms ${Math.min(idx + items.length, 6) * 40}ms backwards ease-out`,
             }}
           >
-            <GeneratingRow goalTitle={p.title} status={p.status} />
+            <GeneratingRow
+              goalTitle={p.title}
+              status={p.status}
+              error={p.state === "error" ? (p.error ?? "Something went wrong.") : undefined}
+              onRetry={p.state === "error" ? onRefresh : undefined}
+            />
           </li>
         ))}
       </ul>
@@ -424,7 +446,7 @@ function ChecklistView({
           <button
             onClick={onRefresh}
             disabled={generating}
-            className="inline-flex items-center gap-1.5 transition-colors hover:text-[var(--color-ink)] disabled:opacity-50"
+            className="pressable inline-flex items-center gap-1.5 hover:text-[var(--color-ink)] active:text-[var(--color-ink)] disabled:opacity-50"
             title={`Compose for ${topUpCount} uncovered goal${topUpCount === 1 ? "" : "s"}`}
           >
             {generating ? (

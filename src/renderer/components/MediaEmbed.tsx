@@ -59,12 +59,12 @@ function VideoEmbed({
             ) : (
               <div className="absolute inset-0 bg-[var(--color-panel-2)]" />
             )}
-            <span className="absolute inset-0 bg-[oklch(20%_0.02_60/0.18)] transition-colors group-hover:bg-[oklch(20%_0.02_60/0.30)]" />
+            <span className="absolute inset-0 bg-[oklch(20%_0.02_60/0.18)] transition-colors group-hover:bg-[oklch(20%_0.02_60/0.30)] group-active:bg-[oklch(20%_0.02_60/0.35)]" />
             <span
               className={cn(
                 "relative flex h-14 w-14 items-center justify-center rounded-full",
                 "bg-[var(--color-canvas)]/92 text-[var(--color-ink)] shadow-lg backdrop-blur-sm",
-                "transition-transform duration-200 group-hover:scale-110"
+                "transition-transform duration-200 group-hover:scale-110 group-active:scale-95"
               )}
             >
               <Play className="ml-0.5 h-5 w-5" fill="currentColor" strokeWidth={0} />
@@ -80,7 +80,7 @@ function VideoEmbed({
           href={url}
           target="_blank"
           rel="noreferrer noopener"
-          className="inline-flex items-center gap-1 text-[11.5px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)]"
+          className="pressable inline-flex items-center gap-1 text-[11.5px] text-[var(--color-ink-2)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]"
         >
           Open
           <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
@@ -110,8 +110,9 @@ function LinkCard({ url }: { url: string }) {
         target="_blank"
         rel="noreferrer noopener"
         className={cn(
-          "mt-5 inline-flex items-center gap-2 rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3.5 py-2",
-          "text-[12.5px] text-[var(--color-ink)] transition-colors hover:border-[var(--color-accent)]/40 hover:bg-[var(--color-accent-tint)]",
+          "pressable mt-5 inline-flex items-center gap-2 rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3.5 py-2",
+          "text-[12.5px] text-[var(--color-ink)] hover:border-[var(--color-accent)]/40 hover:bg-[var(--color-accent-tint)]",
+          "active:border-[var(--color-accent)]/40 active:bg-[var(--color-accent-tint)]",
           isLoading && "animate-pulse"
         )}
       >
@@ -129,8 +130,9 @@ function LinkCard({ url }: { url: string }) {
       target="_blank"
       rel="noreferrer noopener"
       className={cn(
-        "group mt-5 flex overflow-hidden rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)]",
-        "transition-colors hover:border-[var(--color-rule-2)] hover:bg-[var(--color-panel-hover)]"
+        "pressable-row group mt-5 flex overflow-hidden rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)]",
+        "hover:border-[var(--color-rule-2)] hover:bg-[var(--color-panel-hover)]",
+        "active:border-[var(--color-rule-2)] active:bg-[var(--color-panel-hover)]"
       )}
       style={{ animation: "fade-up 320ms ease-out" }}
     >

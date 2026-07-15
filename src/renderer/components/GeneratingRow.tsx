@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
-import { cn } from "~/lib/cn";
+import { CircleAlert, RotateCcw } from "lucide-react";
 
 type Props = {
   goalTitle: string;
   /** Optional explicit status string. If absent the row cycles through generic phrases. */
   status?: string;
+  /** When set, the row renders as a failed generation instead of a shimmer. */
+  error?: string;
+  onRetry?: () => void;
 };
 
 const ROTATING_STATUSES = [
@@ -14,23 +17,58 @@ const ROTATING_STATUSES = [
   "Polishing the details…"
 ];
 
-export function GeneratingRow({ goalTitle, status }: Props) {
+export function GeneratingRow({ goalTitle, status, error, onRetry }: Props) {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    if (status) return;
+    if (status || error) return;
     const id = setInterval(() => setTick((t) => t + 1), 2400);
     return () => clearInterval(id);
-  }, [status]);
+  }, [status, error]);
+
+  if (error !== undefined) {
+    return (
+      <article
+        className="relative flex items-start gap-4 rounded-xl border border-[var(--color-rule-2)] bg-[var(--color-panel)] px-4 py-3.5"
+        aria-live="polite"
+      >
+        <span
+          className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center text-[var(--color-ink-3)]"
+          aria-hidden
+        >
+          <CircleAlert className="h-[16px] w-[16px]" strokeWidth={1.5} />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
+            {goalTitle}
+          </div>
+          <h3 className="mt-1 text-[14px] font-medium leading-snug text-[var(--color-ink)]">
+            Couldn't compose today's action
+          </h3>
+          <p className="mt-0.5 break-words text-[12px] leading-relaxed text-[var(--color-ink-3)]">
+            {error}
+          </p>
+        </div>
+
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            className="pressable mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--color-rule)] px-2.5 py-1.5 text-[12px] text-[var(--color-ink-2)] hover:border-[var(--color-rule-2)] hover:text-[var(--color-ink)] active:border-[var(--color-rule-2)] active:text-[var(--color-ink)]"
+          >
+            <RotateCcw className="h-3 w-3" strokeWidth={2} />
+            Try again
+          </button>
+        )}
+      </article>
+    );
+  }
 
   const phrase = status ?? ROTATING_STATUSES[tick % ROTATING_STATUSES.length];
 
   return (
     <article
-      className={cn(
-        "relative flex items-start gap-4 overflow-hidden rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-4 py-3.5",
-        "transition-all"
-      )}
+      className="relative flex items-start gap-4 overflow-hidden rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-4 py-3.5"
       aria-live="polite"
       aria-busy="true"
     >

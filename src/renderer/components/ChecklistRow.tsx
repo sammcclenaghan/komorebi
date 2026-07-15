@@ -13,15 +13,20 @@ type Props = {
 
 type ChecklistCache = ChecklistDay;
 
+const TODAY_KEY = ["checklist", "today"];
+
 export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
   const queryClient = useQueryClient();
   // Bumped each time the item is freshly completed, to retrigger the burst.
   const [burstKey, setBurstKey] = useState(0);
 
-  function patchCache(patch: (s: Suggestion) => Suggestion): { prev: ChecklistCache | undefined } {
-    const prev = queryClient.getQueryData<ChecklistCache>(["checklist", "today"]);
+  // Shared optimistic-update plumbing: patch the cached row immediately,
+  // roll back on error, refetch on settle.
+  async function beginOptimistic(patch: (s: Suggestion) => Suggestion) {
+    await queryClient.cancelQueries({ queryKey: TODAY_KEY });
+    const prev = queryClient.getQueryData<ChecklistCache>(TODAY_KEY);
     if (prev) {
-      queryClient.setQueryData(["checklist", "today"], {
+      queryClient.setQueryData(TODAY_KEY, {
         ...prev,
         items: prev.items.map((s) => (s.id === suggestion.id ? patch(s) : s))
       });
@@ -29,49 +34,38 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
     return { prev };
   }
 
+  function rollback(ctx: { prev: ChecklistCache | undefined } | undefined) {
+    if (ctx?.prev) queryClient.setQueryData(TODAY_KEY, ctx.prev);
+  }
+
+  function refetchToday() {
+    void queryClient.invalidateQueries({ queryKey: TODAY_KEY });
+  }
+
   const setStatus = useMutation({
     mutationFn: (next: Suggestion["status"]) =>
       window.komorebi.suggestions.setStatus({ id: suggestion.id, status: next }),
-    onMutate: async (next) => {
-      await queryClient.cancelQueries({ queryKey: ["checklist", "today"] });
-      return patchCache((s) => ({ ...s, status: next }));
-    },
-    onError: (_err, _next, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["checklist", "today"], ctx.prev);
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
-    }
+    onMutate: (next) => beginOptimistic((s) => ({ ...s, status: next })),
+    onError: (_err, _next, ctx) => rollback(ctx),
+    onSettled: refetchToday
   });
 
   const setRating = useMutation({
     mutationFn: (next: SuggestionRating) =>
       window.komorebi.suggestions.setRating({ id: suggestion.id, rating: next }),
-    onMutate: async (next) => {
-      await queryClient.cancelQueries({ queryKey: ["checklist", "today"] });
-      return patchCache((s) => ({ ...s, rating: next }));
-    },
-    onError: (_err, _next, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["checklist", "today"], ctx.prev);
-    },
+    onMutate: (next) => beginOptimistic((s) => ({ ...s, rating: next })),
+    onError: (_err, _next, ctx) => rollback(ctx),
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
+      refetchToday();
       void queryClient.invalidateQueries({ queryKey: ["suggestion", suggestion.id] });
     }
   });
 
   const skipRegen = useMutation({
     mutationFn: () => window.komorebi.suggestions.skipAndRegenerate(suggestion.id),
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ["checklist", "today"] });
-      return patchCache((s) => ({ ...s, status: "skipped" as const }));
-    },
-    onError: (_err, _v, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["checklist", "today"], ctx.prev);
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
-    }
+    onMutate: () => beginOptimistic((s) => ({ ...s, status: "skipped" as const })),
+    onError: (_err, _vars, ctx) => rollback(ctx),
+    onSettled: refetchToday
   });
 
   const isDone = suggestion.status === "done";
@@ -86,7 +80,8 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
     <article
       className={cn(
         "group relative flex items-start gap-4 rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-4 py-3.5",
-        "transition-all hover:border-[var(--color-rule-2)] hover:bg-[var(--color-panel-hover)]",
+        "pressable-row hover:border-[var(--color-rule-2)] hover:bg-[var(--color-panel-hover)]",
+        "active:border-[var(--color-rule-2)] active:bg-[var(--color-panel-hover)]",
         isDone && !rating && "opacity-60",
         isDone && rating && "opacity-90",
         isSkipped && "opacity-50"
@@ -102,7 +97,7 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
           }}
           disabled={isSkipped}
           className={cn(
-            "flex h-[18px] w-[18px] items-center justify-center rounded-full border-[1.5px] transition-all",
+            "pressable-sm hit-target flex h-[18px] w-[18px] items-center justify-center rounded-full border-[1.5px]",
             isDone
               ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-canvas)]"
               : isSkipped
@@ -176,8 +171,8 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
             // Hover-revealed, so hidden entirely on touch devices — otherwise it's
             // invisible but still tappable and skips by accident. The detail view
             // has an explicit skip button for touch.
-            "mt-1.5 hidden h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-ink-3)]/70 transition-colors [@media(hover:hover)]:flex",
-            "opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)] hover:text-[var(--color-ink-2)]",
+            "pressable-sm mt-1.5 hidden h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-ink-3)]/70 [@media(hover:hover)]:flex",
+            "opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)] hover:text-[var(--color-ink-2)] active:bg-[var(--color-panel)]",
             skipRegen.isPending && "opacity-100 cursor-not-allowed"
           )}
           aria-label="Skip and generate a new one"
@@ -273,8 +268,8 @@ function RatingThumb({
         // Same deal as the skip button: hover-revealed, so touch devices hide it
         // rather than leave an invisible tap target. Rating lives in the detail
         // view's reflection capture on touch.
-        "hidden h-7 w-7 items-center justify-center rounded-md transition-colors [@media(hover:hover)]:flex",
-        "opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)]",
+        "pressable-sm hidden h-7 w-7 items-center justify-center rounded-md [@media(hover:hover)]:flex",
+        "opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)] active:bg-[var(--color-panel)]",
         active
           ? "text-[var(--color-accent-strong)]"
           : "text-[var(--color-ink-3)]/70 hover:text-[var(--color-ink-2)]",

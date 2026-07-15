@@ -110,7 +110,15 @@ async function runGenerateTodayChecklist(date: string): Promise<ChecklistDay> {
     return { date, items: existing, hasGoals: true };
   }
 
-  const newSuggestions = await composeForGoals(date, goalsToGenerate);
+  let newSuggestions: Suggestion[];
+  try {
+    newSuggestions = await composeForGoals(date, goalsToGenerate);
+  } catch (err) {
+    // Every goal failed. Progress listeners key off "done" to unstick the UI,
+    // so emit it with whatever already exists before surfacing the error.
+    emitProgress({ phase: "done", items: existing });
+    throw err;
+  }
 
   const items = [...existing, ...newSuggestions].sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt)
@@ -155,7 +163,13 @@ async function runRegenerateTodayChecklist(date: string): Promise<ChecklistDay> 
     await listAllSuggestions(),
     activeGoals.length
   );
-  const newSuggestions = await composeForGoals(date, goalsToGenerate);
+  let newSuggestions: Suggestion[];
+  try {
+    newSuggestions = await composeForGoals(date, goalsToGenerate);
+  } catch (err) {
+    emitProgress({ phase: "done", items: [] });
+    throw err;
+  }
 
   const items = [...newSuggestions].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   emitProgress({ phase: "done", items });
@@ -191,7 +205,9 @@ async function composeForGoals(date: string, goals: Goal[]): Promise<Suggestion[
     labels: contextBlocks.map((b) => b.label)
   });
 
-  return Promise.all(
+  // Each goal succeeds or fails on its own — one bad generation must not
+  // discard the suggestions that were already composed and inserted.
+  const results = await Promise.allSettled(
     goals.map(async (goal) => {
       emitProgress({ phase: "goal-start", goalId: goal.id });
       try {
@@ -221,6 +237,18 @@ async function composeForGoals(date: string, goals: Goal[]): Promise<Suggestion[
       }
     })
   );
+
+  const succeeded = results
+    .filter((r): r is PromiseFulfilledResult<Suggestion> => r.status === "fulfilled")
+    .map((r) => r.value);
+
+  // Partial failure is fine — the per-goal "goal-error" events carry the
+  // details. Only a total wipeout is an error the caller should see.
+  if (succeeded.length === 0 && results.length > 0) {
+    throw (results[0] as PromiseRejectedResult).reason;
+  }
+
+  return succeeded;
 }
 
 export type HistoryDay = {
@@ -339,6 +367,7 @@ export async function skipAndRegenerate(suggestionId: string): Promise<Suggestio
   } catch (err) {
     const message = (err as Error).message ?? "Unknown error";
     emitProgress({ phase: "goal-error", goalId: goal.id, message });
+    emitProgress({ phase: "done", items: [] });
     throw err;
   }
 }

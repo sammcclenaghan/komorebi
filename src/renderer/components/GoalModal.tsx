@@ -12,6 +12,11 @@ type Props = {
   onSaved?: (goalId: string) => void;
 };
 
+const inputClass = cn(
+  "w-full rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3 py-2 text-[14px] text-[var(--color-ink)]",
+  "placeholder:text-[var(--color-ink-3)] focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+);
+
 export function GoalModal({ open, goal, onClose, onSaved }: Props) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
@@ -108,7 +113,7 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1.5 text-[var(--color-ink-3)] transition-colors hover:bg-[var(--color-panel)] hover:text-[var(--color-ink)]"
+            className="pressable-sm rounded-md p-1.5 text-[var(--color-ink-3)] hover:bg-[var(--color-panel)] hover:text-[var(--color-ink)] active:bg-[var(--color-panel)]"
             aria-label="Close"
           >
             <X className="h-4 w-4" strokeWidth={2} />
@@ -133,7 +138,7 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Become a better developer"
-              className="w-full rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3 py-2 text-[14px] text-[var(--color-ink)] placeholder:text-[var(--color-ink-3)] focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+              className={inputClass}
             />
           </Field>
 
@@ -154,7 +159,7 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               placeholder="Senior TS engineer who wants deeper systems intuition."
-              className="w-full resize-none rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3 py-2 text-[14px] text-[var(--color-ink)] placeholder:text-[var(--color-ink-3)] focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+              className={cn(inputClass, "resize-none")}
             />
           </Field>
 
@@ -168,7 +173,7 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
               onChange={(e) => setContext(e.target.value)}
               rows={4}
               placeholder="Strong React + Node. Weakest on distributed systems. Prefer articles over books. ~30 min weekdays."
-              className="w-full resize-none rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3 py-2 text-[14px] text-[var(--color-ink)] placeholder:text-[var(--color-ink-3)] focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+              className={cn(inputClass, "resize-none")}
             />
           </Field>
 
@@ -182,7 +187,7 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md px-3 py-2 text-[12px] text-[var(--color-ink-2)] transition-colors hover:bg-[var(--color-panel)] hover:text-[var(--color-ink)]"
+              className="pressable rounded-md px-3 py-2 text-[12px] text-[var(--color-ink-2)] hover:bg-[var(--color-panel)] hover:text-[var(--color-ink)] active:bg-[var(--color-panel)]"
             >
               Cancel
             </button>
@@ -190,9 +195,9 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
               type="submit"
               disabled={!title.trim() || save.isPending}
               className={cn(
-                "inline-flex items-center gap-2 rounded-md px-4 py-2 text-[12px] font-medium",
+                "pressable inline-flex items-center gap-2 rounded-md px-4 py-2 text-[12px] font-medium",
                 "bg-[var(--color-ink)] text-[var(--color-canvas)]",
-                "transition-colors hover:bg-[var(--color-accent)]",
+                "hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)]",
                 "disabled:cursor-not-allowed disabled:opacity-50"
               )}
             >
@@ -235,10 +240,10 @@ function PriorityPicker({
             aria-checked={selected}
             onClick={() => onChange(optValue)}
             className={cn(
-              "rounded px-3 py-1.5 text-[12px] transition-colors",
+              "pressable rounded px-3 py-1.5 text-[12px]",
               selected
                 ? "bg-[var(--color-canvas)] text-[var(--color-ink)] shadow-sm"
-                : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)]"
+                : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]"
             )}
           >
             {label}

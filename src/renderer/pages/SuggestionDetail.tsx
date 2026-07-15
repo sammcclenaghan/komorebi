@@ -136,7 +136,7 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
               <button
                 onClick={() => setStatus.mutate("pending")}
                 disabled={setStatus.isPending}
-                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11.5px] text-[var(--color-ink-2)] transition-colors hover:bg-[var(--color-canvas)] hover:text-[var(--color-ink)]"
+                className="pressable inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11.5px] text-[var(--color-ink-2)] hover:bg-[var(--color-canvas)] hover:text-[var(--color-ink)] active:bg-[var(--color-canvas)]"
               >
                 <RotateCcw className="h-3 w-3" strokeWidth={2} />
                 Undo
@@ -158,7 +158,7 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
             <button
               onClick={() => setStatus.mutate("pending")}
               disabled={setStatus.isPending}
-              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11.5px] text-[var(--color-ink-2)] transition-colors hover:bg-[var(--color-canvas)] hover:text-[var(--color-ink)]"
+              className="pressable inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11.5px] text-[var(--color-ink-2)] hover:bg-[var(--color-canvas)] hover:text-[var(--color-ink)] active:bg-[var(--color-canvas)]"
             >
               <RotateCcw className="h-3 w-3" strokeWidth={2} />
               Undo skip
@@ -170,9 +170,9 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
               onClick={() => setStatus.mutate("done")}
               disabled={setStatus.isPending || skipRegen.isPending}
               className={cn(
-                "inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[13px] font-medium",
+                "pressable inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[13px] font-medium",
                 "bg-[var(--color-ink)] text-[var(--color-canvas)]",
-                "transition-colors hover:bg-[var(--color-accent)] disabled:opacity-60"
+                "hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)] disabled:opacity-60"
               )}
             >
               {setStatus.isPending ? (
@@ -187,8 +187,9 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
               onClick={() => skipRegen.mutate()}
               disabled={skipRegen.isPending || setStatus.isPending}
               className={cn(
-                "inline-flex items-center gap-2 rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3.5 py-2.5 text-[12.5px]",
-                "text-[var(--color-ink-2)] transition-colors hover:border-[var(--color-rule-2)] hover:text-[var(--color-ink)]",
+                "pressable inline-flex items-center gap-2 rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3.5 py-2.5 text-[12.5px]",
+                "text-[var(--color-ink-2)] hover:border-[var(--color-rule-2)] hover:text-[var(--color-ink)]",
+                "active:border-[var(--color-rule-2)] active:text-[var(--color-ink)]",
                 "disabled:opacity-60 disabled:cursor-not-allowed"
               )}
             >
@@ -210,7 +211,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 text-[12px] text-[var(--color-ink-3)] transition-colors hover:text-[var(--color-ink)]"
+      className="pressable inline-flex items-center gap-1.5 text-[12px] text-[var(--color-ink-3)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]"
     >
       <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
       Today
@@ -296,7 +297,7 @@ function ReflectionCapture({
         {!textDone && text.trim() && (
           <button
             onClick={() => setText("")}
-            className="text-[11.5px] text-[var(--color-ink-3)] transition-colors hover:text-[var(--color-ink)]"
+            className="pressable text-[11.5px] text-[var(--color-ink-3)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]"
           >
             Clear
           </button>
@@ -305,9 +306,9 @@ function ReflectionCapture({
           onClick={() => addText.mutate()}
           disabled={!text.trim() || addText.isPending}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-medium",
+            "pressable inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-medium",
             "bg-[var(--color-ink)] text-[var(--color-canvas)]",
-            "transition-colors hover:bg-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+            "hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
           )}
         >
           {addText.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
@@ -331,10 +332,10 @@ function RatingButton({
     <button
       onClick={onClick}
       className={cn(
-        "rounded-md border p-1.5 transition-colors",
+        "pressable-sm rounded-md border p-1.5",
         active
           ? "border-[var(--color-accent)]/40 bg-[var(--color-accent-tint)] text-[var(--color-accent-strong)]"
-          : "border-[var(--color-rule)] text-[var(--color-ink-3)] hover:border-[var(--color-rule-2)] hover:text-[var(--color-ink)]"
+          : "border-[var(--color-rule)] text-[var(--color-ink-3)] hover:border-[var(--color-rule-2)] hover:text-[var(--color-ink)] active:border-[var(--color-rule-2)] active:text-[var(--color-ink)]"
       )}
     >
       {children}

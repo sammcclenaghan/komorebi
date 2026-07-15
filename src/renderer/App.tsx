@@ -105,9 +105,9 @@ function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void
       className={cn(
         "no-drag fixed top-[14px] z-50 hidden md:inline-flex",
         "left-[78px]",
-        "h-[26px] w-[26px] items-center justify-center rounded-md",
-        "text-[var(--color-ink-3)] transition-colors",
-        "hover:bg-[var(--color-panel-2)] hover:text-[var(--color-ink)]"
+        "pressable-sm h-[26px] w-[26px] items-center justify-center rounded-md",
+        "text-[var(--color-ink-3)]",
+        "hover:bg-[var(--color-panel-2)] hover:text-[var(--color-ink)] active:bg-[var(--color-panel-2)]"
       )}
     >
       <Icon

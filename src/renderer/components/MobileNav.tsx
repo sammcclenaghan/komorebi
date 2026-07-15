@@ -40,10 +40,10 @@ export function MobileNav({ active, onSelect }: Props) {
               onClick={() => onSelect(item.id)}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-[10px]",
+                "pressable flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-[10px]",
                 isActive
                   ? "text-[var(--color-accent-strong)]"
-                  : "text-[var(--color-ink-3)]"
+                  : "text-[var(--color-ink-3)] active:text-[var(--color-ink)]"
               )}
             >
               <item.Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />

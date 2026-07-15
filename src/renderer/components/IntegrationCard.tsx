@@ -125,8 +125,8 @@ export function IntegrationCard({ view }: Props) {
             onClick={() => disconnect.mutate()}
             disabled={disconnect.isPending}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11.5px]",
-              "text-[var(--color-ink-2)] transition-colors hover:bg-[var(--color-panel)] hover:text-[var(--color-ink)]",
+              "pressable inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11.5px]",
+              "text-[var(--color-ink-2)] hover:bg-[var(--color-panel)] hover:text-[var(--color-ink)] active:bg-[var(--color-panel)]",
               "disabled:opacity-50"
             )}
           >
@@ -150,9 +150,9 @@ export function IntegrationCard({ view }: Props) {
           <button
             onClick={() => connect.mutate()}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-medium",
+              "pressable inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-medium",
               "bg-[var(--color-ink)] text-[var(--color-canvas)]",
-              "transition-colors hover:bg-[var(--color-accent)]"
+              "hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)]"
             )}
           >
             <Link2 className="h-3 w-3" strokeWidth={2.5} />
