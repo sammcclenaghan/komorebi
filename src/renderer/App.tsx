@@ -104,7 +104,16 @@ function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void
       aria-label={open ? "Hide sidebar" : "Show sidebar"}
       title={open ? "Hide sidebar (⌘B)" : "Show sidebar (⌘B)"}
       onClick={onToggle}
-      className="no-drag fixed top-[14px] left-[78px] z-50 hidden h-[26px] w-[26px] p-0 md:inline-flex hover:bg-[var(--color-panel-2)] active:bg-[var(--color-panel-2)]"
+      className={cn(
+        "no-drag fixed top-[14px] left-[78px] z-50 hidden h-[26px] w-[26px] p-0 md:inline-flex",
+        "transition-[background-color,border-color,box-shadow] duration-200 ease-out",
+        open
+          ? // Sits over the sidebar panel — stays borderless so it blends in.
+            "hover:bg-[var(--color-panel-2)] active:bg-[var(--color-panel-2)]"
+          : // Floats over the canvas — give it a chip so it reads as an
+            // intentional control rather than a stray icon.
+            "border border-[var(--color-rule)] bg-[var(--color-panel)] shadow-sm hover:bg-[var(--color-panel-2)] active:bg-[var(--color-panel-2)]",
+      )}
     >
       <Icon
         key={open ? "close" : "open"}
