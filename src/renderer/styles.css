@@ -25,9 +25,37 @@
   --color-accent-soft: oklch(95.5% 0.018 245);
   --color-accent-tint: oklch(96.5% 0.015 245);
 
+  /* Destructive actions — the only warm-red in the app. */
+  --color-danger: oklch(58% 0.18 25);
+
   /* Scrim used by modal backdrops — stays dark regardless of theme so
      "ink with alpha" doesn't invert into a bright overlay. */
   --color-overlay: oklch(20% 0.01 60 / 0.18);
+
+  /* Type scale — replaces Tailwind's defaults so text-* utilities ARE the
+     app's scale. Content sizes step ~1.5px; headings tighten as they grow. */
+  --text-2xs: 10px; /* mono kickers, tab labels */
+  --text-2xs--line-height: 1.4;
+  --text-xs: 11.5px; /* hints, metadata, small actions */
+  --text-xs--line-height: 1.45;
+  --text-sm: 12.5px; /* secondary text, compact buttons */
+  --text-sm--line-height: 1.5;
+  --text-base: 14px; /* body, inputs, default buttons */
+  --text-base--line-height: 1.5;
+  --text-lg: 15px; /* row and card titles */
+  --text-lg--line-height: 1.45;
+  --text-xl: 17px; /* modal titles, empty-state headings */
+  --text-xl--line-height: 1.35;
+  --text-xl--letter-spacing: -0.01em;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 1.3;
+  --text-2xl--letter-spacing: -0.015em;
+  --text-3xl: 28px; /* detail-page titles */
+  --text-3xl--line-height: 1.25;
+  --text-3xl--letter-spacing: -0.02em;
+  --text-4xl: 30px; /* page headlines */
+  --text-4xl--line-height: 1.15;
+  --text-4xl--letter-spacing: -0.025em;
 }
 
 /* Dark palette — warm-tinted neutrals so the app keeps its paper feel.
@@ -49,6 +77,8 @@
   --color-accent-strong: oklch(80% 0.12 245);
   --color-accent-soft: oklch(28% 0.05 245);
   --color-accent-tint: oklch(25% 0.04 245);
+
+  --color-danger: oklch(70% 0.15 25);
 
   --color-overlay: oklch(0% 0 0 / 0.55);
 
@@ -157,6 +187,14 @@
     position: absolute;
     inset: -13px;
   }
+
+  /* Text inputs and textareas. 16px on touch screens — anything smaller makes
+     iOS zoom the page on focus. Compose with utilities to shrink/tint. */
+  .input {
+    @apply w-full rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3 py-2;
+    @apply text-[16px] text-[var(--color-ink)] placeholder:text-[var(--color-ink-3)] md:text-base;
+    @apply focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20;
+  }
 }
 
 @keyframes pulse-soft {
@@ -177,6 +215,27 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Modal cards materialize from just under full size — never from scale(0).
+   Origin stays centered: modals aren't anchored to a trigger. */
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-safe-pop {
+    animation-name: fade-in !important;
   }
 }
 

@@ -38,16 +38,16 @@ export function Integrations() {
       <header>
         <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
           <Plug className="h-4 w-4" strokeWidth={1.5} />
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em]">
+          <span className="font-mono text-2xs uppercase tracking-[0.22em]">
             integrations
           </span>
         </div>
 
-        <h1 className="mt-3 text-[30px] font-semibold leading-[1.15] tracking-tight text-[var(--color-ink)]">
+        <h1 className="mt-3 text-4xl font-semibold text-[var(--color-ink)]">
           The tools <span className="font-normal text-[var(--color-ink-2)]">Komorebi can use.</span>
         </h1>
 
-        <p className="mt-3 max-w-lg text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
+        <p className="mt-3 max-w-lg text-base leading-relaxed text-[var(--color-ink-2)]">
           Connect what you already use. Each one becomes context Komorebi can
           draw on when composing your daily checklist.
         </p>
@@ -65,7 +65,7 @@ export function Integrations() {
               onChange={(e) => setQuery(e.target.value)}
               className={cn(
                 "w-full rounded-md border border-[var(--color-rule)] bg-[var(--color-panel)] py-2 pr-3 pl-9",
-                "text-[13px] text-[var(--color-ink)] placeholder:text-[var(--color-ink-3)]",
+                "text-base text-[var(--color-ink)] placeholder:text-[var(--color-ink-3)]",
                 "transition focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
               )}
             />
@@ -142,13 +142,13 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
       <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-panel)] text-[var(--color-accent-strong)]">
         <AlertCircle className="h-5 w-5" strokeWidth={1.5} />
       </div>
-      <h3 className="mt-5 text-[22px] font-semibold tracking-tight text-[var(--color-ink)]">
+      <h3 className="mt-5 text-2xl font-semibold text-[var(--color-ink)]">
         Couldn't reach Composio.
       </h3>
-      <p className="mt-3 font-mono text-[11.5px] text-[var(--color-ink-3)]">{message}</p>
+      <p className="mt-3 font-mono text-xs text-[var(--color-ink-3)]">{message}</p>
       <button
         onClick={onRetry}
-        className="pressable mt-6 rounded-md bg-[var(--color-ink)] px-4 py-2 text-[12px] text-[var(--color-canvas)] hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)]"
+        className="pressable mt-6 rounded-md bg-[var(--color-ink)] px-4 py-2 text-sm text-[var(--color-canvas)] hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)]"
       >
         Try again
       </button>
@@ -159,10 +159,10 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 function EmptyState({ query }: { query: string }) {
   return (
     <div className="mx-auto mt-20 max-w-sm text-center">
-      <h3 className="text-[22px] font-semibold tracking-tight text-[var(--color-ink)]">
+      <h3 className="text-2xl font-semibold text-[var(--color-ink)]">
         Nothing here.
       </h3>
-      <p className="mt-3 text-[13px] text-[var(--color-ink-2)]">
+      <p className="mt-3 text-base text-[var(--color-ink-2)]">
         {query
           ? `Nothing in the catalog matches "${query}".`
           : "No integrations available."}

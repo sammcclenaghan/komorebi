@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Bell, Cpu, Loader2, Monitor, Moon, Palette, RotateCw, Settings as SettingsIcon, Sun } from "lucide-react";
 import { cn } from "~/lib/cn";
+import { Button } from "../components/ui/Button";
+import { ConfirmDialog } from "../components/ui/Modal";
 import type { AppSettings, Theme } from "~/shared/types";
 import type { SettingsUpdate } from "~/main/store/settings";
 
@@ -41,15 +43,15 @@ export function Settings() {
       <header>
         <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
           <SettingsIcon className="h-4 w-4" strokeWidth={1.5} />
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em]">
+          <span className="font-mono text-2xs uppercase tracking-[0.22em]">
             settings
           </span>
         </div>
 
-        <h1 className="mt-3 text-[30px] font-semibold leading-[1.15] tracking-tight text-[var(--color-ink)]">
+        <h1 className="mt-3 text-4xl font-semibold text-[var(--color-ink)]">
           How Komorebi shows up.
         </h1>
-        <p className="mt-3 max-w-lg text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
+        <p className="mt-3 max-w-lg text-base leading-relaxed text-[var(--color-ink-2)]">
           Have your day composed and waiting for you, with a nudge when it's ready.
         </p>
       </header>
@@ -65,7 +67,7 @@ export function Settings() {
           <section className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-5 py-4">
             <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
               <Bell className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span className="font-mono text-[9.5px] uppercase tracking-[0.2em]">
+              <span className="font-mono text-2xs uppercase tracking-[0.2em]">
                 daily schedule
               </span>
             </div>
@@ -92,9 +94,7 @@ export function Settings() {
                 disabled={!schedule.enabled || update.isPending}
                 onChange={(e) => update.mutate({ time: e.target.value })}
                 className={cn(
-                  "rounded-md border border-[var(--color-rule)] bg-[var(--color-panel)] px-2.5 py-1.5",
-                  "text-[13px] tabular-nums text-[var(--color-ink)]",
-                  "transition focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20",
+                  "input w-auto bg-[var(--color-panel)] px-2.5 py-1.5 tabular-nums md:text-base",
                   "disabled:cursor-not-allowed disabled:opacity-50"
                 )}
               />
@@ -102,13 +102,13 @@ export function Settings() {
 
             <div className="mt-3 flex h-4 items-center justify-end">
               {update.isPending && (
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--color-ink-3)]">
+                <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-ink-3)]">
                   <Loader2 className="h-3 w-3 animate-spin" />
                   Saving…
                 </span>
               )}
               {update.isError && (
-                <span className="text-[11px] text-[oklch(58%_0.18_25)]">
+                <span className="text-xs text-[var(--color-danger)]">
                   Couldn't save. Try again.
                 </span>
               )}
@@ -118,7 +118,7 @@ export function Settings() {
           <section className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-5 py-4">
             <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
               <Palette className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span className="font-mono text-[9.5px] uppercase tracking-[0.2em]">
+              <span className="font-mono text-2xs uppercase tracking-[0.2em]">
                 appearance
               </span>
             </div>
@@ -138,7 +138,7 @@ export function Settings() {
           <section className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-5 py-4">
             <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
               <Cpu className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span className="font-mono text-[9.5px] uppercase tracking-[0.2em]">
+              <span className="font-mono text-2xs uppercase tracking-[0.2em]">
                 model
               </span>
             </div>
@@ -155,10 +155,10 @@ export function Settings() {
             </Row>
           </section>
 
-          <section className="rounded-xl border border-[oklch(58%_0.18_25)]/30 bg-[var(--color-canvas)] px-5 py-4">
-            <div className="flex items-center gap-3 text-[oklch(58%_0.18_25)]">
+          <section className="rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-canvas)] px-5 py-4">
+            <div className="flex items-center gap-3 text-[var(--color-danger)]">
               <AlertTriangle className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span className="font-mono text-[9.5px] uppercase tracking-[0.2em]">
+              <span className="font-mono text-2xs uppercase tracking-[0.2em]">
                 danger zone
               </span>
             </div>
@@ -167,47 +167,24 @@ export function Settings() {
               title="Redo today's list"
               description="Throws away every item composed for today — including any notes you left on them — and composes a fresh action for each of your active goals. This can't be undone."
             >
-              {confirmingRedo ? (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={regenerate.isPending}
-                    onClick={() => setConfirmingRedo(false)}
-                    className="pressable rounded-md border border-[var(--color-rule)] px-3 py-1.5 text-[12.5px] text-[var(--color-ink-2)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={regenerate.isPending}
-                    onClick={() => {
-                      regenerate.mutate(undefined, { onSettled: () => setConfirmingRedo(false) });
-                    }}
-                    className="pressable inline-flex items-center gap-1.5 rounded-md bg-[oklch(58%_0.18_25)] px-3 py-1.5 text-[12.5px] font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {regenerate.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <RotateCw className="h-3.5 w-3.5" strokeWidth={2} />
-                    )}
-                    {regenerate.isPending ? "Composing…" : "Yes, redo the day"}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmingRedo(true)}
-                  className="pressable inline-flex items-center gap-1.5 rounded-md border border-[oklch(58%_0.18_25)]/50 px-3 py-1.5 text-[12.5px] font-medium text-[oklch(58%_0.18_25)] hover:bg-[oklch(58%_0.18_25)]/10 active:bg-[oklch(58%_0.18_25)]/10"
-                >
+              <Button
+                variant="danger-outline"
+                size="sm"
+                disabled={regenerate.isPending}
+                onClick={() => setConfirmingRedo(true)}
+              >
+                {regenerate.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
                   <RotateCw className="h-3.5 w-3.5" strokeWidth={2} />
-                  Redo today's list
-                </button>
-              )}
+                )}
+                {regenerate.isPending ? "Composing…" : "Redo today's list"}
+              </Button>
             </Row>
 
             {regenerate.isError && (
               <div className="mt-3 flex justify-end">
-                <span className="text-[11px] text-[oklch(58%_0.18_25)]">
+                <span className="text-xs text-[var(--color-danger)]">
                   Couldn't recompose. Try again.
                 </span>
               </div>
@@ -216,6 +193,19 @@ export function Settings() {
         </>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmingRedo}
+        onClose={() => setConfirmingRedo(false)}
+        onConfirm={() => {
+          setConfirmingRedo(false);
+          regenerate.mutate();
+        }}
+        title="Redo today's list?"
+        body="Every item composed for today — including any notes you left on them — will be thrown away and replaced with a fresh action for each active goal. This can't be undone."
+        confirmLabel="Yes, redo the day"
+        confirmIcon={<RotateCw className="h-3.5 w-3.5" strokeWidth={2} />}
+      />
     </div>
   );
 }
@@ -255,7 +245,7 @@ function ThemePicker({
             disabled={disabled}
             onClick={() => onChange(optValue)}
             className={cn(
-              "pressable inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[12px]",
+              "pressable inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm",
               selected
                 ? "bg-[var(--color-canvas)] text-[var(--color-ink)] shadow-sm"
                 : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]",
@@ -313,9 +303,7 @@ function ModelField({
           if (e.key === "Escape") setDraft(value ?? "");
         }}
         className={cn(
-          "w-[200px] rounded-md border border-[var(--color-rule)] bg-[var(--color-panel)] px-2.5 py-1.5",
-          "font-mono text-[12.5px] text-[var(--color-ink)]",
-          "transition focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20",
+          "input w-[200px] bg-[var(--color-panel)] px-2.5 py-1.5 font-mono md:text-sm",
           "disabled:cursor-not-allowed disabled:opacity-50"
         )}
       />
@@ -330,7 +318,7 @@ function ModelField({
               if (preset !== (value ?? "")) onCommit(preset);
             }}
             className={cn(
-              "pressable rounded border border-[var(--color-rule)] px-1.5 py-0.5 font-mono text-[10.5px]",
+              "pressable rounded border border-[var(--color-rule)] px-1.5 py-0.5 font-mono text-2xs",
               value === preset
                 ? "bg-[var(--color-canvas)] text-[var(--color-ink)]"
                 : "text-[var(--color-ink-3)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]",
@@ -364,8 +352,8 @@ function Row({
       )}
     >
       <div className="min-w-0">
-        <div className="text-[14px] font-medium text-[var(--color-ink)]">{title}</div>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
+        <div className="text-base font-medium text-[var(--color-ink)]">{title}</div>
+        <p className="mt-1 text-sm leading-relaxed text-[var(--color-ink-2)]">
           {description}
         </p>
       </div>

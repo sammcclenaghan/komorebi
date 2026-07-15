@@ -8,6 +8,7 @@ import { Goals } from "./pages/Goals";
 import { Integrations } from "./pages/Integrations";
 import { Settings } from "./pages/Settings";
 import { SuggestionDetail } from "./pages/SuggestionDetail";
+import { IconButton } from "./components/ui/IconButton";
 import { useApplyTheme } from "./lib/use-theme";
 import { useChecklistProgress } from "./lib/use-checklist-progress";
 import { isWebMode } from "./lib/api";
@@ -98,17 +99,12 @@ export function App() {
 function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const Icon = open ? PanelLeftClose : PanelLeftOpen;
   return (
-    <button
-      onClick={onToggle}
-      title={open ? "Hide sidebar (⌘B)" : "Show sidebar (⌘B)"}
+    <IconButton
+      size="md"
       aria-label={open ? "Hide sidebar" : "Show sidebar"}
-      className={cn(
-        "no-drag fixed top-[14px] z-50 hidden md:inline-flex",
-        "left-[78px]",
-        "pressable-sm h-[26px] w-[26px] items-center justify-center rounded-md",
-        "text-[var(--color-ink-3)]",
-        "hover:bg-[var(--color-panel-2)] hover:text-[var(--color-ink)] active:bg-[var(--color-panel-2)]"
-      )}
+      title={open ? "Hide sidebar (⌘B)" : "Show sidebar (⌘B)"}
+      onClick={onToggle}
+      className="no-drag fixed top-[14px] left-[78px] z-50 hidden h-[26px] w-[26px] p-0 md:inline-flex hover:bg-[var(--color-panel-2)] active:bg-[var(--color-panel-2)]"
     >
       <Icon
         key={open ? "close" : "open"}
@@ -116,6 +112,6 @@ function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void
         strokeWidth={1.5}
         style={{ animation: "fade-up 180ms ease-out" }}
       />
-    </button>
+    </IconButton>
   );
 }

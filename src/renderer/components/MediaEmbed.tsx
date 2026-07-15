@@ -73,14 +73,14 @@ function VideoEmbed({
         )}
       </div>
       <figcaption className="flex items-center justify-between gap-3 border-t border-[var(--color-rule)] px-3.5 py-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
+        <span className="font-mono text-2xs uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
           {provider}
         </span>
         <a
           href={url}
           target="_blank"
           rel="noreferrer noopener"
-          className="pressable inline-flex items-center gap-1 text-[11.5px] text-[var(--color-ink-2)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]"
+          className="pressable inline-flex items-center gap-1 text-xs text-[var(--color-ink-2)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]"
         >
           Open
           <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
@@ -111,12 +111,12 @@ function LinkCard({ url }: { url: string }) {
         rel="noreferrer noopener"
         className={cn(
           "pressable mt-5 inline-flex items-center gap-2 rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3.5 py-2",
-          "text-[12.5px] text-[var(--color-ink)] hover:border-[var(--color-accent)]/40 hover:bg-[var(--color-accent-tint)]",
+          "text-sm text-[var(--color-ink)] hover:border-[var(--color-accent)]/40 hover:bg-[var(--color-accent-tint)]",
           "active:border-[var(--color-accent)]/40 active:bg-[var(--color-accent-tint)]",
           isLoading && "animate-pulse"
         )}
       >
-        <span className="max-w-[28ch] truncate font-mono text-[11.5px] text-[var(--color-ink-2)]">
+        <span className="max-w-[28ch] truncate font-mono text-xs text-[var(--color-ink-2)]">
           {prettifyUrl(url)}
         </span>
         <ArrowUpRight className="h-3 w-3 shrink-0" strokeWidth={2} />
@@ -138,17 +138,17 @@ function LinkCard({ url }: { url: string }) {
     >
       <Thumbnail src={data?.imageUrl ?? null} />
       <div className="min-w-0 flex-1 px-4 py-3">
-        <div className="flex items-center gap-1.5 font-mono text-[9.5px] uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
+        <div className="flex items-center gap-1.5 font-mono text-2xs uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
           {data?.favicon && <img src={data.favicon} alt="" className="h-3 w-3 rounded-sm" />}
           <span className="truncate">{data?.siteName ?? prettifyUrl(url)}</span>
         </div>
         {title && (
-          <h4 className="mt-1.5 line-clamp-2 text-[13.5px] font-medium leading-snug text-[var(--color-ink)]">
+          <h4 className="mt-1.5 line-clamp-2 text-base font-medium leading-snug text-[var(--color-ink)]">
             {title}
           </h4>
         )}
         {data?.description && (
-          <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-[var(--color-ink-2)]">
+          <p className="mt-1 line-clamp-2 text-sm leading-snug text-[var(--color-ink-2)]">
             {data.description}
           </p>
         )}

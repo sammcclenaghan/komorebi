@@ -94,7 +94,7 @@ function NavButton({
       onClick={() => onSelect(item.id)}
       title={item.label}
       className={cn(
-        "pressable-row group flex items-center gap-3 rounded-md px-3 py-2 text-[14px]",
+        "pressable-row group flex items-center gap-3 rounded-md px-3 py-2 text-base",
         active
           ? "bg-[var(--color-panel-2)] text-[var(--color-ink)]"
           : "text-[var(--color-ink-2)] hover:bg-[var(--color-panel-hover)] hover:text-[var(--color-ink)] active:bg-[var(--color-panel-2)]",

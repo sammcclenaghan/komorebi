@@ -19,17 +19,13 @@ import { GoalModal } from "../components/GoalModal";
 import { ChecklistRow } from "../components/ChecklistRow";
 import { GeneratingRow } from "../components/GeneratingRow";
 import { AllCaughtUp } from "../components/AllCaughtUp";
+import { Button } from "../components/ui/Button";
 import type { Goal, Suggestion } from "~/shared/types";
 import type { WeatherSummary } from "~/main/weather/service";
 import type {
   ChecklistProgress,
   InFlightGoal,
 } from "../lib/use-checklist-progress";
-
-const primaryButton = cn(
-  "pressable inline-flex items-center gap-2 rounded-md bg-[var(--color-ink)] px-4 py-2.5 text-[13px] font-medium text-[var(--color-canvas)]",
-  "hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)]",
-);
 
 function locationFromTimezone(): string {
   try {
@@ -83,38 +79,38 @@ function WeatherTooltip({ summary }: { summary: WeatherSummary }) {
       role="tooltip"
       className={cn(
         "pointer-events-none absolute left-0 top-full z-30 mt-2 w-[230px] origin-top-left",
-        "opacity-0 -translate-y-1 transition-all duration-150 ease-out",
+        "opacity-0 -translate-y-1 transition-[opacity,translate,transform] duration-150 ease-out",
         "group-hover:opacity-100 group-hover:translate-y-0",
         "rounded-lg border border-[var(--color-rule)] bg-[var(--color-canvas)] p-3",
         "shadow-[0_18px_36px_-18px_oklch(20%_0.01_60/0.22),0_4px_10px_-4px_oklch(20%_0.01_60/0.10)]",
       )}
     >
-      <div className="font-mono text-[9.5px] uppercase tracking-[0.22em] text-[var(--color-ink-3)]">
+      <div className="font-mono text-2xs uppercase tracking-[0.22em] text-[var(--color-ink-3)]">
         {summary.resolvedName}
         {summary.isNight && <span className="ml-1.5 opacity-70">· night</span>}
       </div>
 
       <div className="mt-2 flex items-baseline justify-between gap-3">
-        <div className="text-[13px] font-medium text-[var(--color-ink)]">
+        <div className="text-base font-medium text-[var(--color-ink)]">
           {titleCase(summary.description)}
         </div>
-        <div className="text-[18px] font-semibold tabular-nums leading-none text-[var(--color-ink)]">
+        <div className="text-xl font-semibold tabular-nums leading-none text-[var(--color-ink)]">
           {summary.temperatureC}°
         </div>
       </div>
 
       <div className="mt-3 border-t border-[var(--color-rule)] pt-2">
-        <div className="font-mono text-[9.5px] uppercase tracking-[0.22em] text-[var(--color-ink-3)]">
+        <div className="font-mono text-2xs uppercase tracking-[0.22em] text-[var(--color-ink-3)]">
           today
         </div>
-        <div className="mt-1 flex items-baseline justify-between gap-3 text-[12px] text-[var(--color-ink-2)]">
+        <div className="mt-1 flex items-baseline justify-between gap-3 text-sm text-[var(--color-ink-2)]">
           <span>{titleCase(d.description)}</span>
           <span className="tabular-nums text-[var(--color-ink)]">
             {d.tempMaxC}° / {d.tempMinC}°
           </span>
         </div>
         {d.precipitationProbabilityPct >= 30 && (
-          <div className="mt-1 text-[11px] tabular-nums text-[var(--color-ink-3)]">
+          <div className="mt-1 text-xs tabular-nums text-[var(--color-ink-3)]">
             {d.precipitationProbabilityPct}% chance of precipitation
           </div>
         )}
@@ -232,7 +228,7 @@ export function Today({ onOpenSuggestion, progress }: Props) {
               <WeatherIcon summary={weatherQuery.data} />
               {weatherQuery.data && <WeatherTooltip summary={weatherQuery.data} />}
             </div>
-            <span className="font-mono text-[10px] uppercase tracking-[0.22em]">
+            <span className="font-mono text-2xs uppercase tracking-[0.22em]">
               {today}
             </span>
           </div>
@@ -293,19 +289,19 @@ function LoadingState() {
 function NoGoalsState({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="mt-10">
-      <h1 className="text-[32px] font-semibold leading-[1.15] tracking-tight text-[var(--color-ink)]">
+      <h1 className="text-4xl font-semibold text-[var(--color-ink)]">
         Start with one goal.
       </h1>
-      <p className="mt-4 max-w-md text-[14.5px] leading-relaxed text-[var(--color-ink-2)]">
+      <p className="mt-4 max-w-md text-lg leading-relaxed text-[var(--color-ink-2)]">
         Tell Komorebi what you're working toward - anything from "lose 10 lbs"
         to "become a better dev." It'll compose a small, specific checklist for
         you each day.
       </p>
 
-      <button onClick={onAdd} className={cn(primaryButton, "mt-7")}>
+      <Button size="lg" className="mt-7" onClick={onAdd}>
         <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
         Add a goal
-      </button>
+      </Button>
     </div>
   );
 }
@@ -325,10 +321,10 @@ function NoChecklistYet({
 }) {
   return (
     <div className="mt-10">
-      <h1 className="text-[30px] font-semibold leading-[1.15] tracking-tight text-[var(--color-ink)]">
+      <h1 className="text-4xl font-semibold text-[var(--color-ink)]">
         Ready when you are.
       </h1>
-      <p className="mt-3 max-w-md text-[14px] leading-relaxed text-[var(--color-ink-2)]">
+      <p className="mt-3 max-w-md text-base leading-relaxed text-[var(--color-ink-2)]">
         {goals.length === 1
           ? "Komorebi will compose today's action for your goal."
           : `Komorebi will compose today's action for each of your ${goals.length} active goals.`}{" "}
@@ -339,7 +335,7 @@ function NoChecklistYet({
         {goals.map((g) => (
           <li
             key={g.id}
-            className="flex items-center gap-2 text-[13px] text-[var(--color-ink-2)]"
+            className="flex items-center gap-2 text-base text-[var(--color-ink-2)]"
           >
             <span className="h-1 w-1 rounded-full bg-[var(--color-ink-3)]" />
             {g.title}
@@ -348,14 +344,7 @@ function NoChecklistYet({
       </ul>
 
       <div className="mt-7 flex items-center gap-2">
-        <button
-          onClick={onGenerate}
-          disabled={generating}
-          className={cn(
-            primaryButton,
-            "disabled:cursor-not-allowed disabled:opacity-60",
-          )}
-        >
+        <Button size="lg" onClick={onGenerate} disabled={generating}>
           {generating ? (
             <>
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -367,18 +356,15 @@ function NoChecklistYet({
               Generate today's checklist
             </>
           )}
-        </button>
-        <button
-          onClick={onAddGoal}
-          className="pressable inline-flex items-center gap-1.5 rounded-md border border-[var(--color-rule)] px-3 py-2.5 text-[12px] text-[var(--color-ink-2)] hover:border-[var(--color-rule-2)] hover:text-[var(--color-ink)] active:border-[var(--color-rule-2)] active:text-[var(--color-ink)]"
-        >
+        </Button>
+        <Button variant="secondary" size="lg" onClick={onAddGoal}>
           <Plus className="h-3 w-3" strokeWidth={2} />
           Add another goal
-        </button>
+        </Button>
       </div>
 
       {error && (
-        <div className="mt-4 rounded-md border border-[var(--color-rule)] bg-[var(--color-panel)] px-3 py-2 text-[12px] text-[var(--color-ink-2)]">
+        <div className="mt-4 rounded-md border border-[var(--color-rule)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink-2)]">
           {error.message}
         </div>
       )}
@@ -442,7 +428,7 @@ function ChecklistView({
       {allDone && <AllCaughtUp />}
 
       {topUpCount > 0 && (
-        <div className="mt-8 flex items-center justify-end border-t border-[var(--color-rule)] pt-4 text-[12px] text-[var(--color-ink-3)]">
+        <div className="mt-8 flex items-center justify-end border-t border-[var(--color-rule)] pt-4 text-sm text-[var(--color-ink-3)]">
           <button
             onClick={onRefresh}
             disabled={generating}

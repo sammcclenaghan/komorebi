@@ -115,16 +115,16 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
       <button onClick={onOpen} className="flex-1 min-w-0 text-left">
         <h3
           className={cn(
-            "text-[14.5px] font-medium leading-snug text-[var(--color-ink)] transition-colors",
+            "text-lg font-medium leading-snug text-[var(--color-ink)] transition-colors",
             (isDone || isSkipped) && "line-through decoration-[var(--color-ink-3)] decoration-[1px]"
           )}
         >
           {suggestion.title}
         </h3>
-        <p className="mt-1 text-[12.5px] leading-snug text-[var(--color-ink-2)] line-clamp-1">
+        <p className="mt-1 text-sm leading-snug text-[var(--color-ink-2)] line-clamp-1">
           {suggestion.summary}
         </p>
-        <div className="mt-2 flex items-center gap-2.5 text-[10.5px] text-[var(--color-ink-3)]">
+        <div className="mt-2 flex items-center gap-2.5 text-2xs text-[var(--color-ink-3)]">
           {goal && (
             <span className="font-mono uppercase tracking-[0.14em]">{goal.title}</span>
           )}

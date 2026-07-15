@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CircleAlert, RotateCcw } from "lucide-react";
+import { Button } from "./ui/Button";
 
 type Props = {
   goalTitle: string;
@@ -40,25 +41,22 @@ export function GeneratingRow({ goalTitle, status, error, onRetry }: Props) {
         </span>
 
         <div className="min-w-0 flex-1">
-          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
+          <div className="font-mono text-2xs uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
             {goalTitle}
           </div>
-          <h3 className="mt-1 text-[14px] font-medium leading-snug text-[var(--color-ink)]">
+          <h3 className="mt-1 text-base font-medium leading-snug text-[var(--color-ink)]">
             Couldn't compose today's action
           </h3>
-          <p className="mt-0.5 break-words text-[12px] leading-relaxed text-[var(--color-ink-3)]">
+          <p className="mt-0.5 break-words text-sm leading-relaxed text-[var(--color-ink-3)]">
             {error}
           </p>
         </div>
 
         {onRetry && (
-          <button
-            onClick={onRetry}
-            className="pressable mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--color-rule)] px-2.5 py-1.5 text-[12px] text-[var(--color-ink-2)] hover:border-[var(--color-rule-2)] hover:text-[var(--color-ink)] active:border-[var(--color-rule-2)] active:text-[var(--color-ink)]"
-          >
+          <Button variant="secondary" size="sm" className="mt-0.5 shrink-0" onClick={onRetry}>
             <RotateCcw className="h-3 w-3" strokeWidth={2} />
             Try again
-          </button>
+          </Button>
         )}
       </article>
     );
@@ -88,13 +86,13 @@ export function GeneratingRow({ goalTitle, status, error, onRetry }: Props) {
 
       <div className="relative min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
+          <span className="font-mono text-2xs uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
             {goalTitle}
           </span>
         </div>
         <h3
           key={phrase}
-          className="mt-1 text-[14px] font-medium leading-snug text-[var(--color-ink-2)]"
+          className="mt-1 text-base font-medium leading-snug text-[var(--color-ink-2)]"
           style={{ animation: "fade-up 280ms ease-out" }}
         >
           {phrase}

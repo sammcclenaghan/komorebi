@@ -58,12 +58,12 @@ export function History({ onOpenSuggestion }: Props) {
       <header>
         <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
           <HistoryIcon className="h-4 w-4" strokeWidth={1.5} />
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em]">history</span>
+          <span className="font-mono text-2xs uppercase tracking-[0.22em]">history</span>
         </div>
-        <h1 className="mt-3 text-[30px] font-semibold leading-[1.15] tracking-tight text-[var(--color-ink)]">
+        <h1 className="mt-3 text-4xl font-semibold text-[var(--color-ink)]">
           What you've been <span className="font-normal text-[var(--color-ink-2)]">working on.</span>
         </h1>
-        <p className="mt-3 max-w-lg text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
+        <p className="mt-3 max-w-lg text-base leading-relaxed text-[var(--color-ink-2)]">
           Your last {WEEKS} weeks at a glance. Pick any day to see what Komorebi
           composed, what you finished, and the notes you left.
         </p>
@@ -127,7 +127,7 @@ function Heatmap({
     <div className="mt-10 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
       <div>
         {/* Month labels */}
-        <div className="mb-1.5 flex pl-[24px] text-[10px] text-[var(--color-ink-3)]">
+        <div className="mb-1.5 flex pl-[24px] text-2xs text-[var(--color-ink-3)]">
           {columns.map((_, ci) => (
             <div key={ci} className="w-[18px] shrink-0 font-mono">
               {monthLabels[ci] ?? ""}
@@ -137,7 +137,7 @@ function Heatmap({
 
         <div className="flex gap-[4px]">
           {/* Weekday labels */}
-          <div className="mr-[4px] flex w-[20px] flex-col gap-[4px] text-[9px] text-[var(--color-ink-3)]">
+          <div className="mr-[4px] flex w-[20px] flex-col gap-[4px] text-2xs text-[var(--color-ink-3)]">
             {["", "M", "", "W", "", "F", ""].map((d, i) => (
               <div key={i} className="flex h-3.5 items-center font-mono leading-none">
                 {d}
@@ -170,7 +170,7 @@ function Heatmap({
         </div>
 
         {/* Legend */}
-        <div className="mt-2.5 flex items-center gap-1.5 pl-[24px] text-[10px] text-[var(--color-ink-3)]">
+        <div className="mt-2.5 flex items-center gap-1.5 pl-[24px] text-2xs text-[var(--color-ink-3)]">
           <span className="font-mono">less</span>
           {[0, 1, 2, 3, 4].map((l) => (
             <span
@@ -193,14 +193,14 @@ function Heatmap({
 function Stat({ label, value, unit }: { label: string; value: number; unit: string }) {
   return (
     <div>
-      <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
+      <div className="font-mono text-2xs uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
         {label}
       </div>
       <div className="mt-0.5 flex items-baseline gap-1">
-        <span className="text-[22px] font-semibold tabular-nums leading-none text-[var(--color-ink)]">
+        <span className="text-2xl font-semibold tabular-nums leading-none text-[var(--color-ink)]">
           {value}
         </span>
-        <span className="text-[11px] text-[var(--color-ink-3)]">{unit}</span>
+        <span className="text-xs text-[var(--color-ink-3)]">{unit}</span>
       </div>
     </div>
   );
@@ -210,14 +210,14 @@ function SelectedEmpty({ date, todayDate }: { date: string; todayDate: string })
   return (
     <section style={{ animation: "fade-up 320ms ease-out" }}>
       <header className="flex items-baseline gap-3">
-        <h2 className="text-[16px] font-semibold tracking-tight text-[var(--color-ink)]">
+        <h2 className="text-xl font-semibold text-[var(--color-ink)]">
           {formatLongDate(date)}
         </h2>
-        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
+        <span className="font-mono text-2xs uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
           {formatRelativeDay(date)}
         </span>
       </header>
-      <p className="mt-3 text-[13px] text-[var(--color-ink-2)]">
+      <p className="mt-3 text-base text-[var(--color-ink-2)]">
         {date === todayDate
           ? "Nothing composed yet today."
           : "Nothing was composed on this day."}
@@ -341,15 +341,15 @@ function DayBlock({
     <section style={style}>
       <header className="flex items-baseline justify-between">
         <div className="flex items-baseline gap-3">
-          <h2 className="text-[16px] font-semibold tracking-tight text-[var(--color-ink)]">
+          <h2 className="text-xl font-semibold text-[var(--color-ink)]">
             {formatLongDate(day.date)}
           </h2>
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
+          <span className="font-mono text-2xs uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
             {formatRelativeDay(day.date)}
           </span>
         </div>
         {nonSkipped.length > 0 && (
-          <span className="font-mono text-[10px] tabular-nums text-[var(--color-ink-3)]">
+          <span className="font-mono text-2xs tabular-nums text-[var(--color-ink-3)]">
             <span className="text-[var(--color-ink)]">{doneCount}</span>
             <span className="opacity-60"> / </span>
             <span>{nonSkipped.length}</span>
@@ -401,16 +401,16 @@ function HistoryRow({
         <div className="min-w-0 flex-1">
           <h3
             className={cn(
-              "text-[14.5px] font-medium leading-snug text-[var(--color-ink)]",
+              "text-lg font-medium leading-snug text-[var(--color-ink)]",
               (isDone || isSkipped) && "line-through decoration-[var(--color-ink-3)] decoration-[1px]"
             )}
           >
             {item.title}
           </h3>
-          <p className="mt-1 text-[12.5px] leading-snug text-[var(--color-ink-2)] line-clamp-1">
+          <p className="mt-1 text-sm leading-snug text-[var(--color-ink-2)] line-clamp-1">
             {item.summary}
           </p>
-          <div className="mt-2 flex items-center gap-2.5 text-[10.5px] text-[var(--color-ink-3)]">
+          <div className="mt-2 flex items-center gap-2.5 text-2xs text-[var(--color-ink-3)]">
             {goal && <span className="font-mono uppercase tracking-[0.14em]">{goal.title}</span>}
             {item.estimatedMinutes != null && (
               <span className="flex items-center gap-1 font-mono">
@@ -449,7 +449,7 @@ function HistoryRow({
             {reflections.map((r) => (
               <p
                 key={r.id}
-                className="border-l-2 border-[var(--color-rule-2)] pl-3 text-[12.5px] leading-snug italic text-[var(--color-ink-2)]"
+                className="border-l-2 border-[var(--color-rule-2)] pl-3 text-sm leading-snug italic text-[var(--color-ink-2)]"
               >
                 {r.text}
               </p>
@@ -496,10 +496,10 @@ function LoadingState() {
 function EmptyState() {
   return (
     <div className="mx-auto mt-12 max-w-sm text-center">
-      <h3 className="text-[20px] font-semibold tracking-tight text-[var(--color-ink)]">
+      <h3 className="text-2xl font-semibold text-[var(--color-ink)]">
         Nothing yet.
       </h3>
-      <p className="mt-2 text-[13px] text-[var(--color-ink-2)]">
+      <p className="mt-2 text-base text-[var(--color-ink-2)]">
         Past days will show up here. Come back tomorrow.
       </p>
     </div>

@@ -44,10 +44,10 @@ export function AllCaughtUp() {
         className="mt-5 text-center"
         style={{ animation: "fade-up 520ms ease-out 0.6s both" }}
       >
-        <h3 className="text-[16px] font-semibold tracking-tight text-[var(--color-ink)]">
+        <h3 className="text-xl font-semibold text-[var(--color-ink)]">
           All done.
         </h3>
-        <p className="mt-1 text-[13px] text-[var(--color-ink-2)]">See you tomorrow.</p>
+        <p className="mt-1 text-base text-[var(--color-ink-2)]">See you tomorrow.</p>
       </div>
     </div>
   );
