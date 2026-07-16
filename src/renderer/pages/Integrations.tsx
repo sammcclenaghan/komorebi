@@ -72,7 +72,7 @@ export function Integrations() {
             {query && (
               <button
                 onClick={() => setQuery("")}
-                className="absolute top-1/2 right-2 -translate-y-1/2 p-1 text-[var(--color-ink-3)] transition-colors hover:text-[var(--color-ink)] active:text-[var(--color-ink)]"
+                className="hit-target absolute top-1/2 right-2 -translate-y-1/2 p-1 text-[var(--color-ink-3)] transition-colors hover:text-[var(--color-ink)] active:text-[var(--color-ink)]"
                 aria-label="Clear search"
               >
                 <X className="h-3 w-3" />

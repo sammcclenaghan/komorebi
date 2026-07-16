@@ -140,10 +140,10 @@ function GoalCard({
         {/* Hover-revealed on pointer devices; always visible on touch, where an
             invisible-but-tappable button would delete/edit by accident. */}
         <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 [@media(hover:none)]:opacity-100">
-          <IconButton onClick={onEdit} aria-label="Edit goal" title="Edit">
+          <IconButton onClick={onEdit} aria-label="Edit goal" title="Edit" className="h-9 w-9">
             <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
           </IconButton>
-          <IconButton onClick={onDelete} aria-label="Delete goal" title="Delete">
+          <IconButton onClick={onDelete} aria-label="Delete goal" title="Delete" className="h-9 w-9">
             <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
           </IconButton>
         </div>
