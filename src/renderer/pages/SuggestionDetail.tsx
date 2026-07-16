@@ -265,11 +265,11 @@ function ReflectionCapture({
           </span>
         </label>
         <div className="flex items-center gap-1">
-          <RatingButton active={rating === "up"} onClick={() => toggle("up")}>
-            <ThumbsUp className="h-3 w-3" strokeWidth={2} fill={rating === "up" ? "currentColor" : "none"} />
+          <RatingButton active={rating === "up"} onClick={() => toggle("up")} aria-label="Rate good">
+            <ThumbsUp className="h-3.5 w-3.5" strokeWidth={2} fill={rating === "up" ? "currentColor" : "none"} />
           </RatingButton>
-          <RatingButton active={rating === "down"} onClick={() => toggle("down")}>
-            <ThumbsDown className="h-3 w-3" strokeWidth={2} fill={rating === "down" ? "currentColor" : "none"} />
+          <RatingButton active={rating === "down"} onClick={() => toggle("down")} aria-label="Rate poor">
+            <ThumbsDown className="h-3.5 w-3.5" strokeWidth={2} fill={rating === "down" ? "currentColor" : "none"} />
           </RatingButton>
         </div>
       </div>
@@ -311,17 +311,21 @@ function ReflectionCapture({
 function RatingButton({
   active,
   onClick,
-  children
+  children,
+  "aria-label": ariaLabel
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  "aria-label": string;
 }) {
   return (
     <button
       onClick={onClick}
+      aria-label={ariaLabel}
+      aria-pressed={active}
       className={cn(
-        "pressable-sm rounded-md border p-1.5",
+        "pressable-sm rounded-md border p-2.5",
         active
           ? "border-[var(--color-accent)]/40 bg-[var(--color-accent-tint)] text-[var(--color-accent-strong)]"
           : "border-[var(--color-rule)] text-[var(--color-ink-3)] hover:border-[var(--color-rule-2)] hover:text-[var(--color-ink)] active:border-[var(--color-rule-2)] active:text-[var(--color-ink)]"

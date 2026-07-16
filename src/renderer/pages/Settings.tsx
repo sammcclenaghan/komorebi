@@ -245,7 +245,7 @@ function ThemePicker({
             disabled={disabled}
             onClick={() => onChange(optValue)}
             className={cn(
-              "pressable inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm",
+              "pressable inline-flex items-center gap-1.5 rounded px-2.5 py-2 text-sm",
               selected
                 ? "bg-[var(--color-canvas)] text-[var(--color-ink)] shadow-sm"
                 : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]",
@@ -318,7 +318,7 @@ function ModelField({
               if (preset !== (value ?? "")) onCommit(preset);
             }}
             className={cn(
-              "pressable rounded border border-[var(--color-rule)] px-1.5 py-0.5 font-mono text-2xs",
+              "pressable rounded border border-[var(--color-rule)] px-2 py-1.5 font-mono text-2xs",
               value === preset
                 ? "bg-[var(--color-canvas)] text-[var(--color-ink)]"
                 : "text-[var(--color-ink-3)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]",
@@ -378,7 +378,7 @@ function Toggle({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        "pressable relative h-[24px] w-[42px] rounded-full disabled:opacity-60",
+        "pressable hit-target relative h-[24px] w-[42px] rounded-full disabled:opacity-60",
         checked ? "bg-[var(--color-accent)]" : "bg-[var(--color-rule-2)]"
       )}
     >
