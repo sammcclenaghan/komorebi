@@ -19,7 +19,23 @@ const KNOWN_VIEWS: View[] = ["today", "history", "goals", "integrations", "setti
 export function App() {
   const [view, setView] = useState<View>("today");
   const [openSuggestionId, setOpenSuggestionId] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(!isWebMode());
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("komorebi.sidebarOpen");
+      if (saved != null) return saved === "true";
+    } catch {
+      /* storage unavailable — fall through */
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("komorebi.sidebarOpen", String(sidebarOpen));
+    } catch {
+      /* storage unavailable — non-fatal */
+    }
+  }, [sidebarOpen]);
 
   useApplyTheme();
 
@@ -96,6 +112,8 @@ export function App() {
   );
 }
 
+const TOGGLE_LEFT = isWebMode() ? "left-3" : "left-[78px]";
+
 function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const Icon = open ? PanelLeftClose : PanelLeftOpen;
   return (
@@ -105,7 +123,8 @@ function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void
       title={open ? "Hide sidebar (⌘B)" : "Show sidebar (⌘B)"}
       onClick={onToggle}
       className={cn(
-        "no-drag fixed top-[14px] left-[78px] z-50 hidden h-[26px] w-[26px] p-0 md:inline-flex",
+        "no-drag fixed top-[14px] z-50 hidden h-[26px] w-[26px] p-0 md:inline-flex",
+        TOGGLE_LEFT,
         "transition-[background-color,border-color,box-shadow] duration-200 ease-out",
         open
           ? // Sits over the sidebar panel — stays borderless so it blends in.
