@@ -22,6 +22,14 @@ export function useApplyTheme(): void {
       const resolved =
         preference === "system" ? (mql.matches ? "dark" : "light") : preference;
       document.documentElement.dataset.theme = resolved;
+
+      // Status bar / browser chrome follows the canvas. Read the resolved
+      // color from the DOM rather than duplicating token values here.
+      const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+      if (meta) {
+        const bg = getComputedStyle(document.body).backgroundColor;
+        if (bg) meta.content = bg;
+      }
     }
 
     apply();
