@@ -25,6 +25,12 @@
   --color-accent-soft: oklch(95.5% 0.018 245);
   --color-accent-tint: oklch(96.5% 0.015 245);
 
+  /* History heatmap intensity scale — level 0 is --color-panel-2,
+     level 4 is --color-accent; these are the steps between. */
+  --color-heat-1: oklch(89% 0.03 245);
+  --color-heat-2: oklch(80% 0.065 245);
+  --color-heat-3: oklch(66% 0.095 245);
+
   /* Destructive actions — the only warm-red in the app. */
   --color-danger: oklch(58% 0.18 25);
 
@@ -77,6 +83,10 @@
   --color-accent-strong: oklch(80% 0.12 245);
   --color-accent-soft: oklch(28% 0.05 245);
   --color-accent-tint: oklch(25% 0.04 245);
+
+  --color-heat-1: oklch(32% 0.045 245);
+  --color-heat-2: oklch(44% 0.075 245);
+  --color-heat-3: oklch(57% 0.1 245);
 
   --color-danger: oklch(70% 0.15 25);
 
