@@ -125,67 +125,69 @@ function Heatmap({
 
   return (
     <div className="mt-10 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-      <div>
-        {/* Month labels */}
-        <div className="mb-1.5 flex pl-[24px] text-2xs text-[var(--color-ink-3)]">
-          {columns.map((_, ci) => (
-            <div key={ci} className="w-[18px] shrink-0 font-mono">
-              {monthLabels[ci] ?? ""}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-[4px]">
-          {/* Weekday labels */}
-          <div className="mr-[4px] flex w-[20px] flex-col gap-[4px] text-2xs text-[var(--color-ink-3)]">
-            {["", "M", "", "W", "", "F", ""].map((d, i) => (
-              <div key={i} className="flex h-3.5 items-center font-mono leading-none">
-                {d}
+      <div className="overflow-x-auto" dir="rtl">
+        <div dir="ltr" className="w-fit">
+          {/* Month labels */}
+          <div className="mb-1.5 flex pl-[24px] text-2xs text-[var(--color-ink-3)]">
+            {columns.map((_, ci) => (
+              <div key={ci} className="w-[18px] shrink-0 font-mono">
+                {monthLabels[ci] ?? ""}
               </div>
             ))}
           </div>
 
-          {columns.map((col, ci) => (
-            <div key={ci} className="flex flex-col gap-[4px]">
-              {col.map((cell, ri) =>
-                cell ? (
-                  <button
-                    key={cell.iso}
-                    onClick={() => onSelect(cell.iso)}
-                    title={cellTitle(cell)}
-                    aria-label={cellTitle(cell)}
-                    aria-pressed={cell.iso === selectedDate}
-                    className="group/cell flex h-3.5 w-3.5 items-center justify-center"
-                  >
-                    <span
-                      className={cn(
-                        "h-3.5 w-3.5 rounded-[3px] transition-transform",
-                        "[@media(hover:hover)]:group-hover/cell:scale-125 group-active/cell:scale-90",
-                        cell.iso === selectedDate &&
-                          "ring-[1.5px] ring-[var(--color-ink)] ring-offset-1 ring-offset-[var(--color-canvas)]"
-                      )}
-                      style={{ background: LEVEL_BG[cell.level] }}
-                    />
-                  </button>
-                ) : (
-                  <div key={`empty-${ci}-${ri}`} className="h-3.5 w-3.5" />
-                )
-              )}
+          <div className="flex gap-[4px]">
+            {/* Weekday labels */}
+            <div className="mr-[4px] flex w-[20px] flex-col gap-[4px] text-2xs text-[var(--color-ink-3)]">
+              {["", "M", "", "W", "", "F", ""].map((d, i) => (
+                <div key={i} className="flex h-3.5 items-center font-mono leading-none">
+                  {d}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* Legend */}
-        <div className="mt-2.5 flex items-center gap-1.5 pl-[24px] text-2xs text-[var(--color-ink-3)]">
-          <span className="font-mono">less</span>
-          {[0, 1, 2, 3, 4].map((l) => (
-            <span
-              key={l}
-              className="h-3.5 w-3.5 rounded-[3px]"
-              style={{ background: LEVEL_BG[l] }}
-            />
-          ))}
-          <span className="font-mono">more</span>
+            {columns.map((col, ci) => (
+              <div key={ci} className="flex flex-col gap-[4px]">
+                {col.map((cell, ri) =>
+                  cell ? (
+                    <button
+                      key={cell.iso}
+                      onClick={() => onSelect(cell.iso)}
+                      title={cellTitle(cell)}
+                      aria-label={cellTitle(cell)}
+                      aria-pressed={cell.iso === selectedDate}
+                      className="group/cell flex h-3.5 w-3.5 items-center justify-center"
+                    >
+                      <span
+                        className={cn(
+                          "h-3.5 w-3.5 rounded-[3px] transition-transform",
+                          "[@media(hover:hover)]:group-hover/cell:scale-125 group-active/cell:scale-90",
+                          cell.iso === selectedDate &&
+                            "ring-[1.5px] ring-[var(--color-ink)] ring-offset-1 ring-offset-[var(--color-canvas)]"
+                        )}
+                        style={{ background: LEVEL_BG[cell.level] }}
+                      />
+                    </button>
+                  ) : (
+                    <div key={`empty-${ci}-${ri}`} className="h-3.5 w-3.5" />
+                  )
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Legend */}
+          <div className="mt-2.5 flex items-center gap-1.5 pl-[24px] text-2xs text-[var(--color-ink-3)]">
+            <span className="font-mono">less</span>
+            {[0, 1, 2, 3, 4].map((l) => (
+              <span
+                key={l}
+                className="h-3.5 w-3.5 rounded-[3px]"
+                style={{ background: LEVEL_BG[l] }}
+              />
+            ))}
+            <span className="font-mono">more</span>
+          </div>
         </div>
       </div>
 
