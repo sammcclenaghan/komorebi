@@ -238,12 +238,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .motion-safe-pop {
-    animation-name: fade-in !important;
-  }
-}
-
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -301,4 +295,35 @@
     opacity: 0;
     transform: translate(var(--tx), var(--ty)) scale(1) rotate(var(--r));
   }
+}
+
+/* Reduced motion: keep opacity cues (they aid comprehension), strip
+   spatial movement and decorative motion. Keyframes are overridden here
+   because animations are applied via inline styles throughout. */
+@media (prefers-reduced-motion: reduce) {
+  .motion-safe-pop {
+    animation-name: fade-in !important;
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: none; }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes modal-pop {
+    from { opacity: 0; transform: none; }
+  }
+  @keyframes scale-in {
+    from { opacity: 0; transform: none; }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes ring-pulse {
+    0%, 100% { opacity: 0; transform: none; }
+  }
+  @keyframes leaf-burst {
+    0%, 100% { opacity: 0; transform: none; }
+  }
+  @keyframes shimmer {
+    0%, 100% { background-position: 0 0; }
+  }
+  /* fade-in, pulse-soft, draw-check intentionally kept: opacity/stroke
+     only, no spatial motion. */
 }
