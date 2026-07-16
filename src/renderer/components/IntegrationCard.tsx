@@ -68,7 +68,7 @@ export function IntegrationCard({ view }: Props) {
     <article
       className={cn(
         "group relative overflow-hidden rounded-xl border bg-[var(--color-canvas)] p-5 transition-all duration-200",
-        "hover:border-[var(--color-rule-2)] hover:shadow-[0_1px_2px_oklch(20%_0.01_60/0.04),0_4px_12px_-2px_oklch(20%_0.01_60/0.06)]",
+        "hover:border-[var(--color-rule-2)] hover:shadow-[0_1px_2px_color-mix(in_oklab,var(--color-shadow)_4%,transparent),0_4px_12px_-2px_color-mix(in_oklab,var(--color-shadow)_6%,transparent)]",
         isConnected
           ? "border-[var(--color-accent)]/30 bg-[var(--color-accent-tint)]"
           : "border-[var(--color-rule)]"

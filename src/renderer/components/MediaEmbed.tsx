@@ -59,7 +59,7 @@ function VideoEmbed({
             ) : (
               <div className="absolute inset-0 bg-[var(--color-panel-2)]" />
             )}
-            <span className="absolute inset-0 bg-[oklch(20%_0.02_60/0.18)] transition-colors group-hover:bg-[oklch(20%_0.02_60/0.30)] group-active:bg-[oklch(20%_0.02_60/0.35)]" />
+            <span className="absolute inset-0 bg-[var(--color-scrim)] transition-colors group-hover:bg-[var(--color-scrim-hover)] group-active:bg-[var(--color-scrim-active)]" />
             <span
               className={cn(
                 "relative flex h-14 w-14 items-center justify-center rounded-full",
