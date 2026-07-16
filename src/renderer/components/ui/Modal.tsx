@@ -61,7 +61,7 @@ export function Modal({
           size === "sm" ? "max-w-md" : "max-w-lg",
           className
         )}
-        style={{ animation: "modal-pop 200ms cubic-bezier(0.23, 1, 0.32, 1) backwards" }}
+        style={{ animation: "modal-pop 200ms var(--ease-out-strong) backwards" }}
       >
         {children}
       </div>

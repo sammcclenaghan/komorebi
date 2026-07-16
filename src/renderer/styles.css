@@ -56,6 +56,11 @@
   --text-4xl: 30px; /* page headlines */
   --text-4xl--line-height: 1.15;
   --text-4xl--letter-spacing: -0.025em;
+
+  /* Motion — stronger curves than the CSS built-ins. ease-out-strong for
+     entrances/exits, ease-in-out-strong for on-screen movement. */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 /* Dark palette — warm-tinted neutrals so the app keeps its paper feel.
