@@ -93,7 +93,7 @@ export function History({ onOpenSuggestion }: Props) {
                 day={selectedDay}
                 goalsById={goalsById}
                 onOpenSuggestion={onOpenSuggestion}
-                style={{ animation: "fade-up 320ms ease-out" }}
+                style={{ animation: "fade-in 150ms ease-out" }}
               />
             ) : (
               <SelectedEmpty key={selectedDate} date={selectedDate} todayDate={todayDate} />
@@ -216,7 +216,7 @@ function Stat({ label, value, unit }: { label: string; value: number; unit: stri
 
 function SelectedEmpty({ date, todayDate }: { date: string; todayDate: string }) {
   return (
-    <section style={{ animation: "fade-up 320ms ease-out" }}>
+    <section style={{ animation: "fade-in 150ms ease-out" }}>
       <header className="flex items-baseline gap-3">
         <h2 className="text-xl font-semibold text-[var(--color-ink)]">
           {formatLongDate(date)}
