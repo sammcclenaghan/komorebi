@@ -33,7 +33,7 @@ const api: KomorebiApi = {
     get: (id) => ipcRenderer.invoke("suggestion:get", id),
     setStatus: (input) => ipcRenderer.invoke("suggestion:set-status", input),
     setRating: (input) => ipcRenderer.invoke("suggestion:set-rating", input),
-    skipAndRegenerate: (id) => ipcRenderer.invoke("suggestion:skip-regenerate", id)
+    skipAndRegenerate: (id, reason) => ipcRenderer.invoke("suggestion:skip-regenerate", id, reason)
   },
   reflections: {
     list: (suggestionId) => ipcRenderer.invoke("reflection:list", suggestionId),

@@ -6,6 +6,7 @@ import { deleteGoal, getGoal, listActiveGoals } from "../store/goals";
 import { getSettings } from "../store/settings";
 import { selectGoalsForToday } from "./selection";
 import {
+  addReflection,
   deleteReflectionsForSuggestions,
   listAllReflections,
   listReflectionsForSuggestion
@@ -315,11 +316,19 @@ export async function deleteGoalCascade(goalId: string): Promise<void> {
  * Mark a suggestion as skipped, then generate a fresh suggestion for the same
  * goal using current history + context. Returns the new suggestion.
  */
-export async function skipAndRegenerate(suggestionId: string): Promise<Suggestion> {
+export async function skipAndRegenerate(suggestionId: string, reason?: string): Promise<Suggestion> {
   const original = await getSuggestion(suggestionId);
   if (!original) throw new Error(`Suggestion not found: ${suggestionId}`);
 
   await updateSuggestionStatus(suggestionId, "skipped");
+
+  // A skip reason is stored as a reflection on the skipped suggestion: the
+  // composer prompt reads reflections as top-priority "Note:" lines, so the
+  // reason steers the replacement below AND future days' generations.
+  const trimmed = reason?.trim();
+  if (trimmed) {
+    await addReflection({ suggestionId, text: trimmed });
+  }
 
   const goal = await getGoal(original.goalId);
   if (!goal) throw new Error(`Goal not found: ${original.goalId}`);

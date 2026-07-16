@@ -142,8 +142,11 @@ export function createHttpClient(): KomorebiApi {
           method: "PATCH",
           body: JSON.stringify({ rating: input.rating })
         }),
-      skipAndRegenerate: (id) =>
-        apiFetch(`/api/suggestions/${encodeURIComponent(id)}/skip-regenerate`, { method: "POST" })
+      skipAndRegenerate: (id, reason) =>
+        apiFetch(`/api/suggestions/${encodeURIComponent(id)}/skip-regenerate`, {
+          method: "POST",
+          body: JSON.stringify({ reason })
+        })
     },
 
     reflections: {

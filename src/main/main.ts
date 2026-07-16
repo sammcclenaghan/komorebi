@@ -93,7 +93,7 @@ ipcMain.handle("suggestion:set-status", (_event, input: { id: string; status: Su
 ipcMain.handle("suggestion:set-rating", (_event, input: { id: string; rating: SuggestionRating }) =>
   updateSuggestionRating(input.id, input.rating)
 );
-ipcMain.handle("suggestion:skip-regenerate", (_event, id: string) => skipAndRegenerate(id));
+ipcMain.handle("suggestion:skip-regenerate", (_event, id: string, reason?: string) => skipAndRegenerate(id, reason));
 
 ipcMain.handle("reflection:list", (_event, suggestionId: string) =>
   listReflectionsForSuggestion(suggestionId)

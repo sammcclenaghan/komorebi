@@ -39,7 +39,7 @@ export type KomorebiApi = {
     get: (id: string) => Promise<Suggestion | null>;
     setStatus: (input: { id: string; status: SuggestionStatus }) => Promise<Suggestion>;
     setRating: (input: { id: string; rating: SuggestionRating }) => Promise<Suggestion>;
-    skipAndRegenerate: (id: string) => Promise<Suggestion>;
+    skipAndRegenerate: (id: string, reason?: string) => Promise<Suggestion>;
   };
   reflections: {
     list: (suggestionId: string) => Promise<Reflection[]>;

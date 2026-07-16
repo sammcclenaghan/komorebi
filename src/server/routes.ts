@@ -119,7 +119,8 @@ export async function handleApi(
   }
   if (method === "POST" && pathname.startsWith("/api/suggestions/") && pathname.endsWith("/skip-regenerate")) {
     const id = decodeURIComponent(pathname.slice("/api/suggestions/".length, -"/skip-regenerate".length));
-    return skipAndRegenerate(id);
+    const input = (body ?? {}) as { reason?: string };
+    return skipAndRegenerate(id, input.reason);
   }
 
   if (method === "GET" && pathname.startsWith("/api/reflections/")) {
