@@ -4,6 +4,7 @@ import { Check, ChevronRight, Clock, Loader2, RotateCw, ThumbsDown, ThumbsUp } f
 import { cn } from "~/lib/cn";
 import type { ChecklistDay } from "~/main/checklist/orchestrator";
 import type { Goal, Suggestion, SuggestionRating } from "~/shared/types";
+import { SkipModal } from "./SkipModal";
 import { SwipeRow } from "./SwipeRow";
 
 type Props = {
@@ -20,6 +21,7 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
   const queryClient = useQueryClient();
   // Bumped each time the item is freshly completed, to retrigger the burst.
   const [burstKey, setBurstKey] = useState(0);
+  const [skipOpen, setSkipOpen] = useState(false);
 
   // Shared optimistic-update plumbing: patch the cached row immediately,
   // roll back on error, refetch on settle.
@@ -63,7 +65,8 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
   });
 
   const skipRegen = useMutation({
-    mutationFn: () => window.komorebi.suggestions.skipAndRegenerate(suggestion.id),
+    mutationFn: (reason?: string) =>
+      window.komorebi.suggestions.skipAndRegenerate(suggestion.id, reason || undefined),
     onMutate: () => beginOptimistic((s) => ({ ...s, status: "skipped" as const })),
     onError: (_err, _vars, ctx) => rollback(ctx),
     onSettled: refetchToday
@@ -84,138 +87,149 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
   }
 
   return (
-    <SwipeRow
-      className="rounded-xl"
-      disabled={isDone || isSkipped}
-      leftAction={{
-        content: <Check className="h-4 w-4" strokeWidth={3} />,
-        className: "bg-[var(--color-accent)] text-[var(--color-canvas)]",
-        onTrigger: complete
-      }}
-      rightAction={{
-        content: <RotateCw className="h-4 w-4" strokeWidth={2} />,
-        className: "bg-[var(--color-panel-2)] text-[var(--color-ink-2)]",
-        onTrigger: () => skipRegen.mutate()
-      }}
-    >
-      <article
-        className={cn(
-          "group relative flex items-start gap-4 rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-4 py-3.5",
-          "pressable-row hover:border-[var(--color-rule-2)] hover:bg-[var(--color-panel-hover)]",
-          "active:border-[var(--color-rule-2)] active:bg-[var(--color-panel-hover)]",
-          isDone && !rating && "opacity-60",
-          isDone && rating && "opacity-90",
-          isSkipped && "opacity-50"
-        )}
+    <>
+      <SwipeRow
+        className="rounded-xl"
+        disabled={isDone || isSkipped}
+        leftAction={{
+          content: <Check className="h-4 w-4" strokeWidth={3} />,
+          className: "bg-[var(--color-accent)] text-[var(--color-canvas)]",
+          onTrigger: complete
+        }}
+        rightAction={{
+          content: <RotateCw className="h-4 w-4" strokeWidth={2} />,
+          className: "bg-[var(--color-panel-2)] text-[var(--color-ink-2)]",
+          onTrigger: () => setSkipOpen(true)
+        }}
       >
-        <div className="relative mt-0.5 shrink-0">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isSkipped) return;
-              if (!isDone) complete();
-              else setStatus.mutate("pending");
-            }}
-            disabled={isSkipped}
-            className={cn(
-              "pressable-sm hit-target flex h-[18px] w-[18px] items-center justify-center rounded-full border-[1.5px]",
-              isDone
-                ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-canvas)]"
-                : isSkipped
-                  ? "border-[var(--color-rule-2)] bg-[var(--color-panel)] text-[var(--color-ink-3)]"
-                  : "border-[var(--color-rule-2)] bg-[var(--color-canvas)] hover:border-[var(--color-accent)]/60"
-            )}
-            aria-label={isDone ? "Mark as not done" : isSkipped ? "Skipped" : "Mark as done"}
-          >
-            {isDone && <Check className="h-3 w-3" strokeWidth={3} />}
-            {isSkipped && <span className="block h-[2px] w-[8px] bg-current rounded-full" aria-hidden />}
-          </button>
-          {burstKey > 0 && isDone && <CompletionBurst key={burstKey} />}
-        </div>
-
-        <button onClick={onOpen} className="flex-1 min-w-0 text-left">
-          <h3
-            className={cn(
-              "text-lg font-medium leading-snug text-[var(--color-ink)] transition-colors",
-              (isDone || isSkipped) && "line-through decoration-[var(--color-ink-3)] decoration-[1px]"
-            )}
-          >
-            {suggestion.title}
-          </h3>
-          <p className="mt-1 text-sm leading-snug text-[var(--color-ink-2)] line-clamp-1">
-            {suggestion.summary}
-          </p>
-          <div className="mt-2 flex items-center gap-2.5 text-2xs text-[var(--color-ink-3)]">
-            {goal && (
-              <span className="font-mono uppercase tracking-[0.14em]">{goal.title}</span>
-            )}
-            {suggestion.estimatedMinutes != null && (
-              <span className="flex items-center gap-1 font-mono">
-                <Clock className="h-2.5 w-2.5" strokeWidth={2} />
-                {suggestion.estimatedMinutes}m
-              </span>
-            )}
-            {isSkipped && (
-              <span className="font-mono uppercase tracking-[0.14em]">skipped</span>
-            )}
-          </div>
-        </button>
-
-        {isDone && (
-          <div
-            className="mt-1.5 flex shrink-0 items-center gap-0.5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <RatingThumb
-              kind="up"
-              active={rating === "up"}
-              disabled={setRating.isPending}
-              onClick={() => toggleRating("up")}
-            />
-            <RatingThumb
-              kind="down"
-              active={rating === "down"}
-              disabled={setRating.isPending}
-              onClick={() => toggleRating("down")}
-            />
-          </div>
-        )}
-
-        {!isDone && !isSkipped && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              skipRegen.mutate();
-            }}
-            disabled={skipRegen.isPending}
-            className={cn(
-              // Hover-revealed, so hidden entirely on touch devices — otherwise it's
-              // invisible but still tappable and skips by accident. The detail view
-              // has an explicit skip button for touch.
-              "pressable-sm mt-1.5 hidden h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-ink-3)]/70 [@media(hover:hover)]:flex",
-              "opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)] hover:text-[var(--color-ink-2)] active:bg-[var(--color-panel)]",
-              skipRegen.isPending && "opacity-100 cursor-not-allowed"
-            )}
-            aria-label="Skip and generate a new one"
-            title="Skip — try another"
-          >
-            {skipRegen.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RotateCw className="h-3.5 w-3.5" strokeWidth={1.75} />
-            )}
-          </button>
-        )}
-
-        <ChevronRight
+        <article
           className={cn(
-            "mt-3 h-4 w-4 shrink-0 text-[var(--color-ink-3)] transition-opacity",
-            "opacity-0 group-hover:opacity-60"
+            "group relative flex items-start gap-4 rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-4 py-3.5",
+            "pressable-row hover:border-[var(--color-rule-2)] hover:bg-[var(--color-panel-hover)]",
+            "active:border-[var(--color-rule-2)] active:bg-[var(--color-panel-hover)]",
+            isDone && !rating && "opacity-60",
+            isDone && rating && "opacity-90",
+            isSkipped && "opacity-50"
           )}
-          strokeWidth={1.5}
-        />
-      </article>
-    </SwipeRow>
+        >
+          <div className="relative mt-0.5 shrink-0">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isSkipped) return;
+                if (!isDone) complete();
+                else setStatus.mutate("pending");
+              }}
+              disabled={isSkipped}
+              className={cn(
+                "pressable-sm hit-target flex h-[18px] w-[18px] items-center justify-center rounded-full border-[1.5px]",
+                isDone
+                  ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-canvas)]"
+                  : isSkipped
+                    ? "border-[var(--color-rule-2)] bg-[var(--color-panel)] text-[var(--color-ink-3)]"
+                    : "border-[var(--color-rule-2)] bg-[var(--color-canvas)] hover:border-[var(--color-accent)]/60"
+              )}
+              aria-label={isDone ? "Mark as not done" : isSkipped ? "Skipped" : "Mark as done"}
+            >
+              {isDone && <Check className="h-3 w-3" strokeWidth={3} />}
+              {isSkipped && <span className="block h-[2px] w-[8px] bg-current rounded-full" aria-hidden />}
+            </button>
+            {burstKey > 0 && isDone && <CompletionBurst key={burstKey} />}
+          </div>
+
+          <button onClick={onOpen} className="flex-1 min-w-0 text-left">
+            <h3
+              className={cn(
+                "text-lg font-medium leading-snug text-[var(--color-ink)] transition-colors",
+                (isDone || isSkipped) && "line-through decoration-[var(--color-ink-3)] decoration-[1px]"
+              )}
+            >
+              {suggestion.title}
+            </h3>
+            <p className="mt-1 text-sm leading-snug text-[var(--color-ink-2)] line-clamp-1">
+              {suggestion.summary}
+            </p>
+            <div className="mt-2 flex items-center gap-2.5 text-2xs text-[var(--color-ink-3)]">
+              {goal && (
+                <span className="font-mono uppercase tracking-[0.14em]">{goal.title}</span>
+              )}
+              {suggestion.estimatedMinutes != null && (
+                <span className="flex items-center gap-1 font-mono">
+                  <Clock className="h-2.5 w-2.5" strokeWidth={2} />
+                  {suggestion.estimatedMinutes}m
+                </span>
+              )}
+              {isSkipped && (
+                <span className="font-mono uppercase tracking-[0.14em]">skipped</span>
+              )}
+            </div>
+          </button>
+
+          {isDone && (
+            <div
+              className="mt-1.5 flex shrink-0 items-center gap-0.5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <RatingThumb
+                kind="up"
+                active={rating === "up"}
+                disabled={setRating.isPending}
+                onClick={() => toggleRating("up")}
+              />
+              <RatingThumb
+                kind="down"
+                active={rating === "down"}
+                disabled={setRating.isPending}
+                onClick={() => toggleRating("down")}
+              />
+            </div>
+          )}
+
+          {!isDone && !isSkipped && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSkipOpen(true);
+              }}
+              disabled={skipRegen.isPending}
+              className={cn(
+                // Hover-revealed, so hidden entirely on touch devices — otherwise it's
+                // invisible but still tappable and skips by accident. The detail view
+                // has an explicit skip button for touch.
+                "pressable-sm mt-1.5 hidden h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-ink-3)]/70 [@media(hover:hover)]:flex",
+                "opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)] hover:text-[var(--color-ink-2)] active:bg-[var(--color-panel)]",
+                skipRegen.isPending && "opacity-100 cursor-not-allowed"
+              )}
+              aria-label="Skip and generate a new one"
+              title="Skip — try another"
+            >
+              {skipRegen.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RotateCw className="h-3.5 w-3.5" strokeWidth={1.75} />
+              )}
+            </button>
+          )}
+
+          <ChevronRight
+            className={cn(
+              "mt-3 h-4 w-4 shrink-0 text-[var(--color-ink-3)] transition-opacity",
+              "opacity-0 group-hover:opacity-60"
+            )}
+            strokeWidth={1.5}
+          />
+        </article>
+      </SwipeRow>
+      <SkipModal
+        open={skipOpen}
+        onClose={() => setSkipOpen(false)}
+        pending={skipRegen.isPending}
+        onConfirm={(reason) => {
+          setSkipOpen(false);
+          skipRegen.mutate(reason || undefined);
+        }}
+      />
+    </>
   );
 }
 
