@@ -22,10 +22,15 @@
     <script>
       // Pre-paint: pick light/dark from the OS so there's no flash before
       // the React app loads the user's saved preference and possibly
-      // overrides this.
+      // overrides this. Also point theme-color at the right canvas tone —
+      // use-theme.ts refines it to the exact computed color after load.
       try {
         var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
         document.documentElement.dataset.theme = prefersDark ? "dark" : "light";
+        if (prefersDark) {
+          var tc = document.querySelector('meta[name="theme-color"]');
+          if (tc) tc.setAttribute("content", "#131110"); // ≈ oklch(18% 0.006 80)
+        }
       } catch (_) {}
     </script>
     <div id="root"></div>
