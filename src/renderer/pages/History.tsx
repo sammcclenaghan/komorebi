@@ -154,13 +154,19 @@ function Heatmap({
                     onClick={() => onSelect(cell.iso)}
                     title={cellTitle(cell)}
                     aria-label={cellTitle(cell)}
-                    className={cn(
-                      "h-3.5 w-3.5 rounded-[3px] transition-transform hover:scale-125 active:scale-90",
-                      cell.iso === selectedDate &&
-                        "ring-[1.5px] ring-[var(--color-ink)] ring-offset-1 ring-offset-[var(--color-canvas)]"
-                    )}
-                    style={{ background: LEVEL_BG[cell.level] }}
-                  />
+                    aria-pressed={cell.iso === selectedDate}
+                    className="group/cell flex h-3.5 w-3.5 items-center justify-center"
+                  >
+                    <span
+                      className={cn(
+                        "h-3.5 w-3.5 rounded-[3px] transition-transform",
+                        "[@media(hover:hover)]:group-hover/cell:scale-125 group-active/cell:scale-90",
+                        cell.iso === selectedDate &&
+                          "ring-[1.5px] ring-[var(--color-ink)] ring-offset-1 ring-offset-[var(--color-canvas)]"
+                      )}
+                      style={{ background: LEVEL_BG[cell.level] }}
+                    />
+                  </button>
                 ) : (
                   <div key={`empty-${ci}-${ri}`} className="h-3.5 w-3.5" />
                 )
