@@ -92,7 +92,8 @@ const layers = spec.groups.flatMap((group) => {
   });
 });
 
-const svg = `<svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}"
+function compositeSvg({ clip }) {
+  return `<svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}"
   xmlns="http://www.w3.org/2000/svg">
   <defs>
     ${grad}
@@ -100,11 +101,13 @@ const svg = `<svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}"
     <clipPath id="__squircle"><rect width="${SIZE}" height="${SIZE}"
       rx="${CORNER}" ry="${CORNER}"/></clipPath>
   </defs>
-  <g clip-path="url(#__squircle)">
+  <g ${clip ? 'clip-path="url(#__squircle)"' : ""}>
     <rect width="${SIZE}" height="${SIZE}" fill="url(#__bg)"/>
     ${layers.map((l) => l.group).join("\n")}
   </g>
 </svg>`;
+}
+const svg = compositeSvg({ clip: true });
 
 // --- render iconset + compile .icns ------------------------------------------
 const work = mkdtempSync(join(tmpdir(), "icns-"));
@@ -134,6 +137,21 @@ writeFileSync(
   new Resvg(svg, { fitTo: { mode: "width", value: 1024 }, background: "rgba(0,0,0,0)" })
     .render().asPng()
 );
+// Full-bleed (unclipped) renders for the web app. iOS/Android apply their
+// own corner masks to home-screen icons; baked transparent corners would
+// be filled with black on iOS.
+const fullBleed = compositeSvg({ clip: false });
+for (const [rel, px] of [
+  ["public/apple-touch-icon.png", 180],
+  ["public/icon-512.png", 512],
+]) {
+  writeFileSync(
+    resolve(root, rel),
+    new Resvg(fullBleed, { fitTo: { mode: "width", value: px } }).render().asPng()
+  );
+  console.log(`✔ wrote ${rel}`);
+}
+
 rmSync(work, { recursive: true, force: true });
 console.log(`✔ wrote ${out}`);
 console.log(`✔ bg gradient: ${c0.hex} -> ${c1.hex}`);
