@@ -4,6 +4,7 @@ import { ArrowLeft, Check, Clock, Loader2, RotateCcw, RotateCw, SkipForward, Thu
 import { cn } from "~/lib/cn";
 import { MarkdownView } from "../components/MarkdownView";
 import { MediaEmbed } from "../components/MediaEmbed";
+import { SkipModal } from "../components/SkipModal";
 import { Button } from "../components/ui/Button";
 import type { Suggestion, SuggestionRating } from "~/shared/types";
 
@@ -14,6 +15,7 @@ type Props = {
 
 export function SuggestionDetail({ suggestionId, onBack }: Props) {
   const queryClient = useQueryClient();
+  const [skipOpen, setSkipOpen] = useState(false);
 
   const suggestionQuery = useQuery({
     queryKey: ["suggestion", suggestionId],
@@ -40,7 +42,8 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
   });
 
   const skipRegen = useMutation({
-    mutationFn: () => window.komorebi.suggestions.skipAndRegenerate(suggestionId),
+    mutationFn: (reason?: string) =>
+      window.komorebi.suggestions.skipAndRegenerate(suggestionId, reason || undefined),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["suggestion", suggestionId] });
       void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
@@ -187,7 +190,7 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
             <Button
               variant="secondary"
               size="lg"
-              onClick={() => skipRegen.mutate()}
+              onClick={() => setSkipOpen(true)}
               disabled={skipRegen.isPending || setStatus.isPending}
             >
               {skipRegen.isPending ? (
@@ -200,6 +203,16 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
           </div>
         )}
       </section>
+
+      <SkipModal
+        open={skipOpen}
+        onClose={() => setSkipOpen(false)}
+        pending={skipRegen.isPending}
+        onConfirm={(reason) => {
+          setSkipOpen(false);
+          skipRegen.mutate(reason || undefined);
+        }}
+      />
     </div>
   );
 }
