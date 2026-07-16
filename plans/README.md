@@ -10,12 +10,13 @@ before starting, honor its STOP conditions, and update your row when done.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001  | Anchor the sidebar toggle per platform; default sidebar open on web | P1 | S | — | DONE — commit `7b97d81` on `advisor/001-anchor-sidebar-toggle` (worktree `.claude/worktrees/agent-a4a09ce6f96cfe708`); reviewed & approved, not merged |
-| 002  | History heatmap: dark-mode scale, touch feel, instant day-switch, overflow guard | P1 | M | — | DONE — `advisor/002-history-heatmap-polish` (worktree `.claude/worktrees/agent-af70e60866fb1e0d5`); reviewed & approved, not merged |
-| 003  | Touch-target pass on phone-visible controls | P2 | S | — | DONE — commit `7221ef8` on `advisor/003-touch-targets` (worktree `.claude/worktrees/agent-a24d90eb9ff9f66c0`); reviewed & approved, not merged |
-| 004  | Motion polish: instant tab switches, modal exit animation, reduced-motion | P2 | M | — | DONE — `advisor/004-motion-polish` (worktree `.claude/worktrees/agent-ae189b7ea51c02066`); reviewed & approved, not merged |
-| 005  | Dark-mode color sweep (burst flecks, media scrim, card shadow) | P3 | S | — | DONE — `advisor/005-dark-mode-color-sweep` (worktree `.claude/worktrees/agent-ac184b43615a01d91`); reviewed & approved, not merged |
-| 006  | Pinned-app presence: real PNG home-screen icon + dark-aware theme-color | P1 | S | — | DONE — `advisor/006-pinned-app-presence` (worktree `.claude/worktrees/agent-a4f980a1f00d17516`); reviewed & approved, not merged |
+| 001  | Anchor the sidebar toggle per platform; default sidebar open on web | P1 | S | — | DONE — merged to main (`bd838ce`) |
+| 002  | History heatmap: dark-mode scale, touch feel, instant day-switch, overflow guard | P1 | M | — | DONE — merged to main (`bd838ce`) |
+| 003  | Touch-target pass on phone-visible controls | P2 | S | — | DONE — merged to main (`bd838ce`) |
+| 004  | Motion polish: instant tab switches, modal exit animation, reduced-motion | P2 | M | — | DONE — merged to main (`bd838ce`) |
+| 005  | Dark-mode color sweep (burst flecks, media scrim, card shadow) | P3 | S | — | DONE — merged to main (`bd838ce`) |
+| 006  | Pinned-app presence: real PNG home-screen icon + dark-aware theme-color | P1 | S | — | DONE — merged to main (`bd838ce`) |
+| 007  | iOS swipe actions on checklist rows (right=complete, left=skip) | P1 | M | — | DONE — merged to main (`6bbe584`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
