@@ -283,9 +283,9 @@ function makeCell(iso: string, day: HistoryDay | undefined): Cell {
 
 const LEVEL_BG = [
   "var(--color-panel-2)",
-  "oklch(89% 0.03 245)",
-  "oklch(80% 0.065 245)",
-  "oklch(66% 0.095 245)",
+  "var(--color-heat-1)",
+  "var(--color-heat-2)",
+  "var(--color-heat-3)",
   "var(--color-accent)"
 ];
 
