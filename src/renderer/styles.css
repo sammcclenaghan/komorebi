@@ -225,6 +225,15 @@
     @apply text-[16px] text-[var(--color-ink)] placeholder:text-[var(--color-ink-3)] md:text-base;
     @apply focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20;
   }
+
+  /* Swipe-action layer: icon grows slightly once the drag passes the
+     commit threshold, so release-will-commit is visible. */
+  .swipe-action-icon {
+    transition: transform 150ms var(--ease-out-strong);
+  }
+  [data-past-threshold="true"] .swipe-action-icon {
+    transform: scale(1.25);
+  }
 }
 
 @keyframes pulse-soft {
@@ -351,4 +360,9 @@
   }
   /* fade-in, pulse-soft, draw-check intentionally kept: opacity/stroke
      only, no spatial motion. */
+
+  /* Swipe rows snap instead of animating home. */
+  .swipe-slider {
+    transition-duration: 0.01ms !important;
+  }
 }
