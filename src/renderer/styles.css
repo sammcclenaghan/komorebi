@@ -32,6 +32,15 @@
      "ink with alpha" doesn't invert into a bright overlay. */
   --color-overlay: oklch(20% 0.01 60 / 0.18);
 
+  /* Leaf-green used by the completion burst — the one non-accent celebratory hue. */
+  --color-leaf: oklch(78% 0.13 130);
+  /* Scrim steps for media overlays (rest / hover / pressed). */
+  --color-scrim: oklch(20% 0.02 60 / 0.18);
+  --color-scrim-hover: oklch(20% 0.02 60 / 0.3);
+  --color-scrim-active: oklch(20% 0.02 60 / 0.35);
+  /* Ambient shadow tint for hover elevation. */
+  --color-shadow: oklch(20% 0.01 60);
+
   /* Type scale — replaces Tailwind's defaults so text-* utilities ARE the
      app's scale. Content sizes step ~1.5px; headings tighten as they grow. */
   --text-2xs: 10px; /* mono kickers, tab labels */
@@ -81,6 +90,12 @@
   --color-danger: oklch(70% 0.15 25);
 
   --color-overlay: oklch(0% 0 0 / 0.55);
+
+  --color-leaf: oklch(72% 0.12 130);
+  --color-scrim: oklch(0% 0 0 / 0.3);
+  --color-scrim-hover: oklch(0% 0 0 / 0.45);
+  --color-scrim-active: oklch(0% 0 0 / 0.55);
+  --color-shadow: oklch(0% 0 0);
 
   color-scheme: dark;
 }

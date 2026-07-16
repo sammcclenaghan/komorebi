@@ -231,7 +231,7 @@ function CompletionBurst() {
               marginLeft: -p.size / 2,
               marginTop: -p.size / 2,
               background: warm
-                ? "oklch(78% 0.13 130)"
+                ? "var(--color-leaf)"
                 : "var(--color-accent)",
               ["--tx" as string]: tx,
               ["--ty" as string]: ty,
