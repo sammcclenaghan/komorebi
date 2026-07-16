@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { Button } from "./Button";
@@ -37,7 +37,23 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  const [phase, setPhase] = useState<"closed" | "open" | "closing">(
+    open ? "open" : "closed"
+  );
+
+  useEffect(() => {
+    if (open) setPhase("open");
+    else setPhase((p) => (p === "open" ? "closing" : p));
+  }, [open]);
+
+  useEffect(() => {
+    if (phase !== "closing") return;
+    const t = setTimeout(() => setPhase("closed"), 150);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  if (phase === "closed") return null;
+  const closing = phase === "closing";
 
   return (
     <div
@@ -49,7 +65,11 @@ export function Modal({
       <div
         aria-hidden
         className="absolute inset-0 bg-[var(--color-overlay)] backdrop-blur-[2px]"
-        style={{ animation: "fade-in 180ms ease-out" }}
+        style={{
+          animation: closing ? "none" : "fade-in 180ms ease-out",
+          opacity: closing ? 0 : 1,
+          transition: "opacity 150ms ease-out",
+        }}
       />
       <div
         role={role}
@@ -61,7 +81,16 @@ export function Modal({
           size === "sm" ? "max-w-md" : "max-w-lg",
           className
         )}
-        style={{ animation: "modal-pop 200ms cubic-bezier(0.23, 1, 0.32, 1) backwards" }}
+        style={
+          closing
+            ? {
+                opacity: 0,
+                transform: "scale(0.97) translateY(6px)",
+                transition: "opacity 150ms ease-out, transform 150ms ease-out",
+                pointerEvents: "none",
+              }
+            : { animation: "modal-pop 200ms var(--ease-out-strong) backwards" }
+        }
       >
         {children}
       </div>

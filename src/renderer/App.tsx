@@ -85,7 +85,11 @@ export function App() {
       >
         <div
           className="absolute inset-0 overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0"
-          style={{ animation: "fade-up 240ms ease-out" }}
+          style={{
+            animation: openSuggestionId
+              ? "fade-up 240ms var(--ease-out-strong)"
+              : "fade-in 120ms ease-out",
+          }}
         >
           {openSuggestionId ? (
             <SuggestionDetail
