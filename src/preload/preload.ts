@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { KomorebiApi } from "~/shared/komorebi-api";
-import type { GenerationProgress } from "~/main/checklist/orchestrator";
+import type { KomorebiApi } from "~/shared/api";
+import type { GenerationProgress } from "~/shared/schema";
 
 const api: KomorebiApi = {
   getVersion: () => ipcRenderer.invoke("app:version"),
@@ -21,6 +21,7 @@ const api: KomorebiApi = {
     today: () => ipcRenderer.invoke("checklist:today"),
     generate: () => ipcRenderer.invoke("checklist:generate"),
     regenerate: () => ipcRenderer.invoke("checklist:regenerate"),
+    retryGoal: (goalId) => ipcRenderer.invoke("checklist:retry-goal", goalId),
     onProgress: (handler) => {
       const listener = (_: unknown, payload: GenerationProgress) => handler(payload);
       ipcRenderer.on("checklist:progress", listener);
@@ -33,7 +34,8 @@ const api: KomorebiApi = {
     get: (id) => ipcRenderer.invoke("suggestion:get", id),
     setStatus: (input) => ipcRenderer.invoke("suggestion:set-status", input),
     setRating: (input) => ipcRenderer.invoke("suggestion:set-rating", input),
-    skipAndRegenerate: (id, reason) => ipcRenderer.invoke("suggestion:skip-regenerate", id, reason)
+    skipAndRegenerate: (id, reason) => ipcRenderer.invoke("suggestion:skip-regenerate", id, reason),
+    regenerate: (id, note) => ipcRenderer.invoke("suggestion:regenerate", id, note)
   },
   reflections: {
     list: (suggestionId) => ipcRenderer.invoke("reflection:list", suggestionId),

@@ -2,7 +2,7 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { subscribeProgress } from "~/main/progress";
+import { handlers } from "~/main/api/handlers";
 import { handleApi, RouteNotFoundError } from "./routes";
 
 const moduleDir =
@@ -128,17 +128,28 @@ function handleProgressStream(req: http.IncomingMessage, res: http.ServerRespons
   });
   res.write(": connected\n\n");
 
-  const unsubscribe = subscribeProgress((event) => {
-    res.write(`data: ${JSON.stringify(event)}\n\n`);
-  });
+  // Subscription is async (it resolves the Progress service from the Effect
+  // runtime); handle a client that disconnects before it lands.
+  let unsubscribe: (() => void) | null = null;
+  let closed = false;
+  void handlers
+    .subscribeProgress((event) => {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    })
+    .then((un) => {
+      if (closed) un();
+      else unsubscribe = un;
+    })
+    .catch((err) => console.error("[server] progress subscribe failed:", err));
 
   const heartbeat = setInterval(() => {
     res.write(": ping\n\n");
   }, 25_000);
 
   req.on("close", () => {
+    closed = true;
     clearInterval(heartbeat);
-    unsubscribe();
+    unsubscribe?.();
   });
 }
 

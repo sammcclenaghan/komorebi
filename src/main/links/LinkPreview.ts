@@ -1,29 +1,17 @@
 /**
- * Fetch lightweight Open Graph / oEmbed-ish metadata for a URL so the
- * renderer can show a rich link card (thumbnail + title + description)
- * instead of a bare URL. Runs in the main process to dodge CORS, and
- * caches results in-memory for the session so repeated detail views
- * don't re-fetch.
+ * Fetch lightweight Open Graph metadata for a URL so the renderer can show a
+ * rich link card (thumbnail + title + description) instead of a bare URL.
+ * Runs in the main process to dodge CORS, and caches results in-memory for
+ * the session. Never fails: a fetch problem returns an empty preview.
  */
+import { Effect, Ref } from "effect";
+import type { LinkPreview as LinkPreviewData } from "~/shared/schema";
 
-export type LinkPreview = {
-  url: string;
-  title: string | null;
-  description: string | null;
-  imageUrl: string | null;
-  siteName: string | null;
-  favicon: string | null;
-};
-
-const cache = new Map<string, LinkPreview>();
 const FETCH_TIMEOUT_MS = 6000;
 const MAX_BYTES = 512 * 1024; // only the <head> matters; cap the read.
 
-export async function fetchLinkPreview(rawUrl: string): Promise<LinkPreview> {
-  const cached = cache.get(rawUrl);
-  if (cached) return cached;
-
-  const empty: LinkPreview = {
+async function fetchPreview(rawUrl: string): Promise<LinkPreviewData> {
+  const empty: LinkPreviewData = {
     url: rawUrl,
     title: null,
     description: null,
@@ -55,23 +43,16 @@ export async function fetchLinkPreview(rawUrl: string): Promise<LinkPreview> {
     });
     const contentType = res.headers.get("content-type") ?? "";
     if (!res.ok || !contentType.includes("text/html") || !res.body) {
-      return cacheAndReturn(rawUrl, empty);
+      return empty;
     }
 
     const html = await readCapped(res.body, MAX_BYTES);
-    const preview = parseHead(html, base);
-    return cacheAndReturn(rawUrl, preview);
-  } catch (err) {
-    console.warn("[link-preview] fetch failed:", rawUrl, err instanceof Error ? err.message : err);
+    return parseHead(html, base);
+  } catch {
     return empty;
   } finally {
     clearTimeout(timer);
   }
-}
-
-function cacheAndReturn(url: string, preview: LinkPreview): LinkPreview {
-  cache.set(url, preview);
-  return preview;
 }
 
 /** Read a stream up to `limit` bytes, then stop — we only need <head>. */
@@ -91,7 +72,7 @@ async function readCapped(body: ReadableStream<Uint8Array>, limit: number): Prom
   return out;
 }
 
-function parseHead(html: string, base: URL): LinkPreview {
+function parseHead(html: string, base: URL): LinkPreviewData {
   const meta = (...names: string[]): string | null => {
     for (const name of names) {
       const re = new RegExp(
@@ -146,3 +127,26 @@ function decodeEntities(s: string): string {
     .replace(/&#x2F;/g, "/")
     .replace(/&nbsp;/g, " ");
 }
+
+export class LinkPreview extends Effect.Service<LinkPreview>()("LinkPreview", {
+  effect: Effect.gen(function* () {
+    const cache = yield* Ref.make(new Map<string, LinkPreviewData>());
+
+    const preview = (rawUrl: string): Effect.Effect<LinkPreviewData> =>
+      Effect.gen(function* () {
+        const entries = yield* Ref.get(cache);
+        const cached = entries.get(rawUrl);
+        if (cached) return cached;
+
+        const value = yield* Effect.promise(() => fetchPreview(rawUrl));
+        yield* Ref.update(cache, (m) => {
+          const next = new Map(m);
+          next.set(rawUrl, value);
+          return next;
+        });
+        return value;
+      });
+
+    return { preview } as const;
+  })
+}) {}

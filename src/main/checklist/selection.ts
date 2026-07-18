@@ -1,4 +1,4 @@
-import type { Goal, GoalPriority, Suggestion } from "~/shared/types";
+import type { Goal, GoalPriority, Suggestion } from "~/shared/schema";
 
 const PRIORITY_RANK: Record<GoalPriority, number> = {
   high: 0,

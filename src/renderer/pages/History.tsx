@@ -2,8 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronRight, Clock, History as HistoryIcon, SkipForward, ThumbsDown, ThumbsUp } from "lucide-react";
 import { cn } from "~/lib/cn";
-import type { HistoryDay } from "~/main/checklist/orchestrator";
-import type { Goal, Reflection, Suggestion } from "~/shared/types";
+import type { Goal, HistoryDay, Reflection, Suggestion } from "~/shared/schema";
 
 const WEEKS = 17;
 

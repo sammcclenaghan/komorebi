@@ -1,12 +1,25 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Clock, Loader2, RotateCcw, RotateCw, SkipForward, ThumbsDown, ThumbsUp } from "lucide-react";
+import type { UseMutationResult } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  Check,
+  Clock,
+  Loader2,
+  RotateCcw,
+  RotateCw,
+  SkipForward,
+  Sparkles,
+  ThumbsDown,
+  ThumbsUp
+} from "lucide-react";
 import { cn } from "~/lib/cn";
 import { MarkdownView } from "../components/MarkdownView";
 import { MediaEmbed } from "../components/MediaEmbed";
 import { SkipModal } from "../components/SkipModal";
 import { Button } from "../components/ui/Button";
-import type { Suggestion, SuggestionRating } from "~/shared/types";
+import type { Suggestion, SuggestionRating } from "~/shared/schema";
+import { useSuggestionMutations } from "../lib/use-suggestion-mutations";
 
 type Props = {
   suggestionId: string;
@@ -14,7 +27,6 @@ type Props = {
 };
 
 export function SuggestionDetail({ suggestionId, onBack }: Props) {
-  const queryClient = useQueryClient();
   const [skipOpen, setSkipOpen] = useState(false);
 
   const suggestionQuery = useQuery({
@@ -32,24 +44,9 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
     queryFn: () => window.komorebi.goals.list()
   });
 
-  const setStatus = useMutation({
-    mutationFn: (next: Suggestion["status"]) =>
-      window.komorebi.suggestions.setStatus({ id: suggestionId, status: next }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["suggestion", suggestionId] });
-      void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
-    }
-  });
-
-  const skipRegen = useMutation({
-    mutationFn: (reason?: string) =>
-      window.komorebi.suggestions.skipAndRegenerate(suggestionId, reason || undefined),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["suggestion", suggestionId] });
-      void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
-      onBack();
-    }
-  });
+  // Same optimistic mutations as the checklist row — status and rating
+  // changes render instantly here too.
+  const { setStatus, setRating, skipRegen, regenerate } = useSuggestionMutations(suggestionId);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -69,6 +66,30 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
     );
   }
 
+  // A fetch failure is not "not found" — offer a retry instead of a dead end.
+  if (suggestionQuery.isError) {
+    return (
+      <div className="page-shell">
+        <BackButton onClick={onBack} />
+        <h1 className="mt-10 text-2xl font-semibold text-[var(--color-ink)]">
+          Couldn't load this suggestion.
+        </h1>
+        <p className="mt-2 text-base text-[var(--color-ink-2)]">
+          {(suggestionQuery.error as Error)?.message ?? "Something went wrong."}
+        </p>
+        <Button
+          variant="secondary"
+          size="md"
+          className="mt-5"
+          onClick={() => void suggestionQuery.refetch()}
+        >
+          <RotateCcw className="h-3 w-3" strokeWidth={2} />
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
   const suggestion = suggestionQuery.data;
   if (!suggestion) {
     return (
@@ -84,6 +105,11 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
   const goal = goalsQuery.data?.find((g) => g.id === suggestion.goalId);
   const isDone = suggestion.status === "done";
   const isSkipped = suggestion.status === "skipped";
+  const regenerating = regenerate.isPending;
+
+  function regenerateAndBack() {
+    regenerate.mutate(undefined, { onSuccess: () => onBack() });
+  }
 
   return (
     <div className="page-shell pt-10 md:pt-12">
@@ -152,32 +178,49 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
             <ReflectionCapture
               suggestionId={suggestionId}
               rating={suggestion.rating}
+              setRating={setRating}
               hasReflection={(reflectionsQuery.data?.length ?? 0) > 0}
             />
           </div>
         ) : isSkipped ? (
-          <div className="flex items-center justify-between rounded-lg border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3">
             <div className="flex items-center gap-2 text-base text-[var(--color-ink-2)]">
               <SkipForward className="h-3.5 w-3.5" strokeWidth={2} />
               <span>Skipped — a fresh one's on Today.</span>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setStatus.mutate("pending")}
-              disabled={setStatus.isPending}
-              className="px-2 py-1 text-xs hover:bg-[var(--color-canvas)] active:bg-[var(--color-canvas)]"
-            >
-              <RotateCcw className="h-3 w-3" strokeWidth={2} />
-              Undo skip
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setStatus.mutate("pending")}
+                disabled={setStatus.isPending || regenerating}
+                className="px-2 py-1 text-xs hover:bg-[var(--color-canvas)] active:bg-[var(--color-canvas)]"
+              >
+                <RotateCcw className="h-3 w-3" strokeWidth={2} />
+                Undo skip
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={regenerateAndBack}
+                disabled={regenerating}
+                className="px-2 py-1 text-xs hover:bg-[var(--color-canvas)] active:bg-[var(--color-canvas)]"
+              >
+                {regenerating ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3 w-3" strokeWidth={2} />
+                )}
+                Regenerate
+              </Button>
+            </div>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               size="lg"
               onClick={() => setStatus.mutate("done")}
-              disabled={setStatus.isPending || skipRegen.isPending}
+              disabled={setStatus.isPending || skipRegen.isPending || regenerating}
             >
               {setStatus.isPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -191,7 +234,7 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
               variant="secondary"
               size="lg"
               onClick={() => setSkipOpen(true)}
-              disabled={skipRegen.isPending || setStatus.isPending}
+              disabled={skipRegen.isPending || setStatus.isPending || regenerating}
             >
               {skipRegen.isPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -200,7 +243,28 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
               )}
               {skipRegen.isPending ? "Composing another…" : "Skip — try another"}
             </Button>
+
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={regenerateAndBack}
+              disabled={skipRegen.isPending || setStatus.isPending || regenerating}
+              title="Discard this and compose a fresh take"
+            >
+              {regenerating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
+              )}
+              {regenerating ? "Regenerating…" : "Regenerate"}
+            </Button>
           </div>
+        )}
+
+        {regenerate.isError && (
+          <p className="mt-3 text-sm text-[var(--color-ink-3)]">
+            {(regenerate.error as Error)?.message ?? "Regeneration failed — try again."}
+          </p>
         )}
       </section>
 
@@ -210,7 +274,7 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
         pending={skipRegen.isPending}
         onConfirm={(reason) => {
           setSkipOpen(false);
-          skipRegen.mutate(reason || undefined);
+          skipRegen.mutate(reason || undefined, { onSuccess: () => onBack() });
         }}
       />
     </div>
@@ -232,24 +296,18 @@ function BackButton({ onClick }: { onClick: () => void }) {
 function ReflectionCapture({
   suggestionId,
   rating,
+  setRating,
   hasReflection
 }: {
   suggestionId: string;
   rating: SuggestionRating;
+  /** The shared optimistic rating mutation, so thumbs respond instantly. */
+  setRating: UseMutationResult<Suggestion, Error, SuggestionRating, unknown>;
   hasReflection: boolean;
 }) {
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
   const [textDone, setTextDone] = useState(hasReflection);
-
-  const setRating = useMutation({
-    mutationFn: (next: SuggestionRating) =>
-      window.komorebi.suggestions.setRating({ id: suggestionId, rating: next }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["suggestion", suggestionId] });
-      void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
-    }
-  });
 
   const addText = useMutation({
     mutationFn: () =>

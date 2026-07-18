@@ -1,32 +1,14 @@
+/**
+ * HTTP mirror of the IPC contract. Every route delegates to the shared
+ * Effect-backed handler map (src/main/api/handlers.ts), so web-server
+ * behavior is identical to the Electron app by construction.
+ */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  awaitConnect,
-  beginConnect,
-  disconnectIntegration,
-  getIntegrations,
-  refreshConnections
-} from "~/main/integrations/service";
-import { getCurrentWeather } from "~/main/weather/service";
-import { addGoal, listGoals, updateGoal } from "~/main/store/goals";
-import {
-  deleteGoalCascade,
-  generateTodayChecklist,
-  getHistory,
-  getTodayChecklist,
-  regenerateTodayChecklist,
-  skipAndRegenerate
-} from "~/main/checklist/orchestrator";
-import {
-  getSuggestion,
-  updateSuggestionRating,
-  updateSuggestionStatus
-} from "~/main/store/suggestions";
-import { addReflection, listReflectionsForSuggestion } from "~/main/store/reflections";
-import { fetchLinkPreview } from "~/main/links/preview";
-import { getSettings, updateSettings, type SettingsUpdate } from "~/main/store/settings";
-import type { Goal, GoalPriority, SuggestionRating, SuggestionStatus } from "~/shared/types";
+import { handlers } from "~/main/api/handlers";
+import type { GoalAddInput, GoalUpdateInput, SettingsUpdate } from "~/shared/api";
+import type { SuggestionRating, SuggestionStatus } from "~/shared/schema";
 
 const appVersion = readAppVersion();
 
@@ -55,80 +37,103 @@ export async function handleApi(
     return appVersion;
   }
 
-  if (method === "GET" && pathname === "/api/integrations") return getIntegrations();
-  if (method === "POST" && pathname === "/api/integrations/refresh") return refreshConnections();
+  if (method === "GET" && pathname === "/api/integrations") return handlers.integrations.list();
+  if (method === "POST" && pathname === "/api/integrations/refresh") {
+    return handlers.integrations.refresh();
+  }
 
   if (method === "POST" && pathname.startsWith("/api/integrations/") && pathname.endsWith("/connect")) {
     const slug = decodeURIComponent(pathname.slice("/api/integrations/".length, -"/connect".length));
-    return beginConnect(slug);
+    return handlers.integrations.beginConnect(slug);
   }
 
   if (method === "POST" && pathname.startsWith("/api/integrations/") && pathname.endsWith("/await")) {
     const slug = decodeURIComponent(pathname.slice("/api/integrations/".length, -"/await".length));
-    return awaitConnect(slug);
+    return handlers.integrations.awaitConnect(slug);
   }
 
   if (method === "POST" && pathname.startsWith("/api/integrations/") && pathname.endsWith("/disconnect")) {
     const slug = decodeURIComponent(pathname.slice("/api/integrations/".length, -"/disconnect".length));
-    await disconnectIntegration(slug);
+    await handlers.integrations.disconnect(slug);
     return { ok: true };
   }
 
-  if (method === "GET" && pathname === "/api/goals") return listGoals();
+  if (method === "GET" && pathname === "/api/goals") return handlers.goals.list();
   if (method === "POST" && pathname === "/api/goals") {
-    return addGoal(
-      body as { title: string; description?: string; context?: string; priority?: GoalPriority }
-    );
+    return handlers.goals.add(body as GoalAddInput);
   }
   if (method === "PATCH" && pathname.startsWith("/api/goals/")) {
     const id = decodeURIComponent(pathname.slice("/api/goals/".length));
-    const input = body as {
-      updates: Partial<Pick<Goal, "title" | "description" | "context" | "status" | "priority">>;
-    };
-    return updateGoal(id, input.updates);
+    const input = body as { updates: GoalUpdateInput["updates"] };
+    return handlers.goals.update({ id, updates: input.updates });
   }
   if (method === "DELETE" && pathname.startsWith("/api/goals/")) {
     const id = decodeURIComponent(pathname.slice("/api/goals/".length));
-    await deleteGoalCascade(id);
+    await handlers.goals.delete(id);
     return { ok: true };
   }
 
-  if (method === "GET" && pathname === "/api/checklist/today") return getTodayChecklist();
-  if (method === "POST" && pathname === "/api/checklist/generate") return generateTodayChecklist();
-  if (method === "POST" && pathname === "/api/checklist/regenerate") return regenerateTodayChecklist();
+  if (method === "GET" && pathname === "/api/checklist/today") return handlers.checklist.today();
+  if (method === "POST" && pathname === "/api/checklist/generate") {
+    return handlers.checklist.generate();
+  }
+  if (method === "POST" && pathname === "/api/checklist/regenerate") {
+    return handlers.checklist.regenerate();
+  }
+  if (method === "POST" && pathname.startsWith("/api/checklist/retry/")) {
+    const goalId = decodeURIComponent(pathname.slice("/api/checklist/retry/".length));
+    return handlers.checklist.retryGoal(goalId);
+  }
 
   if (method === "GET" && pathname === "/api/history") {
     const params = new URLSearchParams(search);
     const daysBack = params.has("daysBack") ? Number(params.get("daysBack")) : undefined;
-    return getHistory(daysBack);
+    return handlers.history.list(daysBack);
   }
 
-  if (method === "GET" && pathname.startsWith("/api/suggestions/")) {
-    const id = decodeURIComponent(pathname.slice("/api/suggestions/".length));
-    return getSuggestion(id);
-  }
   if (method === "PATCH" && pathname.startsWith("/api/suggestions/") && pathname.endsWith("/status")) {
     const id = decodeURIComponent(pathname.slice("/api/suggestions/".length, -"/status".length));
     const input = body as { status: SuggestionStatus };
-    return updateSuggestionStatus(id, input.status);
+    return handlers.suggestions.setStatus({ id, status: input.status });
   }
   if (method === "PATCH" && pathname.startsWith("/api/suggestions/") && pathname.endsWith("/rating")) {
     const id = decodeURIComponent(pathname.slice("/api/suggestions/".length, -"/rating".length));
     const input = body as { rating: SuggestionRating };
-    return updateSuggestionRating(id, input.rating);
+    return handlers.suggestions.setRating({ id, rating: input.rating });
   }
-  if (method === "POST" && pathname.startsWith("/api/suggestions/") && pathname.endsWith("/skip-regenerate")) {
-    const id = decodeURIComponent(pathname.slice("/api/suggestions/".length, -"/skip-regenerate".length));
+  if (
+    method === "POST" &&
+    pathname.startsWith("/api/suggestions/") &&
+    pathname.endsWith("/skip-regenerate")
+  ) {
+    const id = decodeURIComponent(
+      pathname.slice("/api/suggestions/".length, -"/skip-regenerate".length)
+    );
     const input = (body ?? {}) as { reason?: string };
-    return skipAndRegenerate(id, input.reason);
+    return handlers.suggestions.skipAndRegenerate(id, input.reason);
+  }
+  if (
+    method === "POST" &&
+    pathname.startsWith("/api/suggestions/") &&
+    pathname.endsWith("/regenerate")
+  ) {
+    const id = decodeURIComponent(
+      pathname.slice("/api/suggestions/".length, -"/regenerate".length)
+    );
+    const input = (body ?? {}) as { note?: string };
+    return handlers.suggestions.regenerate(id, input.note);
+  }
+  if (method === "GET" && pathname.startsWith("/api/suggestions/")) {
+    const id = decodeURIComponent(pathname.slice("/api/suggestions/".length));
+    return handlers.suggestions.get(id);
   }
 
   if (method === "GET" && pathname.startsWith("/api/reflections/")) {
     const suggestionId = decodeURIComponent(pathname.slice("/api/reflections/".length));
-    return listReflectionsForSuggestion(suggestionId);
+    return handlers.reflections.list(suggestionId);
   }
   if (method === "POST" && pathname === "/api/reflections") {
-    return addReflection(
+    return handlers.reflections.add(
       body as { suggestionId: string; text: string; rating?: "up" | "down" | null }
     );
   }
@@ -136,18 +141,18 @@ export async function handleApi(
   if (method === "GET" && pathname === "/api/weather/current") {
     const params = new URLSearchParams(search);
     const location = params.get("location") ?? "";
-    return getCurrentWeather(location);
+    return handlers.weather.current(location);
   }
 
   if (method === "GET" && pathname === "/api/links/preview") {
     const params = new URLSearchParams(search);
     const target = params.get("url") ?? "";
-    return fetchLinkPreview(target);
+    return handlers.links.preview(target);
   }
 
-  if (method === "GET" && pathname === "/api/settings") return getSettings();
+  if (method === "GET" && pathname === "/api/settings") return handlers.settings.get();
   if (method === "PATCH" && pathname === "/api/settings") {
-    return updateSettings(body as SettingsUpdate);
+    return handlers.settings.update(body as SettingsUpdate);
   }
 
   throw new RouteNotFoundError();

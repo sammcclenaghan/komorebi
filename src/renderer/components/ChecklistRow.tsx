@@ -1,9 +1,19 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronRight, Clock, Loader2, RotateCw, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Menu } from "@base-ui/react/menu";
+import {
+  Check,
+  ChevronRight,
+  Clock,
+  Ellipsis,
+  Loader2,
+  RotateCw,
+  Sparkles,
+  ThumbsDown,
+  ThumbsUp
+} from "lucide-react";
 import { cn } from "~/lib/cn";
-import type { ChecklistDay } from "~/main/checklist/orchestrator";
-import type { Goal, Suggestion, SuggestionRating } from "~/shared/types";
+import type { Goal, Suggestion } from "~/shared/schema";
+import { useSuggestionMutations } from "../lib/use-suggestion-mutations";
 import { SkipModal } from "./SkipModal";
 import { SwipeRow } from "./SwipeRow";
 
@@ -13,68 +23,17 @@ type Props = {
   onOpen: () => void;
 };
 
-type ChecklistCache = ChecklistDay;
-
-const TODAY_KEY = ["checklist", "today"];
-
 export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
-  const queryClient = useQueryClient();
   // Bumped each time the item is freshly completed, to retrigger the burst.
   const [burstKey, setBurstKey] = useState(0);
   const [skipOpen, setSkipOpen] = useState(false);
 
-  // Shared optimistic-update plumbing: patch the cached row immediately,
-  // roll back on error, refetch on settle.
-  async function beginOptimistic(patch: (s: Suggestion) => Suggestion) {
-    await queryClient.cancelQueries({ queryKey: TODAY_KEY });
-    const prev = queryClient.getQueryData<ChecklistCache>(TODAY_KEY);
-    if (prev) {
-      queryClient.setQueryData(TODAY_KEY, {
-        ...prev,
-        items: prev.items.map((s) => (s.id === suggestion.id ? patch(s) : s))
-      });
-    }
-    return { prev };
-  }
-
-  function rollback(ctx: { prev: ChecklistCache | undefined } | undefined) {
-    if (ctx?.prev) queryClient.setQueryData(TODAY_KEY, ctx.prev);
-  }
-
-  function refetchToday() {
-    void queryClient.invalidateQueries({ queryKey: TODAY_KEY });
-  }
-
-  const setStatus = useMutation({
-    mutationFn: (next: Suggestion["status"]) =>
-      window.komorebi.suggestions.setStatus({ id: suggestion.id, status: next }),
-    onMutate: (next) => beginOptimistic((s) => ({ ...s, status: next })),
-    onError: (_err, _next, ctx) => rollback(ctx),
-    onSettled: refetchToday
-  });
-
-  const setRating = useMutation({
-    mutationFn: (next: SuggestionRating) =>
-      window.komorebi.suggestions.setRating({ id: suggestion.id, rating: next }),
-    onMutate: (next) => beginOptimistic((s) => ({ ...s, rating: next })),
-    onError: (_err, _next, ctx) => rollback(ctx),
-    onSettled: () => {
-      refetchToday();
-      void queryClient.invalidateQueries({ queryKey: ["suggestion", suggestion.id] });
-    }
-  });
-
-  const skipRegen = useMutation({
-    mutationFn: (reason?: string) =>
-      window.komorebi.suggestions.skipAndRegenerate(suggestion.id, reason || undefined),
-    onMutate: () => beginOptimistic((s) => ({ ...s, status: "skipped" as const })),
-    onError: (_err, _vars, ctx) => rollback(ctx),
-    onSettled: refetchToday
-  });
+  const { setStatus, setRating, skipRegen, regenerate } = useSuggestionMutations(suggestion.id);
 
   const isDone = suggestion.status === "done";
   const isSkipped = suggestion.status === "skipped";
   const rating = suggestion.rating;
+  const busy = skipRegen.isPending || regenerate.isPending;
 
   function toggleRating(next: "up" | "down") {
     setRating.mutate(rating === next ? null : next);
@@ -185,31 +144,57 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
             </div>
           )}
 
-          {!isDone && !isSkipped && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSkipOpen(true);
-              }}
-              disabled={skipRegen.isPending}
-              className={cn(
-                // Hover-revealed, so hidden entirely on touch devices — otherwise it's
-                // invisible but still tappable and skips by accident. The detail view
-                // has an explicit skip button for touch.
-                "pressable-sm mt-1.5 hidden h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-ink-3)]/70 [@media(hover:hover)]:flex",
-                "opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)] hover:text-[var(--color-ink-2)] active:bg-[var(--color-panel)]",
-                skipRegen.isPending && "opacity-100 cursor-not-allowed"
-              )}
-              aria-label="Skip and generate a new one"
-              title="Skip — try another"
-            >
-              {skipRegen.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RotateCw className="h-3.5 w-3.5" strokeWidth={1.75} />
-              )}
-            </button>
-          )}
+          {/* Row actions: skip (pending rows) and regenerate (ANY row — a task
+              is never stuck in a state it can't be redone from). */}
+          <div
+            className="mt-1 flex shrink-0 items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Menu.Root>
+              <Menu.Trigger
+                disabled={busy}
+                aria-label="Row actions"
+                className={cn(
+                  // Hover-revealed on pointer devices; hidden on touch (the
+                  // detail view has explicit buttons there).
+                  "pressable-sm hidden h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-ink-3)]/70 [@media(hover:hover)]:flex",
+                  "opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)] hover:text-[var(--color-ink-2)] active:bg-[var(--color-panel)]",
+                  "data-[popup-open]:opacity-100 data-[popup-open]:bg-[var(--color-panel)]",
+                  busy && "opacity-100 cursor-not-allowed"
+                )}
+              >
+                {busy ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Ellipsis className="h-3.5 w-3.5" strokeWidth={1.75} />
+                )}
+              </Menu.Trigger>
+              <Menu.Portal>
+                <Menu.Positioner sideOffset={4} align="end" className="z-50">
+                  <Menu.Popup
+                    className={cn(
+                      "min-w-[210px] rounded-lg border border-[var(--color-rule)] bg-[var(--color-canvas)] py-1",
+                      "shadow-[0_18px_36px_-18px_oklch(20%_0.01_60/0.22),0_4px_10px_-4px_oklch(20%_0.01_60/0.10)]",
+                      "transition-[opacity,transform] duration-100 ease-out",
+                      "data-[starting-style]:opacity-0 data-[starting-style]:scale-95",
+                      "data-[ending-style]:opacity-0"
+                    )}
+                  >
+                    {!isDone && !isSkipped && (
+                      <MenuItem onClick={() => setSkipOpen(true)}>
+                        <RotateCw className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        Skip — try another
+                      </MenuItem>
+                    )}
+                    <MenuItem onClick={() => regenerate.mutate(undefined)}>
+                      <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      Regenerate this task
+                    </MenuItem>
+                  </Menu.Popup>
+                </Menu.Positioner>
+              </Menu.Portal>
+            </Menu.Root>
+          </div>
 
           <ChevronRight
             className={cn(
@@ -230,6 +215,26 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
         }}
       />
     </>
+  );
+}
+
+function MenuItem({
+  onClick,
+  children
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Menu.Item
+      onClick={onClick}
+      className={cn(
+        "flex cursor-default select-none items-center gap-2 px-3 py-1.5 text-sm text-[var(--color-ink-2)]",
+        "data-[highlighted]:bg-[var(--color-panel)] data-[highlighted]:text-[var(--color-ink)]"
+      )}
+    >
+      {children}
+    </Menu.Item>
   );
 }
 
@@ -266,9 +271,7 @@ function CompletionBurst() {
               height: p.size,
               marginLeft: -p.size / 2,
               marginTop: -p.size / 2,
-              background: warm
-                ? "var(--color-leaf)"
-                : "var(--color-accent)",
+              background: warm ? "var(--color-leaf)" : "var(--color-accent)",
               ["--tx" as string]: tx,
               ["--ty" as string]: ty,
               ["--r" as string]: `${p.angle}deg`,
@@ -301,9 +304,8 @@ function RatingThumb({
       }}
       disabled={disabled}
       className={cn(
-        // Same deal as the skip button: hover-revealed, so touch devices hide it
-        // rather than leave an invisible tap target. Rating lives in the detail
-        // view's reflection capture on touch.
+        // Hover-revealed, so touch devices hide it rather than leave an
+        // invisible tap target. Rating lives in the detail view on touch.
         "pressable-sm hidden h-7 w-7 items-center justify-center rounded-md [@media(hover:hover)]:flex",
         "opacity-0 group-hover:opacity-100 hover:bg-[var(--color-panel)] active:bg-[var(--color-panel)]",
         active

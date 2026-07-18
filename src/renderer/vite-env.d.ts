@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { KomorebiApi } from "~/shared/komorebi-api";
+import type { KomorebiApi } from "~/shared/api";
 
 interface ImportMetaEnv {
   readonly VITE_KOMOREBI_WEB: string;

@@ -5,7 +5,7 @@ import { cn } from "~/lib/cn";
 import { Button } from "./ui/Button";
 import { IconButton } from "./ui/IconButton";
 import { Modal } from "./ui/Modal";
-import type { Goal, GoalPriority } from "~/shared/types";
+import type { Goal, GoalPriority } from "~/shared/schema";
 
 type Props = {
   open: boolean;
@@ -37,7 +37,8 @@ export function GoalModal({ open, goal, onClose, onSaved }: Props) {
       setContext("");
       setPriority("medium");
     }
-    setTimeout(() => titleRef.current?.focus(), 50);
+    const focusTimer = setTimeout(() => titleRef.current?.focus(), 50);
+    return () => clearTimeout(focusTimer);
   }, [open, goal]);
 
   const save = useMutation({

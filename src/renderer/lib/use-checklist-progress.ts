@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { GenerationProgress } from "~/main/checklist/orchestrator";
+import type { GenerationProgress } from "~/shared/schema";
 
 export type InFlightGoal = {
   id: string;

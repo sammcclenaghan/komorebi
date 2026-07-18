@@ -17,28 +17,26 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "migrate:turso": "node scripts/migrate-to-turso.mjs",
-    "smoke:slice1": "tsx scripts/smoke-slice1.ts",
-    "smoke:composio": "tsx --env-file=.env.local scripts/smoke-composio.ts",
-    "smoke:context": "tsx --env-file=.env.local scripts/smoke-context.ts",
     "icon": "node scripts/build-icon.mjs",
     "icon:icns": "node scripts/build-icns.mjs",
     "package": "pnpm icon && pnpm icon:icns && pnpm build && electron-builder --mac --arm64 --dir",
     "install:app": "pnpm package && rm -rf /Applications/Komorebi.app && cp -R release/mac-arm64/Komorebi.app /Applications/ && echo '\\n✔ Komorebi installed to /Applications. Launch via Spotlight or Launchpad.'"
   },
   "dependencies": {
+    "@base-ui/react": "^1.6.0",
     "@composio/core": "^0.10.0",
     "@libsql/client": "^0.17.3",
     "@tanstack/react-query": "^5.90.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^17.4.2",
+    "effect": "^3.22.0",
     "lucide-react": "^0.564.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "tailwind-merge": "^3.4.0",
-    "zod": "^4.4.3"
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",

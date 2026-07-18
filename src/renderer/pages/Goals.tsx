@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Target } from "lucide-react";
+import { AlertCircle, Plus, Pencil, Trash2, Target } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { GoalModal } from "../components/GoalModal";
 import { Button } from "../components/ui/Button";
 import { IconButton } from "../components/ui/IconButton";
 import { ConfirmDialog } from "../components/ui/Modal";
-import type { Goal } from "~/shared/types";
+import type { Goal } from "~/shared/schema";
 
 export function Goals() {
   const queryClient = useQueryClient();
@@ -61,6 +61,11 @@ export function Goals() {
         <div className="mt-10">
           {goalsQuery.isLoading ? (
             <LoadingList />
+          ) : goalsQuery.isError ? (
+            <ErrorState
+              message={(goalsQuery.error as Error).message ?? "Unknown error"}
+              onRetry={() => goalsQuery.refetch()}
+            />
           ) : goals.length === 0 ? (
             <EmptyState onAdd={() => setModalGoal(null)} />
           ) : (
@@ -173,6 +178,26 @@ function LoadingList() {
           style={{ animation: `fade-up 400ms ${i * 60}ms backwards ease-out` }}
         />
       ))}
+    </div>
+  );
+}
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="mx-auto mt-12 max-w-md text-center">
+      <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-panel)] text-[var(--color-accent-strong)]">
+        <AlertCircle className="h-5 w-5" strokeWidth={1.5} />
+      </div>
+      <h3 className="mt-5 text-2xl font-semibold text-[var(--color-ink)]">
+        Couldn't load your goals.
+      </h3>
+      <p className="mt-3 font-mono text-xs text-[var(--color-ink-3)]">{message}</p>
+      <button
+        onClick={onRetry}
+        className="pressable mt-6 rounded-md bg-[var(--color-ink)] px-4 py-2 text-sm text-[var(--color-canvas)] hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)]"
+      >
+        Try again
+      </button>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Search, X, Plug, AlertCircle } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { IntegrationCard } from "../components/IntegrationCard";
-import type { IntegrationView } from "~/main/integrations/service";
+import type { IntegrationView } from "~/shared/schema";
 
 export function Integrations() {
   const [query, setQuery] = useState("");

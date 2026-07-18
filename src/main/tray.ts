@@ -2,8 +2,8 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { app, Menu, nativeImage, Tray } from "electron";
-import { showMainWindow } from "../window";
-import { runScheduledGeneration } from "../scheduler/scheduler";
+import { showMainWindow } from "./window";
+import { runScheduledGeneration } from "./scheduler";
 
 const moduleDir =
   typeof __dirname === "string"

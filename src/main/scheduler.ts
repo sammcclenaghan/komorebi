@@ -1,17 +1,18 @@
+/**
+ * Daily scheduler. Registers wake/unlock listeners once (a sleeping Mac
+ * freezes setTimeout, so we recompute on resume), then schedules the next
+ * run — including an immediate catch-up if the app launched after today's
+ * configured time.
+ */
 import { powerMonitor } from "electron";
-import { generateTodayChecklist, localDate } from "../checklist/orchestrator";
-import { getSettings, markScheduledRun } from "../store/settings";
-import { notifyChecklistReady } from "../notify";
+import { handlers } from "./api/handlers";
+import { localDate } from "./checklist/Checklist";
+import { notifyChecklistReady } from "./notify";
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 let running = false;
 let started = false;
 
-/**
- * Start the daily scheduler. Registers wake/unlock listeners once (a sleeping
- * Mac freezes setTimeout, so we recompute on resume), then schedules the next
- * run — including an immediate catch-up if the app launched after today's time.
- */
 export function startScheduler(): void {
   if (!started) {
     started = true;
@@ -25,7 +26,7 @@ export function startScheduler(): void {
 export async function rescheduleScheduler(): Promise<void> {
   clearTimer();
 
-  const { schedule } = await getSettings();
+  const { schedule } = await handlers.settings.get();
   if (!schedule.enabled) return;
 
   const now = new Date();
@@ -50,9 +51,9 @@ async function onTimer(): Promise<void> {
 }
 
 /**
- * Generate today's checklist (if not already done today) and notify. Wrapped so
- * a partial-goal failure never kills the timer. `force` bypasses the once-a-day
- * guard — used by the tray's "Compose today now".
+ * Generate today's checklist (if not already done today) and notify. Wrapped
+ * so a partial-goal failure never kills the timer. `force` bypasses the
+ * once-a-day guard — used by the tray's "Compose today now".
  */
 export async function runScheduledGeneration(opts: { force?: boolean } = {}): Promise<void> {
   if (running) return;
@@ -60,12 +61,12 @@ export async function runScheduledGeneration(opts: { force?: boolean } = {}): Pr
   try {
     const today = localDate();
     if (!opts.force) {
-      const { schedule } = await getSettings();
+      const { schedule } = await handlers.settings.get();
       if (schedule.lastRunDate === today) return;
     }
 
-    const result = await generateTodayChecklist();
-    await markScheduledRun(today);
+    const result = await handlers.checklist.generate();
+    await handlers.settings.markScheduledRun(today);
 
     if (result.hasGoals) {
       const count = result.items.filter((s) => s.status !== "skipped").length;

@@ -1,5 +1,5 @@
-import type { KomorebiApi } from "~/shared/komorebi-api";
-import type { GenerationProgress } from "~/main/checklist/orchestrator";
+import type { KomorebiApi } from "~/shared/api";
+import type { GenerationProgress } from "~/shared/schema";
 
 const TOKEN_KEY = "komorebi-api-token";
 
@@ -117,6 +117,8 @@ export function createHttpClient(): KomorebiApi {
       today: () => apiFetch("/api/checklist/today"),
       generate: () => apiFetch("/api/checklist/generate", { method: "POST" }),
       regenerate: () => apiFetch("/api/checklist/regenerate", { method: "POST" }),
+      retryGoal: (goalId) =>
+        apiFetch(`/api/checklist/retry/${encodeURIComponent(goalId)}`, { method: "POST" }),
       onProgress: (handler) => {
         progressHandlers.add(handler);
         ensureProgressSource();
@@ -146,6 +148,11 @@ export function createHttpClient(): KomorebiApi {
         apiFetch(`/api/suggestions/${encodeURIComponent(id)}/skip-regenerate`, {
           method: "POST",
           body: JSON.stringify({ reason })
+        }),
+      regenerate: (id, note) =>
+        apiFetch(`/api/suggestions/${encodeURIComponent(id)}/regenerate`, {
+          method: "POST",
+          body: JSON.stringify({ note })
         })
     },
 

@@ -20,8 +20,8 @@ import { ChecklistRow } from "../components/ChecklistRow";
 import { GeneratingRow } from "../components/GeneratingRow";
 import { AllCaughtUp } from "../components/AllCaughtUp";
 import { Button } from "../components/ui/Button";
-import type { Goal, Suggestion } from "~/shared/types";
-import type { WeatherSummary } from "~/main/weather/service";
+import { Tooltip } from "@base-ui/react/tooltip";
+import type { Goal, Suggestion, WeatherSummary } from "~/shared/schema";
 import type {
   ChecklistProgress,
   InFlightGoal,
@@ -72,19 +72,19 @@ function titleCase(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function WeatherTooltip({ summary }: { summary: WeatherSummary }) {
+/** Card styling for the weather tooltip popup (Base UI applies the state attrs). */
+const weatherPopupClasses = cn(
+  "w-[230px] rounded-lg border border-[var(--color-rule)] bg-[var(--color-canvas)] p-3",
+  "shadow-[0_18px_36px_-18px_oklch(20%_0.01_60/0.22),0_4px_10px_-4px_oklch(20%_0.01_60/0.10)]",
+  "transition-[opacity,transform] duration-150 ease-out",
+  "data-[starting-style]:opacity-0 data-[starting-style]:-translate-y-1",
+  "data-[ending-style]:opacity-0 data-[ending-style]:-translate-y-1"
+);
+
+function WeatherTooltipBody({ summary }: { summary: WeatherSummary }) {
   const d = summary.daily;
   return (
-    <div
-      role="tooltip"
-      className={cn(
-        "pointer-events-none absolute left-0 top-full z-30 mt-2 w-[230px] origin-top-left",
-        "opacity-0 -translate-y-1 transition-[opacity,translate,transform] duration-150 ease-out",
-        "group-hover:opacity-100 group-hover:translate-y-0",
-        "rounded-lg border border-[var(--color-rule)] bg-[var(--color-canvas)] p-3",
-        "shadow-[0_18px_36px_-18px_oklch(20%_0.01_60/0.22),0_4px_10px_-4px_oklch(20%_0.01_60/0.10)]",
-      )}
-    >
+    <>
       <div className="font-mono text-2xs uppercase tracking-[0.22em] text-[var(--color-ink-3)]">
         {summary.resolvedName}
         {summary.isNight && <span className="ml-1.5 opacity-70">· night</span>}
@@ -115,7 +115,7 @@ function WeatherTooltip({ summary }: { summary: WeatherSummary }) {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -144,6 +144,15 @@ export function Today({ onOpenSuggestion, progress }: Props) {
     onSuccess: (data) => {
       queryClient.setQueryData(["checklist", "today"], data);
     },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
+    },
+  });
+
+  // Per-goal recovery: a failed goal retries alone instead of re-running the
+  // whole day. The progress events drive the placeholder back to "composing".
+  const retryGoal = useMutation({
+    mutationFn: (goalId: string) => window.komorebi.checklist.retryGoal(goalId),
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
     },
@@ -223,11 +232,27 @@ export function Today({ onOpenSuggestion, progress }: Props) {
     <>
       <div className="page-shell">
         <header className="flex items-center justify-between">
-          <div className="group relative flex items-center gap-3 text-[var(--color-ink-3)]">
-            <div className="relative">
+          <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
+            {weatherQuery.data ? (
+              <Tooltip.Provider delay={150} closeDelay={100}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger
+                    render={<span className="inline-flex cursor-default" />}
+                  >
+                    <WeatherIcon summary={weatherQuery.data} />
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Positioner side="bottom" align="start" sideOffset={8} className="z-30">
+                      <Tooltip.Popup className={weatherPopupClasses}>
+                        <WeatherTooltipBody summary={weatherQuery.data} />
+                      </Tooltip.Popup>
+                    </Tooltip.Positioner>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+            ) : (
               <WeatherIcon summary={weatherQuery.data} />
-              {weatherQuery.data && <WeatherTooltip summary={weatherQuery.data} />}
-            </div>
+            )}
             <span className="font-mono text-2xs uppercase tracking-[0.22em]">
               {today}
             </span>
@@ -245,6 +270,7 @@ export function Today({ onOpenSuggestion, progress }: Props) {
             goalsById={goalsById}
             onOpenSuggestion={onOpenSuggestion}
             onRefresh={() => generate.mutate()}
+            onRetryGoal={(goalId) => retryGoal.mutate(goalId)}
             generating={generate.isPending || active}
             topUpCount={topUpCount}
             allDone={
@@ -378,6 +404,7 @@ function ChecklistView({
   goalsById,
   onOpenSuggestion,
   onRefresh,
+  onRetryGoal,
   generating,
   topUpCount,
   allDone,
@@ -387,6 +414,7 @@ function ChecklistView({
   goalsById: Map<string, Goal>;
   onOpenSuggestion: (id: string) => void;
   onRefresh: () => void;
+  onRetryGoal: (goalId: string) => void;
   generating: boolean;
   topUpCount: number;
   allDone: boolean;
@@ -418,8 +446,12 @@ function ChecklistView({
             <GeneratingRow
               goalTitle={p.title}
               status={p.status}
-              error={p.state === "error" ? (p.error ?? "Something went wrong.") : undefined}
-              onRetry={p.state === "error" ? onRefresh : undefined}
+              error={
+                p.state === "error"
+                  ? p.error?.trim() || "Something went wrong."
+                  : undefined
+              }
+              onRetry={p.state === "error" ? () => onRetryGoal(p.id) : undefined}
             />
           </li>
         ))}

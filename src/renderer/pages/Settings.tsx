@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Bell, Cpu, Loader2, Monitor, Moon, Palette, RotateCw, Settings as SettingsIcon, Sun } from "lucide-react";
+import { Switch } from "@base-ui/react/switch";
+import { AlertCircle, AlertTriangle, Bell, Cpu, Loader2, Monitor, Moon, Palette, RotateCw, Settings as SettingsIcon, Sun } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/Modal";
-import type { AppSettings, Theme } from "~/shared/types";
-import type { SettingsUpdate } from "~/main/store/settings";
+import type { Theme } from "~/shared/schema";
+import type { SettingsUpdate } from "~/shared/api";
 
 export function Settings() {
   const queryClient = useQueryClient();
@@ -57,7 +58,12 @@ export function Settings() {
       </header>
 
       <div className="mt-10 space-y-6">
-        {settingsQuery.isLoading || !schedule || !theme ? (
+        {settingsQuery.isError ? (
+          <SettingsError
+            message={(settingsQuery.error as Error).message ?? "Unknown error"}
+            onRetry={() => settingsQuery.refetch()}
+          />
+        ) : settingsQuery.isLoading || !schedule || !theme ? (
           <div
             className="h-[148px] rounded-xl border border-[var(--color-rule)] bg-[var(--color-panel)]"
             style={{ animation: "fade-up 400ms ease-out" }}
@@ -79,7 +85,7 @@ export function Settings() {
               <Toggle
                 checked={schedule.enabled}
                 disabled={update.isPending}
-                onChange={(enabled) => update.mutate({ enabled })}
+                onChange={(enabled) => update.mutate({ schedule: { enabled } })}
               />
             </Row>
 
@@ -92,7 +98,7 @@ export function Settings() {
                 type="time"
                 value={schedule.time}
                 disabled={!schedule.enabled || update.isPending}
-                onChange={(e) => update.mutate({ time: e.target.value })}
+                onChange={(e) => update.mutate({ schedule: { time: e.target.value } })}
                 className={cn(
                   "input w-auto bg-[var(--color-panel)] px-2.5 py-1.5 tabular-nums md:text-base",
                   "disabled:cursor-not-allowed disabled:opacity-50"
@@ -206,6 +212,26 @@ export function Settings() {
         confirmLabel="Yes, redo the day"
         confirmIcon={<RotateCw className="h-3.5 w-3.5" strokeWidth={2} />}
       />
+    </div>
+  );
+}
+
+function SettingsError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="mx-auto mt-12 max-w-md text-center">
+      <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-panel)] text-[var(--color-accent-strong)]">
+        <AlertCircle className="h-5 w-5" strokeWidth={1.5} />
+      </div>
+      <h3 className="mt-5 text-2xl font-semibold text-[var(--color-ink)]">
+        Couldn't load settings.
+      </h3>
+      <p className="mt-3 font-mono text-xs text-[var(--color-ink-3)]">{message}</p>
+      <button
+        onClick={onRetry}
+        className="pressable mt-6 rounded-md bg-[var(--color-ink)] px-4 py-2 text-sm text-[var(--color-canvas)] hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)]"
+      >
+        Try again
+      </button>
     </div>
   );
 }
@@ -372,22 +398,22 @@ function Toggle({
   onChange: (next: boolean) => void;
 }) {
   return (
-    <button
-      role="switch"
-      aria-checked={checked}
+    <Switch.Root
+      checked={checked}
       disabled={disabled}
-      onClick={() => onChange(!checked)}
+      onCheckedChange={(next) => onChange(next)}
       className={cn(
-        "pressable hit-target relative h-[24px] w-[42px] rounded-full disabled:opacity-60",
-        checked ? "bg-[var(--color-accent)]" : "bg-[var(--color-rule-2)]"
+        "pressable hit-target relative block h-[24px] w-[42px] rounded-full",
+        "bg-[var(--color-rule-2)] data-[checked]:bg-[var(--color-accent)]",
+        "data-[disabled]:opacity-60"
       )}
     >
-      <span
+      <Switch.Thumb
         className={cn(
-          "absolute top-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-[left]",
-          checked ? "left-[21px]" : "left-[3px]"
+          "absolute top-[3px] left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-[left]",
+          "data-[checked]:left-[21px]"
         )}
       />
-    </button>
+    </Switch.Root>
   );
 }

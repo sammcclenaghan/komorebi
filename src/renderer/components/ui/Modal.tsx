@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { Dialog } from "@base-ui/react/dialog";
+import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { Loader2 } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { Button } from "./Button";
@@ -14,10 +15,29 @@ type ModalProps = {
   children: React.ReactNode;
 };
 
+const backdropClasses = cn(
+  "fixed inset-0 bg-[var(--color-overlay)] backdrop-blur-[2px]",
+  "transition-opacity duration-150 ease-out",
+  "data-[starting-style]:opacity-0 data-[ending-style]:opacity-0"
+);
+
+const popupClasses = (size: "sm" | "md", className?: string) =>
+  cn(
+    "fixed left-1/2 top-1/2 z-50 w-[calc(100%-3rem)] -translate-x-1/2 -translate-y-1/2",
+    "rounded-2xl border border-[var(--color-rule)] bg-[var(--color-canvas)]",
+    "shadow-[0_30px_60px_-20px_oklch(20%_0.01_60/0.25),0_8px_20px_-8px_oklch(20%_0.01_60/0.15)]",
+    "transition-[opacity,transform] duration-150 ease-out",
+    "data-[starting-style]:opacity-0 data-[starting-style]:-translate-y-[calc(50%-6px)] data-[starting-style]:scale-[0.97]",
+    "data-[ending-style]:opacity-0 data-[ending-style]:-translate-y-[calc(50%-6px)] data-[ending-style]:scale-[0.97]",
+    size === "sm" ? "max-w-md" : "max-w-lg",
+    className
+  );
+
 /**
- * Shared modal chrome: scrim, Escape, backdrop tap, card. The card scales in
- * from just under full size with origin center (modals aren't anchored to a
- * trigger, so they're exempt from origin-aware scaling).
+ * Shared modal chrome on Base UI Dialog: portal, scrim, focus trap, Escape
+ * and backdrop dismissal all come from the primitive. `role="alertdialog"`
+ * switches to AlertDialog semantics (no light-dismiss on a destructive
+ * confirm).
  */
 export function Modal({
   open,
@@ -28,73 +48,35 @@ export function Modal({
   className,
   children
 }: ModalProps) {
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  const onOpenChange = (next: boolean) => {
+    if (!next) onClose();
+  };
 
-  const [phase, setPhase] = useState<"closed" | "open" | "closing">(
-    open ? "open" : "closed"
-  );
-
-  useEffect(() => {
-    if (open) setPhase("open");
-    else setPhase((p) => (p === "open" ? "closing" : p));
-  }, [open]);
-
-  useEffect(() => {
-    if (phase !== "closing") return;
-    const t = setTimeout(() => setPhase("closed"), 150);
-    return () => clearTimeout(t);
-  }, [phase]);
-
-  if (phase === "closed") return null;
-  const closing = phase === "closing";
+  if (role === "alertdialog") {
+    return (
+      <AlertDialog.Root open={open} onOpenChange={onOpenChange}>
+        <AlertDialog.Portal>
+          <AlertDialog.Backdrop className={cn(backdropClasses, "z-50")} />
+          <AlertDialog.Popup
+            aria-labelledby={labelledBy}
+            className={popupClasses(size, className)}
+          >
+            {children}
+          </AlertDialog.Popup>
+        </AlertDialog.Portal>
+      </AlertDialog.Root>
+    );
+  }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-[var(--color-overlay)] backdrop-blur-[2px]"
-        style={{
-          animation: closing ? "none" : "fade-in 180ms ease-out",
-          opacity: closing ? 0 : 1,
-          transition: "opacity 150ms ease-out",
-        }}
-      />
-      <div
-        role={role}
-        aria-modal="true"
-        aria-labelledby={labelledBy}
-        className={cn(
-          "motion-safe-pop relative w-full rounded-2xl border border-[var(--color-rule)] bg-[var(--color-canvas)]",
-          "shadow-[0_30px_60px_-20px_oklch(20%_0.01_60/0.25),0_8px_20px_-8px_oklch(20%_0.01_60/0.15)]",
-          size === "sm" ? "max-w-md" : "max-w-lg",
-          className
-        )}
-        style={
-          closing
-            ? {
-                opacity: 0,
-                transform: "scale(0.97) translateY(6px)",
-                transition: "opacity 150ms ease-out, transform 150ms ease-out",
-                pointerEvents: "none",
-              }
-            : { animation: "modal-pop 200ms var(--ease-out-strong) backwards" }
-        }
-      >
-        {children}
-      </div>
-    </div>
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Backdrop className={cn(backdropClasses, "z-50")} />
+        <Dialog.Popup aria-labelledby={labelledBy} className={popupClasses(size, className)}>
+          {children}
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 

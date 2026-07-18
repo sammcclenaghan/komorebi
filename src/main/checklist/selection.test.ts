@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { selectGoalsForToday } from "./selection";
-import type { Goal, GoalPriority, Suggestion } from "~/shared/types";
+import type { Goal, GoalPriority, Suggestion } from "~/shared/schema";
 
 function goal(id: string, priority: GoalPriority, createdAt = "2026-01-01"): Goal {
   return {

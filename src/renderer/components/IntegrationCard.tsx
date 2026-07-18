@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Link2, X } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { Button } from "./ui/Button";
-import type { IntegrationView } from "~/main/integrations/service";
+import type { IntegrationView } from "~/shared/schema";
 
 type Props = { view: IntegrationView };
 
@@ -23,12 +23,13 @@ export function IntegrationCard({ view }: Props) {
     mutationFn: async () => {
       setWaiting(true);
       setNotice(null);
+      let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         await window.komorebi.integrations.beginConnect(toolkit.slug);
         await Promise.race([
           window.komorebi.integrations.awaitConnect(toolkit.slug),
           new Promise<never>((_, reject) => {
-            const timer = setTimeout(
+            timer = setTimeout(
               () => reject(new Error("Didn't complete in time — try again.")),
               CONNECT_WAIT_MS
             );
@@ -39,6 +40,9 @@ export function IntegrationCard({ view }: Props) {
           })
         ]);
       } finally {
+        // Clear the timer in every outcome — success, timeout, cancel, error —
+        // so a successful connect doesn't leave a stray rejection timer running.
+        clearTimeout(timer);
         cancelWaitRef.current = null;
         setWaiting(false);
       }

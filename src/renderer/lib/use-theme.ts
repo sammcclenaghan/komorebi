@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { Theme } from "~/shared/types";
+import type { Theme } from "~/shared/schema";
 
 /**
  * Read the user's theme preference from settings and apply it to

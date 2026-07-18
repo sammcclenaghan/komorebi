@@ -1,40 +1,18 @@
+/**
+ * Electron entry point. The business logic lives in Effect services behind
+ * src/main/runtime.ts; this file is only the shell: window, tray, scheduler,
+ * IPC registration, logging, env loading.
+ */
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { app, ipcMain } from "electron";
+import { app } from "electron";
 import * as dotenv from "dotenv";
+import { registerIpcHandlers } from "./ipc";
+import { disposeRuntime } from "./runtime";
+import { startScheduler } from "./scheduler";
+import { initTray } from "./tray";
 import { createMainWindow, showMainWindow } from "./window";
-import {
-  awaitConnect,
-  beginConnect,
-  disconnectIntegration,
-  getIntegrations,
-  refreshConnections
-} from "./integrations/service";
-import { getCurrentWeather } from "./weather/service";
-import { addGoal, listGoals, updateGoal } from "./store/goals";
-import {
-  deleteGoalCascade,
-  generateTodayChecklist,
-  getHistory,
-  getTodayChecklist,
-  regenerateTodayChecklist,
-  skipAndRegenerate
-} from "./checklist/orchestrator";
-import {
-  getSuggestion,
-  updateSuggestionRating,
-  updateSuggestionStatus
-} from "./store/suggestions";
-import {
-  addReflection,
-  listReflectionsForSuggestion
-} from "./store/reflections";
-import { fetchLinkPreview } from "./links/preview";
-import { getSettings, updateSettings, type SettingsUpdate } from "./store/settings";
-import { rescheduleScheduler, startScheduler } from "./scheduler/scheduler";
-import { initTray } from "./tray/tray";
-import type { SuggestionRating, SuggestionStatus } from "~/shared/types";
 
 const moduleDir =
   typeof __dirname === "string"
@@ -50,6 +28,8 @@ if (process.platform === "linux") {
   app.commandLine.appendSwitch("--no-sandbox");
 }
 
+registerIpcHandlers();
+
 app.whenReady().then(() => {
   createMainWindow();
   initTray();
@@ -63,58 +43,8 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
-ipcMain.handle("app:version", () => app.getVersion());
-
-ipcMain.handle("integrations:list", () => getIntegrations());
-ipcMain.handle("integrations:refresh", () => refreshConnections());
-ipcMain.handle("integrations:begin-connect", (_event, slug: string) => beginConnect(slug));
-ipcMain.handle("integrations:await-connect", (_event, slug: string) => awaitConnect(slug));
-ipcMain.handle("integrations:disconnect", (_event, slug: string) => disconnectIntegration(slug));
-
-ipcMain.handle("goals:list", () => listGoals());
-ipcMain.handle("goals:add", (_event, input: Parameters<typeof addGoal>[0]) =>
-  addGoal(input)
-);
-ipcMain.handle("goals:update", (_event, input: { id: string; updates: Parameters<typeof updateGoal>[1] }) =>
-  updateGoal(input.id, input.updates)
-);
-ipcMain.handle("goals:delete", (_event, id: string) => deleteGoalCascade(id));
-
-ipcMain.handle("checklist:today", () => getTodayChecklist());
-ipcMain.handle("checklist:generate", () => generateTodayChecklist());
-ipcMain.handle("checklist:regenerate", () => regenerateTodayChecklist());
-
-ipcMain.handle("history:list", (_event, daysBack?: number) => getHistory(daysBack));
-
-ipcMain.handle("suggestion:get", (_event, id: string) => getSuggestion(id));
-ipcMain.handle("suggestion:set-status", (_event, input: { id: string; status: SuggestionStatus }) =>
-  updateSuggestionStatus(input.id, input.status)
-);
-ipcMain.handle("suggestion:set-rating", (_event, input: { id: string; rating: SuggestionRating }) =>
-  updateSuggestionRating(input.id, input.rating)
-);
-ipcMain.handle("suggestion:skip-regenerate", (_event, id: string, reason?: string) => skipAndRegenerate(id, reason));
-
-ipcMain.handle("reflection:list", (_event, suggestionId: string) =>
-  listReflectionsForSuggestion(suggestionId)
-);
-ipcMain.handle("reflection:add", (_event, input: { suggestionId: string; text: string; rating?: "up" | "down" | null }) =>
-  addReflection(input)
-);
-
-ipcMain.handle("weather:current", (_event, location: string) => getCurrentWeather(location));
-
-ipcMain.handle("link:preview", (_event, url: string) => fetchLinkPreview(url));
-
-ipcMain.handle("settings:get", () => getSettings());
-ipcMain.handle("settings:update", async (_event, update: SettingsUpdate) => {
-  const next = await updateSettings(update);
-  // Only reschedule when the schedule actually changed; theme-only updates
-  // shouldn't bounce timers.
-  if ("enabled" in update || "time" in update) {
-    await rescheduleScheduler();
-  }
-  return next;
+app.on("will-quit", () => {
+  void disposeRuntime();
 });
 
 /**
