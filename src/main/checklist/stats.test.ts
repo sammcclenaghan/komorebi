@@ -14,6 +14,7 @@ function done(date: string): Suggestion {
     estimatedMinutes: null,
     status: "done",
     rating: null,
+    generationWarning: null,
     createdAt: `${date}T12:00:00.000Z`,
     completedAt: `${date}T13:00:00.000Z`
   };

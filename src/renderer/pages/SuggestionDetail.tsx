@@ -11,7 +11,8 @@ import {
   SkipForward,
   Sparkles,
   ThumbsDown,
-  ThumbsUp
+  ThumbsUp,
+  Unlink
 } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { MarkdownView } from "../components/MarkdownView";
@@ -19,6 +20,7 @@ import { MediaEmbed } from "../components/MediaEmbed";
 import { SkipModal } from "../components/SkipModal";
 import { Button } from "../components/ui/Button";
 import type { Suggestion, SuggestionRating } from "~/shared/schema";
+import { warningExplanation } from "../lib/generation-warning";
 import { useSuggestionMutations } from "../lib/use-suggestion-mutations";
 
 type Props = {
@@ -141,6 +143,12 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
         </p>
 
         {suggestion.resourceUrl && <MediaEmbed url={suggestion.resourceUrl} />}
+        {!suggestion.resourceUrl && suggestion.generationWarning && (
+          <p className="mt-4 flex items-center gap-2 text-sm text-[var(--color-ink-3)]">
+            <Unlink className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+            {warningExplanation(suggestion.generationWarning)}
+          </p>
+        )}
       </header>
 
       <hr className="my-8 border-0 border-t border-[var(--color-rule)]" />

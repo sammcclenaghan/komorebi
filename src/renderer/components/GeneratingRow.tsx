@@ -93,7 +93,7 @@ export function GeneratingRow({ goalTitle, status, error, onRetry }: Props) {
         <h3
           key={phrase}
           className="mt-1 text-base font-medium leading-snug text-[var(--color-ink-2)]"
-          style={{ animation: "fade-up 280ms ease-out" }}
+          style={{ animation: "fade-up 280ms var(--ease-out-strong)" }}
         >
           {phrase}
         </h3>

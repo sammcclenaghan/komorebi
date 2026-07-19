@@ -50,6 +50,15 @@ export type SuggestionStatus = typeof SuggestionStatusSchema.Type;
 export const SuggestionRatingSchema = Schema.NullOr(Schema.Literal("up", "down"));
 export type SuggestionRating = typeof SuggestionRatingSchema.Type;
 
+/**
+ * Why a composed suggestion is degraded — persisted on the row so the UI can
+ * explain, after the fact, why a task has no link. Only the search-related
+ * kinds are stored (they're what leaves a task link-less); the fuller set of
+ * transient generation notices lives on the progress bus (`GenerationProgress`).
+ */
+export const GenerationWarningKindSchema = Schema.Literal("search-unavailable", "search-failed");
+export type GenerationWarningKind = typeof GenerationWarningKindSchema.Type;
+
 export const SuggestionSchema = Schema.Struct({
   id: Schema.String,
   goalId: Schema.String,
@@ -62,6 +71,8 @@ export const SuggestionSchema = Schema.Struct({
   estimatedMinutes: Schema.NullOr(Schema.Number),
   status: SuggestionStatusSchema,
   rating: SuggestionRatingSchema,
+  /** Set when the task was composed in a degraded state (e.g. no web search). */
+  generationWarning: Schema.NullOr(GenerationWarningKindSchema),
   createdAt: Schema.String,
   completedAt: Schema.NullOr(Schema.String)
 });
@@ -316,6 +327,16 @@ export type HistoryDay = {
  * A `goal-error` is always recoverable: the goal stays on screen with a
  * retry affordance wired to `checklist.retryGoal`.
  */
+/**
+ * Non-fatal degradations surfaced to the user as transient notices (toasts)
+ * while a pass runs — a superset of the persisted {@link GenerationWarningKind}.
+ */
+export type GenerationNoticeKind =
+  | GenerationWarningKind
+  | "context-unavailable"
+  | "coach-notes-stale"
+  | "brief-unavailable";
+
 export type GenerationProgress =
   | { phase: "start"; goals: Array<{ id: string; title: string }> }
   | { phase: "context-fetched"; labels: string[] }
@@ -323,6 +344,9 @@ export type GenerationProgress =
   | { phase: "goal-status"; goalId: string; label: string }
   | { phase: "goal-done"; goalId: string; suggestion: Suggestion }
   | { phase: "goal-error"; goalId: string; message: string }
+  // A recoverable degradation (search off/failed, context/notes/brief hiccup).
+  // The pass continues; the UI shows a toast, not an error.
+  | { phase: "warning"; goalId?: string; kind: GenerationNoticeKind; message: string }
   | { phase: "done"; items: Suggestion[] };
 
 // ---------------------------------------------------------------------------

@@ -326,17 +326,17 @@ function CoachBrief({ text }: { text: string }) {
   return (
     <aside
       className={cn(
-        "mt-8 flex items-start gap-3 rounded-xl border border-[var(--color-accent)]/25 bg-[var(--color-accent-tint)]/60 px-4 py-3.5"
+        "mt-8 flex items-start gap-3 rounded-xl border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3.5"
       )}
-      style={{ animation: "fade-up 320ms backwards ease-out" }}
+      style={{ animation: "fade-up 320ms backwards var(--ease-out-strong)" }}
     >
       <Sunrise
-        className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-accent-strong)]"
+        className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-ink-3)]"
         strokeWidth={1.5}
         aria-hidden
       />
       <div className="min-w-0">
-        <div className="font-mono text-2xs uppercase tracking-[0.22em] text-[var(--color-accent-strong)]/80">
+        <div className="font-mono text-2xs uppercase tracking-[0.22em] text-[var(--color-ink-3)]">
           this morning
         </div>
         <p className="mt-1 text-base leading-relaxed text-[var(--color-ink)]">{text}</p>
@@ -352,7 +352,7 @@ function LoadingState() {
         <div
           key={i}
           className="h-[78px] rounded-xl border border-[var(--color-rule)] bg-[var(--color-panel)]"
-          style={{ animation: `fade-up 400ms ${i * 60}ms backwards ease-out` }}
+          style={{ animation: `fade-up 400ms ${i * 60}ms backwards var(--ease-out-strong)` }}
         />
       ))}
     </div>
@@ -473,7 +473,7 @@ function ChecklistView({
           <li
             key={s.id}
             style={{
-              animation: `fade-up 320ms ${Math.min(idx, 6) * 40}ms backwards ease-out`,
+              animation: `fade-up 320ms ${Math.min(idx, 6) * 40}ms backwards var(--ease-out-strong)`,
             }}
           >
             <ChecklistRow
@@ -487,7 +487,7 @@ function ChecklistView({
           <li
             key={`placeholder-${p.id}`}
             style={{
-              animation: `fade-up 320ms ${Math.min(idx + items.length, 6) * 40}ms backwards ease-out`,
+              animation: `fade-up 320ms ${Math.min(idx + items.length, 6) * 40}ms backwards var(--ease-out-strong)`,
             }}
           >
             <GeneratingRow

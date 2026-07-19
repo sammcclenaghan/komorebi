@@ -19,17 +19,19 @@
   --color-rule: oklch(91.5% 0.003 80);
   --color-rule-2: oklch(86% 0.004 80);
 
-  /* Accent — calm slate blue, used sparingly */
-  --color-accent: oklch(52% 0.11 245);
-  --color-accent-strong: oklch(45% 0.13 245);
-  --color-accent-soft: oklch(95.5% 0.018 245);
-  --color-accent-tint: oklch(96.5% 0.015 245);
+  /* Accent — a muted slate blue, kept deliberately faint. Ink and paper
+     carry the design; accent appears only where it means something (links,
+     focus, a live toggle). "The one blue thing", never decoration. */
+  --color-accent: oklch(50% 0.05 245);
+  --color-accent-strong: oklch(43% 0.06 245);
+  --color-accent-soft: oklch(95% 0.009 245);
+  --color-accent-tint: oklch(96.5% 0.007 245);
 
-  /* History heatmap intensity scale — level 0 is --color-panel-2,
-     level 4 is --color-accent; these are the steps between. */
-  --color-heat-1: oklch(89% 0.03 245);
-  --color-heat-2: oklch(80% 0.065 245);
-  --color-heat-3: oklch(66% 0.095 245);
+  /* History heatmap intensity scale — a grayscale ink ramp (level 0 is
+     --color-panel-2, level 4 is --color-ink). Monochrome by design. */
+  --color-heat-1: oklch(87% 0.003 80);
+  --color-heat-2: oklch(72% 0.004 75);
+  --color-heat-3: oklch(50% 0.006 65);
 
   /* Destructive actions — the only warm-red in the app. */
   --color-danger: oklch(58% 0.18 25);
@@ -73,9 +75,24 @@
   --text-4xl--letter-spacing: -0.025em;
 
   /* Motion — stronger curves than the CSS built-ins. ease-out-strong for
-     entrances/exits, ease-in-out-strong for on-screen movement. */
+     entrances/exits, ease-in-out-strong for on-screen movement, drawer for
+     iOS-like swipe/settle. */
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Elevation — soft, layered shadows tinted with --color-shadow. Two layers
+     each: a tight contact shadow plus a wider ambient one. Kept subtle; depth
+     shows up in the aggregate, not as a drop-shadow you notice. */
+  --shadow-sm:
+    0 1px 2px -1px oklch(20% 0.01 60 / 0.1),
+    0 1px 3px -1px oklch(20% 0.01 60 / 0.06);
+  --shadow-md:
+    0 2px 6px -2px oklch(20% 0.01 60 / 0.1),
+    0 8px 20px -8px oklch(20% 0.01 60 / 0.14);
+  --shadow-lg:
+    0 6px 14px -6px oklch(20% 0.01 60 / 0.12),
+    0 20px 40px -20px oklch(20% 0.01 60 / 0.22);
 }
 
 /* Dark palette — warm-tinted neutrals so the app keeps its paper feel.
@@ -93,14 +110,14 @@
   --color-rule: oklch(30% 0.006 80);
   --color-rule-2: oklch(38% 0.006 80);
 
-  --color-accent: oklch(72% 0.12 245);
-  --color-accent-strong: oklch(80% 0.12 245);
-  --color-accent-soft: oklch(28% 0.05 245);
-  --color-accent-tint: oklch(25% 0.04 245);
+  --color-accent: oklch(72% 0.055 245);
+  --color-accent-strong: oklch(80% 0.055 245);
+  --color-accent-soft: oklch(28% 0.022 245);
+  --color-accent-tint: oklch(25% 0.018 245);
 
-  --color-heat-1: oklch(32% 0.045 245);
-  --color-heat-2: oklch(44% 0.075 245);
-  --color-heat-3: oklch(57% 0.1 245);
+  --color-heat-1: oklch(33% 0.004 80);
+  --color-heat-2: oklch(46% 0.005 80);
+  --color-heat-3: oklch(64% 0.006 80);
 
   --color-danger: oklch(70% 0.15 25);
 
@@ -111,6 +128,17 @@
   --color-scrim-hover: oklch(0% 0 0 / 0.45);
   --color-scrim-active: oklch(0% 0 0 / 0.55);
   --color-shadow: oklch(0% 0 0);
+
+  /* Deeper, cooler shadows so elevation still reads against dark surfaces. */
+  --shadow-sm:
+    0 1px 2px -1px oklch(0% 0 0 / 0.44),
+    0 1px 3px -1px oklch(0% 0 0 / 0.34);
+  --shadow-md:
+    0 2px 6px -2px oklch(0% 0 0 / 0.44),
+    0 8px 20px -8px oklch(0% 0 0 / 0.5);
+  --shadow-lg:
+    0 6px 14px -6px oklch(0% 0 0 / 0.5),
+    0 20px 40px -20px oklch(0% 0 0 / 0.6);
 
   color-scheme: dark;
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type { GenerationProgress } from "~/shared/schema";
 
 export type InFlightGoal = {
@@ -67,6 +68,12 @@ export function useChecklistProgress(): ChecklistProgress {
             return next;
           });
           void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
+          break;
+        }
+        case "warning": {
+          // Non-fatal degradation (search off/failed, context/notes/brief
+          // hiccup). Surface as a calm toast; the pass keeps going.
+          toast.warning(event.message);
           break;
         }
         case "goal-error": {

@@ -72,7 +72,7 @@ export function Settings() {
         ) : settingsQuery.isLoading || !schedule || !theme ? (
           <div
             className="h-[148px] rounded-xl border border-[var(--color-rule)] bg-[var(--color-panel)]"
-            style={{ animation: "fade-up 400ms ease-out" }}
+            style={{ animation: "fade-up 400ms var(--ease-out-strong)" }}
           />
         ) : (
         <>
@@ -286,7 +286,7 @@ function SettingsError({ message, onRetry }: { message: string; onRetry: () => v
       <p className="mt-3 font-mono text-xs text-[var(--color-ink-3)]">{message}</p>
       <button
         onClick={onRetry}
-        className="pressable mt-6 rounded-md bg-[var(--color-ink)] px-4 py-2 text-sm text-[var(--color-canvas)] hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)]"
+        className="pressable mt-6 rounded-md bg-[var(--color-ink)] px-4 py-2 text-sm text-[var(--color-canvas)] hover:opacity-90 active:opacity-90"
       >
         Try again
       </button>

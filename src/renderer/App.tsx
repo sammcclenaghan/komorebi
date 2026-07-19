@@ -139,7 +139,7 @@ function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void
         key={open ? "close" : "open"}
         className="h-[16px] w-[16px]"
         strokeWidth={1.5}
-        style={{ animation: "fade-up 180ms ease-out" }}
+        style={{ animation: "fade-up 180ms var(--ease-out-strong)" }}
       />
     </IconButton>
   );

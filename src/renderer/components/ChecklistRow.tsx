@@ -9,10 +9,12 @@ import {
   RotateCw,
   Sparkles,
   ThumbsDown,
-  ThumbsUp
+  ThumbsUp,
+  Unlink
 } from "lucide-react";
 import { cn } from "~/lib/cn";
 import type { Goal, Suggestion } from "~/shared/schema";
+import { warningBadgeLabel, warningExplanation } from "../lib/generation-warning";
 import { useSuggestionMutations } from "../lib/use-suggestion-mutations";
 import { SkipModal } from "./SkipModal";
 import { SwipeRow } from "./SwipeRow";
@@ -52,7 +54,7 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
         disabled={isDone || isSkipped}
         leftAction={{
           content: <Check className="h-4 w-4" strokeWidth={3} />,
-          className: "bg-[var(--color-accent)] text-[var(--color-canvas)]",
+          className: "bg-[var(--color-ink)] text-[var(--color-canvas)]",
           onTrigger: complete
         }}
         rightAction={{
@@ -64,7 +66,7 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
         <article
           className={cn(
             "group relative flex items-start gap-4 rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-4 py-3.5",
-            "pressable-row hover:border-[var(--color-rule-2)] hover:bg-[var(--color-panel-hover)]",
+            "pressable-row hover:border-[var(--color-rule-2)] hover:bg-[var(--color-panel-hover)] hover:shadow-[var(--shadow-md)]",
             "active:border-[var(--color-rule-2)] active:bg-[var(--color-panel-hover)]",
             isDone && !rating && "opacity-60",
             isDone && rating && "opacity-90",
@@ -83,10 +85,10 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
               className={cn(
                 "pressable-sm hit-target flex h-[18px] w-[18px] items-center justify-center rounded-full border-[1.5px]",
                 isDone
-                  ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-canvas)]"
+                  ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-canvas)]"
                   : isSkipped
                     ? "border-[var(--color-rule-2)] bg-[var(--color-panel)] text-[var(--color-ink-3)]"
-                    : "border-[var(--color-rule-2)] bg-[var(--color-canvas)] hover:border-[var(--color-accent)]/60"
+                    : "border-[var(--color-rule-2)] bg-[var(--color-canvas)] hover:border-[var(--color-ink)]/40"
               )}
               aria-label={isDone ? "Mark as not done" : isSkipped ? "Skipped" : "Mark as done"}
             >
@@ -120,6 +122,15 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
               )}
               {isSkipped && (
                 <span className="font-mono uppercase tracking-[0.14em]">skipped</span>
+              )}
+              {suggestion.generationWarning && (
+                <span
+                  className="flex items-center gap-1 font-mono uppercase tracking-[0.14em]"
+                  title={warningExplanation(suggestion.generationWarning)}
+                >
+                  <Unlink className="h-2.5 w-2.5" strokeWidth={2} />
+                  {warningBadgeLabel(suggestion.generationWarning)}
+                </span>
               )}
             </div>
           </button>
@@ -174,8 +185,8 @@ export function ChecklistRow({ suggestion, goal, onOpen }: Props) {
                   <Menu.Popup
                     className={cn(
                       "min-w-[210px] rounded-lg border border-[var(--color-rule)] bg-[var(--color-canvas)] py-1",
-                      "shadow-[0_18px_36px_-18px_oklch(20%_0.01_60/0.22),0_4px_10px_-4px_oklch(20%_0.01_60/0.10)]",
-                      "transition-[opacity,transform] duration-100 ease-out",
+                      "shadow-[var(--shadow-lg)] origin-[var(--transform-origin)]",
+                      "transition-[opacity,transform] duration-150 ease-[var(--ease-out-strong)]",
                       "data-[starting-style]:opacity-0 data-[starting-style]:scale-95",
                       "data-[ending-style]:opacity-0"
                     )}
@@ -271,7 +282,7 @@ function CompletionBurst() {
               height: p.size,
               marginLeft: -p.size / 2,
               marginTop: -p.size / 2,
-              background: warm ? "var(--color-leaf)" : "var(--color-accent)",
+              background: warm ? "var(--color-leaf)" : "var(--color-ink-2)",
               ["--tx" as string]: tx,
               ["--ty" as string]: ty,
               ["--r" as string]: `${p.angle}deg`,

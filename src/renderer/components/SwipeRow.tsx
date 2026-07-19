@@ -62,7 +62,7 @@ export function SwipeRow({ leftAction, rightAction, disabled, className, childre
   function snapHome() {
     const slider = sliderRef.current;
     if (!slider) return;
-    slider.style.transition = "transform 200ms var(--ease-out-strong)";
+    slider.style.transition = "transform 240ms var(--ease-drawer)";
     slider.style.transform = "translateX(0)";
 
     let settled = false;
@@ -182,7 +182,10 @@ export function SwipeRow({ leftAction, rightAction, disabled, className, childre
         {leftAction && (
           <div
             ref={leftZoneRef}
-            className={cn("flex flex-1 items-center justify-start px-5", leftAction.className)}
+            className={cn(
+              "flex flex-1 items-center justify-start px-5 opacity-0",
+              leftAction.className
+            )}
           >
             <span className="swipe-action-icon">{leftAction.content}</span>
           </div>
@@ -190,7 +193,10 @@ export function SwipeRow({ leftAction, rightAction, disabled, className, childre
         {rightAction && (
           <div
             ref={rightZoneRef}
-            className={cn("ml-auto flex flex-1 items-center justify-end px-5", rightAction.className)}
+            className={cn(
+              "ml-auto flex flex-1 items-center justify-end px-5 opacity-0",
+              rightAction.className
+            )}
           >
             <span className="swipe-action-icon">{rightAction.content}</span>
           </div>

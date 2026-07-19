@@ -3,6 +3,7 @@ import type { Row } from "@libsql/client";
 import { Data, Effect } from "effect";
 import {
   SuggestionSchema,
+  type GenerationWarningKind,
   type Suggestion,
   type SuggestionDraft,
   type SuggestionRating,
@@ -33,6 +34,7 @@ const fromRow = (row: Row): Effect.Effect<Suggestion, DbError> =>
     estimatedMinutes: integer(row, "estimated_minutes"),
     status: text(row, "status"),
     rating: text(row, "rating"),
+    generationWarning: text(row, "generation_warning"),
     createdAt: text(row, "created_at"),
     completedAt: text(row, "completed_at")
   });
@@ -41,6 +43,8 @@ export type InsertSuggestionInput = {
   goalId: string;
   date: string;
   draft: SuggestionDraft;
+  /** Why this task is degraded (e.g. composed without web search), if at all. */
+  warning?: GenerationWarningKind | null;
 };
 
 export class SuggestionsRepo extends Effect.Service<SuggestionsRepo>()("SuggestionsRepo", {
@@ -98,6 +102,7 @@ export class SuggestionsRepo extends Effect.Service<SuggestionsRepo>()("Suggesti
           estimatedMinutes: input.draft.estimatedMinutes,
           status: "pending",
           rating: null,
+          generationWarning: input.warning ?? null,
           createdAt: new Date().toISOString(),
           completedAt: null
         };
@@ -105,8 +110,8 @@ export class SuggestionsRepo extends Effect.Service<SuggestionsRepo>()("Suggesti
           .execute(
             `INSERT INTO suggestions
                (id, goal_id, date, title, summary, detail_markdown, resource_url,
-                estimated_minutes, status, rating, created_at, completed_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                estimated_minutes, status, rating, generation_warning, created_at, completed_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               suggestion.id,
               suggestion.goalId,
@@ -118,6 +123,7 @@ export class SuggestionsRepo extends Effect.Service<SuggestionsRepo>()("Suggesti
               suggestion.estimatedMinutes,
               suggestion.status,
               suggestion.rating,
+              suggestion.generationWarning,
               suggestion.createdAt,
               suggestion.completedAt
             ]

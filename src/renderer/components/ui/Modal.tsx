@@ -25,8 +25,8 @@ const popupClasses = (size: "sm" | "md", className?: string) =>
   cn(
     "fixed left-1/2 top-1/2 z-50 w-[calc(100%-3rem)] -translate-x-1/2 -translate-y-1/2",
     "rounded-2xl border border-[var(--color-rule)] bg-[var(--color-canvas)]",
-    "shadow-[0_30px_60px_-20px_oklch(20%_0.01_60/0.25),0_8px_20px_-8px_oklch(20%_0.01_60/0.15)]",
-    "transition-[opacity,transform] duration-150 ease-out",
+    "shadow-[var(--shadow-lg)]",
+    "transition-[opacity,transform] duration-200 ease-[var(--ease-out-strong)]",
     "data-[starting-style]:opacity-0 data-[starting-style]:-translate-y-[calc(50%-6px)] data-[starting-style]:scale-[0.97]",
     "data-[ending-style]:opacity-0 data-[ending-style]:-translate-y-[calc(50%-6px)] data-[ending-style]:scale-[0.97]",
     size === "sm" ? "max-w-md" : "max-w-lg",

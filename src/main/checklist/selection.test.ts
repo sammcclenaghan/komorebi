@@ -27,6 +27,7 @@ function suggestion(goalId: string, date: string): Suggestion {
     estimatedMinutes: null,
     status: "done",
     rating: null,
+    generationWarning: null,
     createdAt: `${date}T00:00:00.000Z`,
     completedAt: null
   };

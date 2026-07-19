@@ -54,7 +54,7 @@ function VideoEmbed({
                 src={thumbnailUrl}
                 alt=""
                 className="absolute inset-0 h-full w-full object-cover"
-                style={{ animation: "fade-up 360ms ease-out" }}
+                style={{ animation: "fade-up 360ms var(--ease-out-strong)" }}
               />
             ) : (
               <div className="absolute inset-0 bg-[var(--color-panel-2)]" />
@@ -134,7 +134,7 @@ function LinkCard({ url }: { url: string }) {
         "hover:border-[var(--color-rule-2)] hover:bg-[var(--color-panel-hover)]",
         "active:border-[var(--color-rule-2)] active:bg-[var(--color-panel-hover)]"
       )}
-      style={{ animation: "fade-up 320ms ease-out" }}
+      style={{ animation: "fade-up 320ms var(--ease-out-strong)" }}
     >
       <Thumbnail src={data?.imageUrl ?? null} />
       <div className="min-w-0 flex-1 px-4 py-3">

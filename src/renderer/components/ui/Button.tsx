@@ -17,7 +17,7 @@ const button = cva(
       variant: {
         primary: cn(
           "bg-[var(--color-ink)] font-medium text-[var(--color-canvas)]",
-          "hover:bg-[var(--color-accent)] active:bg-[var(--color-accent)]"
+          "hover:opacity-90 active:opacity-90"
         ),
         secondary: cn(
           "border border-[var(--color-rule)] text-[var(--color-ink-2)]",

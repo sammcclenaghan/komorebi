@@ -56,6 +56,7 @@ const SCHEMA: string[] = [
     estimated_minutes INTEGER,
     status TEXT NOT NULL DEFAULT 'pending',
     rating TEXT,
+    generation_warning TEXT,
     created_at TEXT NOT NULL,
     completed_at TEXT
   )`,
@@ -91,6 +92,11 @@ async function initSchema(client: Client): Promise<void> {
   // column is already there, so each is best-effort.
   try {
     await client.execute("ALTER TABLE goals ADD COLUMN priority TEXT NOT NULL DEFAULT 'medium'");
+  } catch {
+    // Column already exists.
+  }
+  try {
+    await client.execute("ALTER TABLE suggestions ADD COLUMN generation_warning TEXT");
   } catch {
     // Column already exists.
   }

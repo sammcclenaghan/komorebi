@@ -293,7 +293,7 @@ const LEVEL_BG = [
   "var(--color-heat-1)",
   "var(--color-heat-2)",
   "var(--color-heat-3)",
-  "var(--color-accent)"
+  "var(--color-ink)"
 ];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -471,7 +471,7 @@ function HistoryRow({
 function StatusDot({ status }: { status: Suggestion["status"] }) {
   if (status === "done") {
     return (
-      <span className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)] text-[var(--color-canvas)]">
+      <span className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)] text-[var(--color-canvas)]">
         <Check className="h-3 w-3" strokeWidth={3} />
       </span>
     );

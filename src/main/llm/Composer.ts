@@ -29,7 +29,7 @@ import {
   type Suggestion,
   type SuggestionDraft
 } from "~/shared/schema";
-import type { Goal } from "~/shared/schema";
+import type { Goal, GenerationNoticeKind } from "~/shared/schema";
 import type { ContextBlock } from "../context/types";
 import { Ollama, defaultModel, type LlmError } from "./Ollama";
 import { Search, normalizeUrl, searchProvider, type SearchResult } from "./Search";
@@ -40,8 +40,9 @@ For the given goal, produce ONE specific action the user can do today that meani
 
 Rules:
 - Be concrete. "Read about React hooks" is bad. "Read 'A Complete Guide to useEffect' by Dan Abramov (overreacted.io)" is good.
-- Use the supplied web search results to choose real, current, high-quality resources.
-- URLS ARE STRICTLY ALLOWLISTED: you may ONLY use URLs that appear verbatim in the "Web search results" section below. NEVER invent, guess, autocomplete, or modify a URL. If no result fits, set resourceUrl to null and include no link in detailMarkdown.
+- ANCHOR THE TASK ON A SEARCH RESULT: when "Web search results" are provided, build the action around ONE of them and set resourceUrl to that result's exact URL. Do NOT name a website, article, tool, book, or video from your own memory when a usable result exists — choose from the results so the user always gets a working link. (e.g. if the results list TypingClub, base the task on it and link it — never tell the user to "go to Typing.com" when Typing.com is not in the results.) Pick the single result that best fits the goal; the others are alternatives you can ignore.
+- URLS ARE STRICTLY ALLOWLISTED: you may ONLY use URLs that appear verbatim in the "Web search results" section below. NEVER invent, guess, autocomplete, or modify a URL. Only set resourceUrl to null when the results genuinely contain nothing relevant to the goal — that should be rare when results are present.
+- OBEY THIS GOAL'S CONSTRAINTS: the "Constraints for this goal" section holds the user's explicit instructions for THIS goal — the resource format they want (an article to read vs. a hands-on task vs. a video), difficulty, time budget, and what to avoid. Follow every part of it. If it says "prefer articles", deliver one specific article to read (with its link), not a build exercise. If it says "no step-by-step tutorial", do NOT write numbered setup steps or an inline code walkthrough — name the resource and say what to focus on. These constraints outrank your default task style and the history.
 - Don't repeat past suggestions in the history. Match difficulty and style to what the user actually engaged with.
 - If an "About the user" section is present, it is the user's own words about what they want. It outranks everything you infer from history — shape the task's direction, format, and size around it.
 - If a "Coach notes" section is present, those are preferences learned from the user's past feedback. Apply them unless the user's own words contradict them.
@@ -53,7 +54,7 @@ Rules:
    - "Note:" lines are the user's own notes about how it went. These outrank everything else.
 - If a "Context" section is provided, USE it - match the time estimate to actual open time, don't suggest something that conflicts with scheduled events, and let what's happening today shape the suggestion.
 - Respect estimated time. Default to 20-40 minutes unless the user's context implies otherwise.
-- The detailMarkdown is the page the user opens - include the link, why this resource, and what to focus on. Markdown formatting OK.
+- The detailMarkdown is the page the user opens - it MUST include the chosen resource as a clickable markdown link ([title](exact-url) from the results), why this resource, and what to focus on. Markdown formatting OK.
 
 Respond with a JSON object of this shape:
 {
@@ -69,6 +70,7 @@ const QUERY_SYSTEM_INSTRUCTIONS = `You generate web search queries. Given a pers
 Rules:
 - Prefer concrete nouns and specifics over filler words like "best" or "how to".
 - Each query should target a different angle when more than one is useful.
+- If the goal's context asks for a specific format or source (e.g. an article, an essay, a video, docs, a tool, "from experienced engineers"), bias the queries toward surfacing that — e.g. add "article", "blog", "essay", or the domain of expertise so the results match what the user wants to click.
 - Respond with a JSON object: {"queries": string[]}`;
 
 const NOTES_SYSTEM_INSTRUCTIONS = `You maintain a coach's private working notes about one user, learned from how they respond to daily tasks.
@@ -125,6 +127,8 @@ export type ComposeInput = {
    */
   extraNote?: string;
   onStatus?: (label: string) => void;
+  /** Non-fatal degradations worth surfacing to the user (e.g. search off/failed). */
+  onWarning?: (kind: GenerationNoticeKind, message: string) => void;
 };
 
 export class Composer extends Effect.Service<Composer>()("Composer", {
@@ -236,9 +240,17 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
           } else {
             yield* Effect.logWarning(`web search failed: ${searched.left.message}`);
             input.onStatus?.("Web search failed; drafting without web results...");
+            input.onWarning?.(
+              "search-failed",
+              "Web search failed, so this task has no link."
+            );
           }
         } else {
           input.onStatus?.("No web search configured; drafting without web results...");
+          input.onWarning?.(
+            "search-unavailable",
+            "Web search isn't set up, so this task has no link."
+          );
         }
 
         input.onStatus?.("Drafting today's action...");
@@ -435,12 +447,13 @@ function extractJsonObject(text: string): string | null {
 // Prompt assembly
 // ---------------------------------------------------------------------------
 
-function goalBlock(input: ComposeInput): string {
+function goalBlock(input: ComposeInput, opts?: { includeContext?: boolean }): string {
   const { goal, date } = input;
+  const includeContext = opts?.includeContext ?? true;
   return [
     `Goal: ${goal.title}`,
     goal.description ? `Description: ${goal.description}` : null,
-    goal.context ? `User context: ${goal.context}` : null,
+    includeContext && goal.context ? `User context: ${goal.context}` : null,
     `Today's date: ${date}`
   ]
     .filter(Boolean)
@@ -466,6 +479,10 @@ function buildPrompt(input: ComposeInput, searchResults: SearchResult[]): string
     ? `\n\n## Context\n\n${contextBlocks.map((b) => `### ${b.label}\n${b.body}`).join("\n\n")}`
     : "";
 
+  const goalConstraintsSection = input.goal.context?.trim()
+    ? `\n\n## Constraints for this goal (the user's explicit instructions — obey exactly)\n\n${input.goal.context.trim()}`
+    : "";
+
   const momentumSection = stats ? `\n\n## Momentum\n\n${momentumBlock(stats)}` : "";
 
   const noteSection = extraNote?.trim()
@@ -479,11 +496,11 @@ function buildPrompt(input: ComposeInput, searchResults: SearchResult[]): string
     : "(No web search results available. Prefer a suggestion that does not require a URL unless you are confident the URL is real.)";
 
   return `---
-${profileSection}${notesSection}${contextSection}${momentumSection}${noteSection}
+${profileSection}${goalConstraintsSection}${notesSection}${contextSection}${momentumSection}${noteSection}
 
 ## Goal
 
-${goalBlock(input)}
+${goalBlock(input, { includeContext: false })}
 
 ## Recent history (do not repeat these)
 

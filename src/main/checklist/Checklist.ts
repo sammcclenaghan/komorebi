@@ -15,7 +15,9 @@ import { Effect } from "effect";
 import type {
   ChecklistDay,
   ChecklistStats,
+  GenerationNoticeKind,
   GenerationProgress,
+  GenerationWarningKind,
   Goal,
   HistoryDay,
   Reflection,
@@ -87,6 +89,13 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     const fetchContext = context.build().pipe(
       Effect.catchAll((err) =>
         Effect.logWarning(`context fetch failed (proceeding without): ${errorMessage(err)}`).pipe(
+          Effect.zipRight(
+            emit({
+              phase: "warning",
+              kind: "context-unavailable",
+              message: "Couldn't load today's context (weather, calendar); composing without it."
+            })
+          ),
           Effect.as([] as ContextBlock[])
         )
       )
@@ -159,6 +168,13 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
       }).pipe(
         Effect.catchAll((err) =>
           Effect.logWarning(`coach notes refresh failed (using previous): ${errorMessage(err)}`).pipe(
+            Effect.zipRight(
+              emit({
+                phase: "warning",
+                kind: "coach-notes-stale",
+                message: "Couldn't refresh coach notes; using the previous ones."
+              })
+            ),
             Effect.zipRight(memory.get().pipe(Effect.catchAll(() => Effect.succeed(null)))),
             Effect.map((m) => m?.markdown || null)
           )
@@ -191,6 +207,20 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           Effect.runSync(emit({ phase: "goal-status", goalId: goal.id, label }));
         };
 
+        // Capture a search degradation so it persists on the row (drives the
+        // "no link" badge). A runtime search *failure* is also surfaced as a
+        // transient toast; a missing provider is a steady config state, so it
+        // gets the badge but no interruptive notice every single task.
+        let searchWarning: GenerationWarningKind | null = null;
+        const warningCallback = (kind: GenerationNoticeKind, message: string) => {
+          if (kind === "search-unavailable" || kind === "search-failed") {
+            searchWarning = kind;
+          }
+          if (kind === "search-failed") {
+            Effect.runSync(emit({ phase: "warning", goalId: goal.id, kind, message }));
+          }
+        };
+
         const draft = yield* composer.compose({
           goal,
           history,
@@ -201,10 +231,16 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           coachNotes: coach.notes,
           stats: coach.stats,
           extraNote,
-          onStatus: statusCallback
+          onStatus: statusCallback,
+          onWarning: warningCallback
         });
 
-        const inserted = yield* suggestions.insert({ goalId: goal.id, date, draft });
+        const inserted = yield* suggestions.insert({
+          goalId: goal.id,
+          date,
+          draft,
+          warning: searchWarning
+        });
         yield* emit({ phase: "goal-done", goalId: goal.id, suggestion: inserted });
         return inserted;
       }).pipe(
@@ -246,7 +282,15 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
         yield* briefs.upsert(date, brief);
       }).pipe(
         Effect.catchAll((err) =>
-          Effect.logWarning(`brief composition failed (skipping): ${errorMessage(err)}`)
+          Effect.logWarning(`brief composition failed (skipping): ${errorMessage(err)}`).pipe(
+            Effect.zipRight(
+              emit({
+                phase: "warning",
+                kind: "brief-unavailable",
+                message: "Couldn't write today's brief."
+              })
+            )
+          )
         )
       );
 
