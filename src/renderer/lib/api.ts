@@ -39,10 +39,6 @@ async function apiFetch<T>(
   return (await res.json()) as T;
 }
 
-function openRedirect(url: string | null): void {
-  if (!url) return;
-  window.open(url, "_blank", "noopener,noreferrer");
-}
 
 export function createHttpClient(): KomorebiApi {
   const navigateHandlers = new Set<(view: string) => void>();
@@ -84,23 +80,6 @@ export function createHttpClient(): KomorebiApi {
   return {
     getVersion: () => apiFetch<string>("/api/version"),
 
-    integrations: {
-      list: () => apiFetch("/api/integrations"),
-      refresh: () => apiFetch("/api/integrations/refresh", { method: "POST" }),
-      beginConnect: async (slug) => {
-        const result = await apiFetch<{ connectionId: string; redirectUrl: string | null }>(
-          `/api/integrations/${encodeURIComponent(slug)}/connect`,
-          { method: "POST" }
-        );
-        openRedirect(result.redirectUrl);
-        return result;
-      },
-      awaitConnect: (slug) =>
-        apiFetch(`/api/integrations/${encodeURIComponent(slug)}/await`, { method: "POST" }),
-      disconnect: (slug) =>
-        apiFetch(`/api/integrations/${encodeURIComponent(slug)}/disconnect`, { method: "POST" })
-    },
-
     goals: {
       list: () => apiFetch("/api/goals"),
       add: (input) => apiFetch("/api/goals", { method: "POST", body: JSON.stringify(input) }),
@@ -119,6 +98,7 @@ export function createHttpClient(): KomorebiApi {
       regenerate: () => apiFetch("/api/checklist/regenerate", { method: "POST" }),
       retryGoal: (goalId) =>
         apiFetch(`/api/checklist/retry/${encodeURIComponent(goalId)}`, { method: "POST" }),
+      stats: () => apiFetch("/api/checklist/stats"),
       onProgress: (handler) => {
         progressHandlers.add(handler);
         ensureProgressSource();

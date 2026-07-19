@@ -6,7 +6,7 @@ import { startServer } from "./http";
 
 // Prefer IPv4 for outbound connections in hosted/self-hosted environments that lack working
 // IPv6 egress, so Node's default Happy Eyeballs (IPv6-first) makes outbound
-// fetch (weather, Composio, …) hang until ETIMEDOUT. ipv4first avoids that.
+// fetch (weather, Ollama, …) hang until ETIMEDOUT. ipv4first avoids that.
 dns.setDefaultResultOrder("ipv4first");
 
 loadEnv();

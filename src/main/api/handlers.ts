@@ -8,12 +8,10 @@ import type { GoalAddInput, GoalUpdateInput, SettingsUpdate } from "~/shared/api
 import type {
   AppSettings,
   ChecklistDay,
-  ConnectStart,
-  ConnectionSummary,
+  ChecklistStats,
   GenerationProgress,
   Goal,
   HistoryDay,
-  IntegrationView,
   LinkPreview as LinkPreviewData,
   Reflection,
   Suggestion,
@@ -23,7 +21,6 @@ import type {
 } from "~/shared/schema";
 import { Checklist } from "../checklist/Checklist";
 import { Progress, type ProgressListener } from "../checklist/Progress";
-import { Integrations } from "../integrations/Integrations";
 import { LinkPreview } from "../links/LinkPreview";
 import { GoalsRepo } from "../repo/Goals";
 import { ReflectionsRepo } from "../repo/Reflections";
@@ -33,18 +30,6 @@ import { Weather } from "../weather/Weather";
 import { run } from "../runtime";
 
 export const handlers = {
-  integrations: {
-    list: (): Promise<IntegrationView[]> =>
-      run(Integrations.pipe(Effect.flatMap((s) => s.list()))),
-    refresh: (): Promise<ConnectionSummary[]> =>
-      run(Integrations.pipe(Effect.flatMap((s) => s.refresh()))),
-    beginConnect: (slug: string): Promise<ConnectStart> =>
-      run(Integrations.pipe(Effect.flatMap((s) => s.beginConnect(slug)))),
-    awaitConnect: (slug: string): Promise<ConnectionSummary | null> =>
-      run(Integrations.pipe(Effect.flatMap((s) => s.awaitConnect(slug)))),
-    disconnect: (slug: string): Promise<void> =>
-      run(Integrations.pipe(Effect.flatMap((s) => s.disconnect(slug))))
-  },
   goals: {
     list: (): Promise<Goal[]> => run(GoalsRepo.pipe(Effect.flatMap((s) => s.list()))),
     add: (input: GoalAddInput): Promise<Goal> =>
@@ -61,7 +46,9 @@ export const handlers = {
     regenerate: (): Promise<ChecklistDay> =>
       run(Checklist.pipe(Effect.flatMap((s) => s.regenerateDay()))),
     retryGoal: (goalId: string): Promise<Suggestion> =>
-      run(Checklist.pipe(Effect.flatMap((s) => s.retryGoal(goalId))))
+      run(Checklist.pipe(Effect.flatMap((s) => s.retryGoal(goalId)))),
+    stats: (): Promise<ChecklistStats> =>
+      run(Checklist.pipe(Effect.flatMap((s) => s.stats())))
   },
   suggestions: {
     get: (id: string): Promise<Suggestion | null> =>

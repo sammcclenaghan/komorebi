@@ -177,6 +177,18 @@ export const searchQueriesJsonSchema = {
   required: ["queries"]
 } as const;
 
+/** Daily coach brief output: {"brief": string} */
+export const DayBriefSchema = Schema.Struct({
+  brief: TrimmedNonEmpty
+});
+export const dayBriefJsonSchema = {
+  type: "object",
+  properties: {
+    brief: { type: "string" }
+  },
+  required: ["brief"]
+} as const;
+
 // ---------------------------------------------------------------------------
 // Reflections
 // ---------------------------------------------------------------------------
@@ -234,6 +246,26 @@ export type ChecklistDay = {
   date: string;
   items: Suggestion[];
   hasGoals: boolean;
+  /**
+   * The day's coach brief — a short morning note synthesizing the plan,
+   * momentum, and conditions. null until a generation pass has composed one
+   * (or when the model was unreachable; the checklist itself never blocks
+   * on it).
+   */
+  brief: string | null;
+};
+
+/** Completion momentum, computed from the full suggestion history. */
+export type ChecklistStats = {
+  /**
+   * Consecutive days with at least one completed action, counting back from
+   * today. An empty today doesn't break the streak until the day is over —
+   * it counts from yesterday instead.
+   */
+  currentStreak: number;
+  bestStreak: number;
+  totalDone: number;
+  doneToday: number;
 };
 
 export type HistoryDay = {
@@ -256,43 +288,6 @@ export type GenerationProgress =
   | { phase: "goal-done"; goalId: string; suggestion: Suggestion }
   | { phase: "goal-error"; goalId: string; message: string }
   | { phase: "done"; items: Suggestion[] };
-
-// ---------------------------------------------------------------------------
-// Integrations DTOs
-// ---------------------------------------------------------------------------
-
-export type ToolkitSummary = {
-  slug: string;
-  name: string;
-  description: string | null;
-  logo: string | null;
-  categories: string[];
-  authSchemes: string[];
-  managedAuthSchemes: string[];
-  isLocal: boolean;
-  noAuth: boolean;
-};
-
-export type ConnectionSummary = {
-  id: string;
-  toolkitSlug: string;
-  status: string;
-  authConfigId: string | null;
-  createdAt: string | null;
-};
-
-export type IntegrationStatus = "connected" | "available" | "unsupported";
-
-export type IntegrationView = {
-  toolkit: ToolkitSummary;
-  status: IntegrationStatus;
-  connection: ConnectionSummary | null;
-};
-
-export type ConnectStart = {
-  connectionId: string;
-  redirectUrl: string | null;
-};
 
 // ---------------------------------------------------------------------------
 // Weather / link preview DTOs

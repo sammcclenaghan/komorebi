@@ -8,9 +8,9 @@ import { Checklist } from "./checklist/Checklist";
 import { Progress } from "./checklist/Progress";
 import { Context } from "./context/Context";
 import { Db } from "./db/Db";
-import { Integrations } from "./integrations/Integrations";
 import { LinkPreview } from "./links/LinkPreview";
 import { Composer } from "./llm/Composer";
+import { BriefsRepo } from "./repo/Briefs";
 import { GoalsRepo } from "./repo/Goals";
 import { ReflectionsRepo } from "./repo/Reflections";
 import { SettingsRepo } from "./repo/Settings";
@@ -23,9 +23,9 @@ const AppLayer = Layer.mergeAll(
   SuggestionsRepo.Default,
   ReflectionsRepo.Default,
   SettingsRepo.Default,
+  BriefsRepo.Default,
   Composer.Default,
   Context.Default,
-  Integrations.Default,
   Weather.Default,
   LinkPreview.Default,
   Progress.Default,

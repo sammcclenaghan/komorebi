@@ -11,18 +11,6 @@ import { rescheduleScheduler } from "./scheduler";
 export function registerIpcHandlers(): void {
   ipcMain.handle("app:version", () => app.getVersion());
 
-  ipcMain.handle("integrations:list", () => handlers.integrations.list());
-  ipcMain.handle("integrations:refresh", () => handlers.integrations.refresh());
-  ipcMain.handle("integrations:begin-connect", (_e, slug: string) =>
-    handlers.integrations.beginConnect(slug)
-  );
-  ipcMain.handle("integrations:await-connect", (_e, slug: string) =>
-    handlers.integrations.awaitConnect(slug)
-  );
-  ipcMain.handle("integrations:disconnect", (_e, slug: string) =>
-    handlers.integrations.disconnect(slug)
-  );
-
   ipcMain.handle("goals:list", () => handlers.goals.list());
   ipcMain.handle("goals:add", (_e, input: GoalAddInput) => handlers.goals.add(input));
   ipcMain.handle("goals:update", (_e, input: GoalUpdateInput) => handlers.goals.update(input));
@@ -34,6 +22,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("checklist:retry-goal", (_e, goalId: string) =>
     handlers.checklist.retryGoal(goalId)
   );
+  ipcMain.handle("checklist:stats", () => handlers.checklist.stats());
 
   ipcMain.handle("history:list", (_e, daysBack?: number) => handlers.history.list(daysBack));
 

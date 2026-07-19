@@ -37,27 +37,6 @@ export async function handleApi(
     return appVersion;
   }
 
-  if (method === "GET" && pathname === "/api/integrations") return handlers.integrations.list();
-  if (method === "POST" && pathname === "/api/integrations/refresh") {
-    return handlers.integrations.refresh();
-  }
-
-  if (method === "POST" && pathname.startsWith("/api/integrations/") && pathname.endsWith("/connect")) {
-    const slug = decodeURIComponent(pathname.slice("/api/integrations/".length, -"/connect".length));
-    return handlers.integrations.beginConnect(slug);
-  }
-
-  if (method === "POST" && pathname.startsWith("/api/integrations/") && pathname.endsWith("/await")) {
-    const slug = decodeURIComponent(pathname.slice("/api/integrations/".length, -"/await".length));
-    return handlers.integrations.awaitConnect(slug);
-  }
-
-  if (method === "POST" && pathname.startsWith("/api/integrations/") && pathname.endsWith("/disconnect")) {
-    const slug = decodeURIComponent(pathname.slice("/api/integrations/".length, -"/disconnect".length));
-    await handlers.integrations.disconnect(slug);
-    return { ok: true };
-  }
-
   if (method === "GET" && pathname === "/api/goals") return handlers.goals.list();
   if (method === "POST" && pathname === "/api/goals") {
     return handlers.goals.add(body as GoalAddInput);
@@ -74,6 +53,7 @@ export async function handleApi(
   }
 
   if (method === "GET" && pathname === "/api/checklist/today") return handlers.checklist.today();
+  if (method === "GET" && pathname === "/api/checklist/stats") return handlers.checklist.stats();
   if (method === "POST" && pathname === "/api/checklist/generate") {
     return handlers.checklist.generate();
   }

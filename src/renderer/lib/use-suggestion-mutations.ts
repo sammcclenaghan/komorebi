@@ -53,6 +53,8 @@ export function useSuggestionMutations(id: string) {
   function settle() {
     void queryClient.invalidateQueries({ queryKey: TODAY_KEY });
     void queryClient.invalidateQueries({ queryKey: ["suggestion", id] });
+    // Completions move the streak — keep the header chip honest.
+    void queryClient.invalidateQueries({ queryKey: ["checklist", "stats"] });
   }
 
   const setStatus = useMutation({

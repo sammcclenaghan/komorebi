@@ -7,6 +7,7 @@ import {
   CloudLightning,
   CloudRain,
   CloudSnow,
+  Flame,
   Loader2,
   Moon,
   Plus,
@@ -169,10 +170,16 @@ export function Today({ onOpenSuggestion, progress }: Props) {
     refetchOnWindowFocus: false,
   });
 
+  const statsQuery = useQuery({
+    queryKey: ["checklist", "stats"],
+    queryFn: () => window.komorebi.checklist.stats(),
+  });
+
   const goals = goalsQuery.data ?? [];
   const activeGoals = goals.filter((g) => g.status === "active");
   const checklist = checklistQuery.data;
   const items = checklist?.items ?? [];
+  const streak = statsQuery.data?.currentStreak ?? 0;
 
   const goalsById = useMemo(() => {
     const map = new Map<string, Goal>();
@@ -257,7 +264,23 @@ export function Today({ onOpenSuggestion, progress }: Props) {
               {today}
             </span>
           </div>
+
+          {streak >= 2 && (
+            <div
+              className="flex items-center gap-1.5 text-[var(--color-ink-3)]"
+              title={`${streak} consecutive days with at least one task completed`}
+            >
+              <Flame className="h-3.5 w-3.5 text-[var(--color-accent-strong)]" strokeWidth={1.75} />
+              <span className="font-mono text-2xs uppercase tracking-[0.22em]">
+                {streak}-day streak
+              </span>
+            </div>
+          )}
         </header>
+
+        {checklist?.brief && !isLoading && !noGoals && (
+          <CoachBrief text={checklist.brief} />
+        )}
 
         {isLoading ? (
           <LoadingState />
@@ -295,6 +318,30 @@ export function Today({ onOpenSuggestion, progress }: Props) {
 
       <GoalModal open={showAddGoal} onClose={() => setShowAddGoal(false)} />
     </>
+  );
+}
+
+/** The morning coach note — composed alongside the day's checklist. */
+function CoachBrief({ text }: { text: string }) {
+  return (
+    <aside
+      className={cn(
+        "mt-8 flex items-start gap-3 rounded-xl border border-[var(--color-accent)]/25 bg-[var(--color-accent-tint)]/60 px-4 py-3.5"
+      )}
+      style={{ animation: "fade-up 320ms backwards ease-out" }}
+    >
+      <Sunrise
+        className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-accent-strong)]"
+        strokeWidth={1.5}
+        aria-hidden
+      />
+      <div className="min-w-0">
+        <div className="font-mono text-2xs uppercase tracking-[0.22em] text-[var(--color-accent-strong)]/80">
+          this morning
+        </div>
+        <p className="mt-1 text-base leading-relaxed text-[var(--color-ink)]">{text}</p>
+      </div>
+    </aside>
   );
 }
 

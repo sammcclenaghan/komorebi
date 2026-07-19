@@ -9,13 +9,11 @@
 import type {
   AppSettings,
   ChecklistDay,
-  ConnectStart,
-  ConnectionSummary,
+  ChecklistStats,
   GenerationProgress,
   Goal,
   GoalPriority,
   HistoryDay,
-  IntegrationView,
   LinkPreview,
   Reflection,
   Suggestion,
@@ -45,13 +43,6 @@ export type SettingsUpdate = {
 
 export type KomorebiApi = {
   getVersion: () => Promise<string>;
-  integrations: {
-    list: () => Promise<IntegrationView[]>;
-    refresh: () => Promise<ConnectionSummary[]>;
-    beginConnect: (slug: string) => Promise<ConnectStart>;
-    awaitConnect: (slug: string) => Promise<ConnectionSummary | null>;
-    disconnect: (slug: string) => Promise<void>;
-  };
   goals: {
     list: () => Promise<Goal[]>;
     add: (input: GoalAddInput) => Promise<Goal>;
@@ -68,6 +59,8 @@ export type KomorebiApi = {
      * drops off the list — it can always be retried on its own.
      */
     retryGoal: (goalId: string) => Promise<Suggestion>;
+    /** Completion momentum: current/best streak and totals. */
+    stats: () => Promise<ChecklistStats>;
     onProgress: (handler: (event: GenerationProgress) => void) => () => void;
   };
   suggestions: {

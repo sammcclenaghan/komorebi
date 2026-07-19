@@ -31,7 +31,6 @@ Set these environment variables in Arcane:
 
 ```env
 OLLAMA_WEB_SEARCH_API_KEY=your-ollama-api-key
-COMPOSIO_API_KEY=
 KOMOREBI_API_TOKEN=
 ```
 

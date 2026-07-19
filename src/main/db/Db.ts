@@ -70,6 +70,11 @@ const SCHEMA: string[] = [
     id INTEGER PRIMARY KEY DEFAULT 1,
     data TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS day_briefs (
+    date TEXT PRIMARY KEY,
+    markdown TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
   `CREATE INDEX IF NOT EXISTS idx_suggestions_date ON suggestions(date)`,
   `CREATE INDEX IF NOT EXISTS idx_suggestions_goal ON suggestions(goal_id, date)`,
   `CREATE INDEX IF NOT EXISTS idx_reflections_suggestion ON reflections(suggestion_id)`

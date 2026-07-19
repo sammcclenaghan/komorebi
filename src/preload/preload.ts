@@ -4,13 +4,6 @@ import type { GenerationProgress } from "~/shared/schema";
 
 const api: KomorebiApi = {
   getVersion: () => ipcRenderer.invoke("app:version"),
-  integrations: {
-    list: () => ipcRenderer.invoke("integrations:list"),
-    refresh: () => ipcRenderer.invoke("integrations:refresh"),
-    beginConnect: (slug) => ipcRenderer.invoke("integrations:begin-connect", slug),
-    awaitConnect: (slug) => ipcRenderer.invoke("integrations:await-connect", slug),
-    disconnect: (slug) => ipcRenderer.invoke("integrations:disconnect", slug)
-  },
   goals: {
     list: () => ipcRenderer.invoke("goals:list"),
     add: (input) => ipcRenderer.invoke("goals:add", input),
@@ -22,6 +15,7 @@ const api: KomorebiApi = {
     generate: () => ipcRenderer.invoke("checklist:generate"),
     regenerate: () => ipcRenderer.invoke("checklist:regenerate"),
     retryGoal: (goalId) => ipcRenderer.invoke("checklist:retry-goal", goalId),
+    stats: () => ipcRenderer.invoke("checklist:stats"),
     onProgress: (handler) => {
       const listener = (_: unknown, payload: GenerationProgress) => handler(payload);
       ipcRenderer.on("checklist:progress", listener);

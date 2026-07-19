@@ -16,10 +16,13 @@
  */
 import { Data, Effect, Schema } from "effect";
 import {
+  DayBriefSchema,
   SearchQueriesSchema,
   SuggestionDraftSchema,
+  dayBriefJsonSchema,
   searchQueriesJsonSchema,
   suggestionDraftJsonSchema,
+  type ChecklistStats,
   type Reflection,
   type Suggestion,
   type SuggestionDraft
@@ -62,6 +65,17 @@ Rules:
 - Prefer concrete nouns and specifics over filler words like "best" or "how to".
 - Each query should target a different angle when more than one is useful.
 - Respond with a JSON object: {"queries": string[]}`;
+
+const BRIEF_SYSTEM_INSTRUCTIONS = `You are Komorebi, a warm but no-nonsense personal coach. Each morning you write a short brief for the user's day.
+
+Rules:
+- 2-4 sentences, 60 words max. Plain conversational language — no headers, no lists, no URLs, no emoji.
+- Ground it in what's actually in front of them: today's tasks, yesterday's outcome, the weather if it matters.
+- Acknowledge momentum honestly. A finished yesterday earns a nod; a skipped or empty one gets a fresh start, not guilt.
+- If one task is clearly the day's anchor, say which and why. Give them a place to start.
+- Never invent tasks, events, or facts that aren't in the input.
+
+Respond with a JSON object: {"brief": string}`;
 
 /** How many times the drafting chat may run in total (1 try + N corrections). */
 const MAX_DRAFT_ATTEMPTS = 3;
@@ -209,9 +223,83 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
         return sanitizeUrls(rawDraft, results);
       });
 
-    return { compose } as const;
+    /**
+     * The morning coach note. One attempt, no search, no retry ceremony —
+     * callers treat a failure as "no brief today" rather than a failed day.
+     */
+    const composeBrief = (input: BriefInput): Effect.Effect<string, LlmError | DraftInvalidError> =>
+      Effect.gen(function* () {
+        const model = input.model ?? defaultModel();
+        const raw = yield* ollama.chat({
+          model,
+          system: BRIEF_SYSTEM_INSTRUCTIONS,
+          messages: [{ role: "user", content: buildBriefPrompt(input) }],
+          format: dayBriefJsonSchema,
+          temperature: 0.6
+        });
+
+        const decoded = decodeJson(DayBriefSchema)(raw);
+        if (decoded._tag === "Left") {
+          return yield* Effect.fail(
+            new DraftInvalidError({
+              message: `The model produced an invalid brief: ${decoded.left}`,
+              raw
+            })
+          );
+        }
+        // Belt and braces: the prompt forbids URLs, but never render one the
+        // model slipped in anyway.
+        return decoded.right.brief.replace(/https?:\/\/\S+/g, "").trim();
+      });
+
+    return { compose, composeBrief } as const;
   })
 }) {}
+
+export type BriefInput = {
+  date: string;
+  /** Today's composed checklist. */
+  today: Suggestion[];
+  /** Yesterday's items, for the momentum read. */
+  yesterday: Suggestion[];
+  stats: ChecklistStats;
+  contextBlocks: ContextBlock[];
+  model?: string;
+};
+
+function buildBriefPrompt(input: BriefInput): string {
+  const todayBlock = input.today.length
+    ? input.today
+        .map((s) => `- ${s.title}${s.estimatedMinutes ? ` (~${s.estimatedMinutes}m)` : ""}`)
+        .join("\n")
+    : "(no tasks composed yet)";
+
+  const yesterdayBlock = input.yesterday.length
+    ? input.yesterday.map((s) => `- [${s.status}] ${s.title}`).join("\n")
+    : "(no tasks yesterday)";
+
+  const contextSection = input.contextBlocks.length
+    ? `\n\n## Conditions\n\n${input.contextBlocks.map((b) => `${b.label}: ${b.body}`).join("\n")}`
+    : "";
+
+  const streakLine =
+    input.stats.currentStreak >= 2
+      ? `Current streak: ${input.stats.currentStreak} days with at least one task completed.`
+      : `Total tasks completed so far: ${input.stats.totalDone}.`;
+
+  return `Today's date: ${input.date}
+${streakLine}${contextSection}
+
+## Today's tasks
+
+${todayBlock}
+
+## Yesterday
+
+${yesterdayBlock}
+
+Write the brief now.`;
+}
 
 // ---------------------------------------------------------------------------
 // Parsing helpers

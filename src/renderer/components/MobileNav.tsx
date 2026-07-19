@@ -1,4 +1,4 @@
-import { History, Plug, Settings, Sunrise, Target } from "lucide-react";
+import { History, Settings, Sunrise, Target } from "lucide-react";
 import { cn } from "~/lib/cn";
 import type { View } from "./Sidebar";
 
@@ -12,7 +12,6 @@ const ITEMS: NavItem[] = [
   { id: "today", label: "Today", Icon: Sunrise },
   { id: "history", label: "History", Icon: History },
   { id: "goals", label: "Goals", Icon: Target },
-  { id: "integrations", label: "Integrations", Icon: Plug },
   { id: "settings", label: "Settings", Icon: Settings }
 ];
 

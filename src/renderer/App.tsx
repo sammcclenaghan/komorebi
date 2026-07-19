@@ -5,7 +5,6 @@ import { MobileNav } from "./components/MobileNav";
 import { Today } from "./pages/Today";
 import { History } from "./pages/History";
 import { Goals } from "./pages/Goals";
-import { Integrations } from "./pages/Integrations";
 import { Settings } from "./pages/Settings";
 import { SuggestionDetail } from "./pages/SuggestionDetail";
 import { IconButton } from "./components/ui/IconButton";
@@ -14,7 +13,7 @@ import { useChecklistProgress } from "./lib/use-checklist-progress";
 import { isWebMode } from "./lib/api";
 import { cn } from "~/lib/cn";
 
-const KNOWN_VIEWS: View[] = ["today", "history", "goals", "integrations", "settings"];
+const KNOWN_VIEWS: View[] = ["today", "history", "goals", "settings"];
 
 export function App() {
   const [view, setView] = useState<View>("today");
@@ -102,8 +101,6 @@ export function App() {
             <History onOpenSuggestion={setOpenSuggestionId} />
           ) : view === "goals" ? (
             <Goals />
-          ) : view === "integrations" ? (
-            <Integrations />
           ) : (
             <Settings />
           )}

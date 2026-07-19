@@ -1,7 +1,7 @@
-import { History, Plug, Settings, Sunrise, Target } from "lucide-react";
+import { History, Settings, Sunrise, Target } from "lucide-react";
 import { cn } from "~/lib/cn";
 
-export type View = "today" | "history" | "goals" | "integrations" | "settings";
+export type View = "today" | "history" | "goals" | "settings";
 
 type NavItem = {
   id: View;
@@ -14,7 +14,6 @@ const PRIMARY: NavItem[] = [
   { id: "today", label: "Today", Icon: Sunrise },
   { id: "history", label: "History", Icon: History },
   { id: "goals", label: "Goals", Icon: Target },
-  { id: "integrations", label: "Integrations", Icon: Plug },
 ];
 
 const SETTINGS_ITEM: NavItem = {

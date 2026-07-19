@@ -14,6 +14,7 @@
 import { Effect } from "effect";
 import type {
   ChecklistDay,
+  ChecklistStats,
   GenerationProgress,
   Goal,
   HistoryDay,
@@ -22,14 +23,14 @@ import type {
 } from "~/shared/schema";
 import { Composer, type HistoryItem } from "../llm/Composer";
 import { Context } from "../context/Context";
-import { Integrations } from "../integrations/Integrations";
-import { getUserId } from "../integrations/Composio";
+import { BriefsRepo } from "../repo/Briefs";
 import { GoalsRepo, GoalNotFoundError } from "../repo/Goals";
 import { ReflectionsRepo } from "../repo/Reflections";
 import { SettingsRepo } from "../repo/Settings";
 import { SuggestionsRepo, SuggestionNotFoundError } from "../repo/Suggestions";
 import { Progress } from "./Progress";
 import { selectGoalsForToday } from "./selection";
+import { computeStats, prevDate } from "./stats";
 import type { ContextBlock } from "../context/types";
 
 /** YYYY-MM-DD in the user's local timezone. */
@@ -57,9 +58,9 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     SuggestionsRepo.Default,
     ReflectionsRepo.Default,
     SettingsRepo.Default,
+    BriefsRepo.Default,
     Composer.Default,
     Context.Default,
-    Integrations.Default,
     Progress.Default
   ],
   effect: Effect.gen(function* () {
@@ -67,9 +68,9 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     const suggestions = yield* SuggestionsRepo;
     const reflections = yield* ReflectionsRepo;
     const settings = yield* SettingsRepo;
+    const briefs = yield* BriefsRepo;
     const composer = yield* Composer;
     const context = yield* Context;
-    const integrations = yield* Integrations;
     const progress = yield* Progress;
 
     // Serializes generation passes. Combined with the coverage re-check at
@@ -80,13 +81,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     const emit = (event: GenerationProgress) => progress.emit(event);
 
     /** Best-effort context assembly — never fails a generation. */
-    const fetchContext = Effect.gen(function* () {
-      const userId = getUserId();
-      const connections = yield* integrations
-        .connections()
-        .pipe(Effect.catchAll(() => Effect.succeed([])));
-      return yield* context.build({ userId, connections });
-    }).pipe(
+    const fetchContext = context.build().pipe(
       Effect.catchAll((err) =>
         Effect.logWarning(`context fetch failed (proceeding without): ${errorMessage(err)}`).pipe(
           Effect.as([] as ContextBlock[])
@@ -145,9 +140,41 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
      * failure returns the successes (the per-goal "goal-error" events carry
      * the details); only a total wipeout fails the pass.
      */
+    /**
+     * Compose the morning coach note from what actually landed today.
+     * Strictly best-effort: any failure logs and yields no brief — it can
+     * never fail (or delay-fail) the checklist itself.
+     */
+    const composeDayBrief = (
+      date: string,
+      items: Suggestion[],
+      contextBlocks: ContextBlock[]
+    ): Effect.Effect<void> =>
+      Effect.gen(function* () {
+        if (items.length === 0) return;
+        const { model } = yield* settings.get();
+        const all = yield* suggestions.listAll();
+        const yesterday = all.filter((s) => s.date === prevDate(date));
+        const brief = yield* composer.composeBrief({
+          date,
+          today: items,
+          yesterday,
+          stats: computeStats(all, date),
+          contextBlocks,
+          model: model ?? undefined
+        });
+        yield* briefs.upsert(date, brief);
+      }).pipe(
+        Effect.catchAll((err) =>
+          Effect.logWarning(`brief composition failed (skipping): ${errorMessage(err)}`)
+        )
+      );
+
     const composeForGoals = (date: string, toGenerate: Goal[]) =>
       Effect.gen(function* () {
-        if (toGenerate.length === 0) return [] as Suggestion[];
+        if (toGenerate.length === 0) {
+          return { fresh: [] as Suggestion[], contextBlocks: [] as ContextBlock[] };
+        }
 
         const { model } = yield* settings.get();
 
@@ -179,7 +206,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           }
         }
 
-        return succeeded;
+        return { fresh: succeeded, contextBlocks };
       });
 
     /** Single-goal compose used by retry / skip / regenerate flows. */
@@ -206,12 +233,20 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     const today = () =>
       Effect.gen(function* () {
         const date = localDate();
-        const [items, activeGoals] = yield* Effect.all(
-          [suggestions.listForDate(date), goals.listActive()],
-          { concurrency: 2 }
+        const [items, activeGoals, brief] = yield* Effect.all(
+          [suggestions.listForDate(date), goals.listActive(), briefs.get(date)],
+          { concurrency: 3 }
         );
-        return { date, items, hasGoals: activeGoals.length > 0 } satisfies ChecklistDay;
+        return { date, items, hasGoals: activeGoals.length > 0, brief } satisfies ChecklistDay;
       });
+
+    const stats = (): Effect.Effect<ChecklistStats, never> =>
+      suggestions.listAll().pipe(
+        Effect.map((all) => computeStats(all, localDate())),
+        Effect.catchAll(() =>
+          Effect.succeed({ currentStreak: 0, bestStreak: 0, totalDone: 0, doneToday: 0 })
+        )
+      );
 
     /**
      * Generate one suggestion for each active goal that doesn't have one
@@ -228,7 +263,12 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           );
 
           if (activeGoals.length === 0) {
-            return { date, items: existing, hasGoals: false } satisfies ChecklistDay;
+            return {
+              date,
+              items: existing,
+              hasGoals: false,
+              brief: yield* briefs.get(date)
+            } satisfies ChecklistDay;
           }
 
           const alreadyCovered = new Set(
@@ -243,10 +283,15 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           const toGenerate = selectGoalsForToday(candidates, allSuggestions, candidates.length);
 
           if (toGenerate.length === 0) {
-            return { date, items: existing, hasGoals: true } satisfies ChecklistDay;
+            return {
+              date,
+              items: existing,
+              hasGoals: true,
+              brief: yield* briefs.get(date)
+            } satisfies ChecklistDay;
           }
 
-          const fresh = yield* composeForGoals(date, toGenerate).pipe(
+          const { fresh, contextBlocks } = yield* composeForGoals(date, toGenerate).pipe(
             // Progress listeners key off "done" to unstick the UI, so emit it
             // with whatever already exists before surfacing a total failure.
             Effect.tapError(() => emit({ phase: "done", items: existing }))
@@ -255,9 +300,20 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           const items = [...existing, ...fresh].sort((a, b) =>
             a.createdAt.localeCompare(b.createdAt)
           );
+
+          // Fresh tasks landed — write today's coach note before signaling
+          // completion (the rows are already on screen via goal-done events).
+          if (fresh.length > 0) {
+            yield* composeDayBrief(date, items, contextBlocks);
+          }
           yield* emit({ phase: "done", items });
 
-          return { date, items, hasGoals: true } satisfies ChecklistDay;
+          return {
+            date,
+            items,
+            hasGoals: true,
+            brief: yield* briefs.get(date)
+          } satisfies ChecklistDay;
         })
       );
 
@@ -272,23 +328,32 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           const date = localDate();
           const activeGoals = yield* goals.listActive();
           if (activeGoals.length === 0) {
-            return { date, items: [], hasGoals: false } satisfies ChecklistDay;
+            return { date, items: [], hasGoals: false, brief: null } satisfies ChecklistDay;
           }
 
           const removedIds = yield* suggestions.removeForDate(date);
           yield* reflections.removeForSuggestions(removedIds);
+          yield* briefs.remove(date);
 
           const allSuggestions = yield* suggestions.listAll();
           const toGenerate = selectGoalsForToday(activeGoals, allSuggestions, activeGoals.length);
 
-          const fresh = yield* composeForGoals(date, toGenerate).pipe(
+          const { fresh, contextBlocks } = yield* composeForGoals(date, toGenerate).pipe(
             Effect.tapError(() => emit({ phase: "done", items: [] }))
           );
 
           const items = [...fresh].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+          if (fresh.length > 0) {
+            yield* composeDayBrief(date, items, contextBlocks);
+          }
           yield* emit({ phase: "done", items });
 
-          return { date, items, hasGoals: true } satisfies ChecklistDay;
+          return {
+            date,
+            items,
+            hasGoals: true,
+            brief: yield* briefs.get(date)
+          } satisfies ChecklistDay;
         })
       );
 
@@ -407,6 +472,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
 
     return {
       today,
+      stats,
       generate,
       regenerateDay,
       retryGoal,
