@@ -130,6 +130,8 @@ export async function handleApi(
     return handlers.links.preview(target);
   }
 
+  if (method === "GET" && pathname === "/api/coach/memory") return handlers.coach.memory();
+
   if (method === "GET" && pathname === "/api/settings") return handlers.settings.get();
   if (method === "PATCH" && pathname === "/api/settings") {
     return handlers.settings.update(body as SettingsUpdate);

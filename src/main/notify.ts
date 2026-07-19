@@ -21,3 +21,23 @@ export function notifyChecklistReady(count: number): void {
   });
   notification.show();
 }
+
+/**
+ * Evening streak-saver: fired once when the day is nearly over, the streak
+ * is alive, and nothing has been completed yet. Clicking opens Today.
+ */
+export function notifyStreakAtRisk(streak: number): void {
+  if (!Notification.isSupported()) return;
+
+  const body =
+    streak >= 2
+      ? `Your ${streak}-day streak ends tonight. One small task keeps it alive.`
+      : "Nothing checked off yet today. One small task keeps the momentum.";
+
+  const notification = new Notification({ title: "Komorebi", body });
+  notification.on("click", () => {
+    const win = showMainWindow();
+    win.webContents.send("app:navigate", "today");
+  });
+  notification.show();
+}

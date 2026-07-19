@@ -57,6 +57,8 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("link:preview", (_e, url: string) => handlers.links.preview(url));
 
+  ipcMain.handle("coach:memory", () => handlers.coach.memory());
+
   ipcMain.handle("settings:get", () => handlers.settings.get());
   ipcMain.handle("settings:update", async (_e, update: SettingsUpdate) => {
     const next = await handlers.settings.update(update);

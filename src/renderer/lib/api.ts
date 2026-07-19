@@ -162,6 +162,10 @@ export function createHttpClient(): KomorebiApi {
         apiFetch("/api/settings", { method: "PATCH", body: JSON.stringify(update) })
     },
 
+    coach: {
+      memory: () => apiFetch("/api/coach/memory")
+    },
+
     onNavigate: (handler) => {
       navigateHandlers.add(handler);
       return () => navigateHandlers.delete(handler);

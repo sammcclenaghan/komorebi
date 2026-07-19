@@ -7,11 +7,18 @@
 import { powerMonitor } from "electron";
 import { handlers } from "./api/handlers";
 import { localDate } from "./checklist/Checklist";
-import { notifyChecklistReady } from "./notify";
+import { notifyChecklistReady, notifyStreakAtRisk } from "./notify";
 
 let timer: ReturnType<typeof setTimeout> | null = null;
+let nudgeTimer: ReturnType<typeof setTimeout> | null = null;
 let running = false;
 let started = false;
+
+/**
+ * When the evening streak-saver checks in. Late enough that a normal day has
+ * had its chance, early enough that "one small task" is still realistic.
+ */
+const NUDGE_TIME = "19:30";
 
 export function startScheduler(): void {
   if (!started) {
@@ -43,6 +50,56 @@ export async function rescheduleScheduler(): Promise<void> {
     now.getTime() < fireToday.getTime() ? fireToday : atTime(addDays(now, 1), schedule.time);
   const delay = Math.max(1000, next.getTime() - Date.now());
   timer = setTimeout(() => void onTimer(), delay);
+
+  scheduleStreakNudge(now, schedule.lastNudgeDate);
+}
+
+/**
+ * Arm the evening streak-saver. Catch-up applies here too: waking a laptop
+ * at 9pm should still check the streak, not wait until tomorrow evening.
+ */
+function scheduleStreakNudge(now: Date, lastNudgeDate: string | null): void {
+  const today = localDate(now);
+  const nudgeToday = atTime(now, NUDGE_TIME);
+
+  if (now.getTime() >= nudgeToday.getTime() && lastNudgeDate !== today) {
+    void runStreakNudge();
+  }
+
+  const next =
+    now.getTime() < nudgeToday.getTime() ? nudgeToday : atTime(addDays(now, 1), NUDGE_TIME);
+  const delay = Math.max(1000, next.getTime() - Date.now());
+  nudgeTimer = setTimeout(() => {
+    void runStreakNudge().then(() => rescheduleScheduler());
+  }, delay);
+}
+
+/**
+ * Fire the streak-saver if the day warrants it: streak alive (or history
+ * exists), nothing completed yet, not already nudged today. Never throws —
+ * a failed check must not kill the timers.
+ */
+async function runStreakNudge(): Promise<void> {
+  try {
+    const today = localDate();
+    const { schedule } = await handlers.settings.get();
+    if (!schedule.enabled || schedule.lastNudgeDate === today) return;
+
+    const stats = await handlers.checklist.stats();
+    // Only speak up when there's something to protect: a live streak and an
+    // empty day. (currentStreak counts back from yesterday when today is
+    // empty, so >=1 means the streak survives only if something lands today.)
+    if (stats.doneToday > 0 || stats.currentStreak < 1) return;
+
+    // Nothing to do if there's nothing on the list to complete.
+    const day = await handlers.checklist.today();
+    if (!day.items.some((s) => s.status === "pending" || s.status === "in_progress")) return;
+
+    notifyStreakAtRisk(stats.currentStreak);
+    await handlers.settings.update({ schedule: { lastNudgeDate: today } });
+  } catch (err) {
+    console.error("[scheduler] streak nudge failed:", err);
+  }
 }
 
 async function onTimer(): Promise<void> {
@@ -83,6 +140,10 @@ function clearTimer(): void {
   if (timer) {
     clearTimeout(timer);
     timer = null;
+  }
+  if (nudgeTimer) {
+    clearTimeout(nudgeTimer);
+    nudgeTimer = null;
   }
 }
 

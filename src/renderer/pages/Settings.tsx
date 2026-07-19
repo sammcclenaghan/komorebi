@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@base-ui/react/switch";
-import { AlertCircle, AlertTriangle, Bell, Cpu, Loader2, Monitor, Moon, Palette, RotateCw, Settings as SettingsIcon, Sun } from "lucide-react";
+import { AlertCircle, AlertTriangle, Bell, BookOpen, Cpu, Loader2, Monitor, Moon, Palette, RotateCw, Settings as SettingsIcon, Sun } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/Modal";
@@ -35,9 +35,15 @@ export function Settings() {
 
   const [confirmingRedo, setConfirmingRedo] = useState(false);
 
+  const memoryQuery = useQuery({
+    queryKey: ["coach", "memory"],
+    queryFn: () => window.komorebi.coach.memory()
+  });
+
   const schedule = settingsQuery.data?.schedule;
   const theme = settingsQuery.data?.theme;
   const model = settingsQuery.data?.model ?? null;
+  const profile = settingsQuery.data?.profile ?? null;
 
   return (
     <div className="page-shell">
@@ -117,6 +123,58 @@ export function Settings() {
                 <span className="text-xs text-[var(--color-danger)]">
                   Couldn't save. Try again.
                 </span>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-5 py-4">
+            <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
+              <BookOpen className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span className="font-mono text-2xs uppercase tracking-[0.2em]">
+                your coach
+              </span>
+            </div>
+
+            <div className="mt-4 border-t border-[var(--color-rule)] pt-4">
+              <div className="text-base font-medium text-[var(--color-ink)]">
+                What you want, in your own words
+              </div>
+              <p className="mt-1 text-sm leading-relaxed text-[var(--color-ink-2)]">
+                Priorities, constraints, taste — "I want to ship a game by December, I only
+                have evenings free, I learn by building, keep tasks under 30 minutes."
+                Every task is composed with this in front of the model, above everything
+                it infers from your history.
+              </p>
+              <ProfileField
+                value={profile}
+                disabled={update.isPending}
+                onCommit={(next) => update.mutate({ profile: next })}
+              />
+            </div>
+
+            <div className="mt-4 border-t border-[var(--color-rule)] pt-4">
+              <div className="text-base font-medium text-[var(--color-ink)]">
+                What your coach has learned
+              </div>
+              <p className="mt-1 text-sm leading-relaxed text-[var(--color-ink-2)]">
+                Distilled automatically — at most once a day — from your ratings, skip
+                reasons, and notes, then fed into every generation. It updates itself as
+                your feedback accumulates.
+              </p>
+              {memoryQuery.data?.markdown ? (
+                <div className="mt-3 rounded-lg border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3">
+                  <p className="whitespace-pre-line text-sm leading-relaxed text-[var(--color-ink-2)]">
+                    {memoryQuery.data.markdown}
+                  </p>
+                  <div className="mt-2 font-mono text-2xs uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
+                    last updated {memoryQuery.data.updatedDate}
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm italic text-[var(--color-ink-3)]">
+                  Nothing yet — rate, skip, and leave notes on a few tasks and the coach
+                  will start taking notes with tomorrow's checklist.
+                </p>
               )}
             </div>
           </section>
@@ -283,6 +341,57 @@ function ThemePicker({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function ProfileField({
+  value,
+  disabled,
+  onCommit
+}: {
+  value: string | null;
+  disabled?: boolean;
+  onCommit: (next: string) => void;
+}) {
+  const [draft, setDraft] = useState(value ?? "");
+
+  // Keep the textarea in sync when the saved value changes elsewhere.
+  useEffect(() => {
+    setDraft(value ?? "");
+  }, [value]);
+
+  const dirty = draft.trim() !== (value ?? "");
+
+  return (
+    <div className="mt-3">
+      <textarea
+        value={draft}
+        disabled={disabled}
+        rows={4}
+        maxLength={2000}
+        placeholder="Tell your coach what you actually want…"
+        onChange={(e) => setDraft(e.target.value)}
+        className="input resize-y bg-[var(--color-panel)]"
+      />
+      <div className="mt-2 flex items-center justify-end gap-2">
+        {dirty && (
+          <button
+            onClick={() => setDraft(value ?? "")}
+            disabled={disabled}
+            className="pressable text-xs text-[var(--color-ink-3)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]"
+          >
+            Discard
+          </button>
+        )}
+        <Button
+          size="sm"
+          disabled={!dirty || disabled}
+          onClick={() => onCommit(draft.trim())}
+        >
+          Save
+        </Button>
+      </div>
     </div>
   );
 }

@@ -24,6 +24,7 @@ import type {
 import { Composer, type HistoryItem } from "../llm/Composer";
 import { Context } from "../context/Context";
 import { BriefsRepo } from "../repo/Briefs";
+import { MemoryRepo } from "../repo/Memory";
 import { GoalsRepo, GoalNotFoundError } from "../repo/Goals";
 import { ReflectionsRepo } from "../repo/Reflections";
 import { SettingsRepo } from "../repo/Settings";
@@ -59,6 +60,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     ReflectionsRepo.Default,
     SettingsRepo.Default,
     BriefsRepo.Default,
+    MemoryRepo.Default,
     Composer.Default,
     Context.Default,
     Progress.Default
@@ -69,6 +71,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     const reflections = yield* ReflectionsRepo;
     const settings = yield* SettingsRepo;
     const briefs = yield* BriefsRepo;
+    const memory = yield* MemoryRepo;
     const composer = yield* Composer;
     const context = yield* Context;
     const progress = yield* Progress;
@@ -89,12 +92,85 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
       )
     );
 
+    /**
+     * Everything the coach knows going into a composition pass: the model
+     * choice, the user's own words (profile), the learned notes (re-distilled
+     * from recent feedback at most once a day), and completion momentum.
+     */
+    const prepareCoach = Effect.gen(function* () {
+      const current = yield* settings.get();
+      const all = yield* suggestions.listAll();
+      const today = localDate();
+      const stats = computeStats(all, today);
+      const notes = yield* refreshNotes(current.model, all, today);
+      return { model: current.model, profile: current.profile, notes, stats };
+    });
+
+    type CoachInputs = Effect.Effect.Success<typeof prepareCoach>;
+
+    /**
+     * Re-distill the coach's working notes when they're stale (not yet
+     * updated today) and there's actual feedback to learn from. Any failure
+     * falls back to the existing notes — learning is never in the critical
+     * path of getting tasks on screen.
+     */
+    const refreshNotes = (
+      model: string | null,
+      all: Suggestion[],
+      today: string
+    ): Effect.Effect<string | null> =>
+      Effect.gen(function* () {
+        const existing = yield* memory.get();
+        if (existing && existing.updatedDate === today) {
+          return existing.markdown || null;
+        }
+
+        const refs = yield* reflections.listAll();
+        const bySuggestion = new Map<string, Reflection[]>();
+        for (const r of refs) {
+          const bucket = bySuggestion.get(r.suggestionId) ?? [];
+          bucket.push(r);
+          bySuggestion.set(r.suggestionId, bucket);
+        }
+
+        // Evidence = recent suggestions carrying any signal: a rating, a
+        // completion/skip, or the user's own notes. Pending rows teach nothing.
+        const evidence: HistoryItem[] = [...all]
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+          .map((s) => ({ suggestion: s, reflections: bySuggestion.get(s.id) ?? [] }))
+          .filter(
+            (h) =>
+              h.suggestion.rating !== null ||
+              h.suggestion.status === "done" ||
+              h.suggestion.status === "skipped" ||
+              h.reflections.length > 0
+          )
+          .slice(0, 30);
+
+        if (evidence.length === 0) return existing?.markdown || null;
+
+        const notes = yield* composer.distillNotes({
+          existingNotes: existing?.markdown ?? null,
+          evidence,
+          model: model ?? undefined
+        });
+        yield* memory.set(notes, today);
+        return notes || null;
+      }).pipe(
+        Effect.catchAll((err) =>
+          Effect.logWarning(`coach notes refresh failed (using previous): ${errorMessage(err)}`).pipe(
+            Effect.zipRight(memory.get().pipe(Effect.catchAll(() => Effect.succeed(null)))),
+            Effect.map((m) => m?.markdown || null)
+          )
+        )
+      );
+
     /** Compose one goal's suggestion and insert it, emitting progress. */
     const composeGoal = (
       date: string,
       goal: Goal,
       contextBlocks: ContextBlock[],
-      model: string | null,
+      coach: CoachInputs,
       extraNote?: string
     ) =>
       Effect.gen(function* () {
@@ -120,7 +196,10 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           history,
           date,
           contextBlocks,
-          model: model ?? undefined,
+          model: coach.model ?? undefined,
+          profile: coach.profile,
+          coachNotes: coach.notes,
+          stats: coach.stats,
           extraNote,
           onStatus: statusCallback
         });
@@ -152,7 +231,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     ): Effect.Effect<void> =>
       Effect.gen(function* () {
         if (items.length === 0) return;
-        const { model } = yield* settings.get();
+        const { model, profile } = yield* settings.get();
         const all = yield* suggestions.listAll();
         const yesterday = all.filter((s) => s.date === prevDate(date));
         const brief = yield* composer.composeBrief({
@@ -161,6 +240,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           yesterday,
           stats: computeStats(all, date),
           contextBlocks,
+          profile,
           model: model ?? undefined
         });
         yield* briefs.upsert(date, brief);
@@ -176,14 +256,16 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           return { fresh: [] as Suggestion[], contextBlocks: [] as ContextBlock[] };
         }
 
-        const { model } = yield* settings.get();
-
         yield* emit({
           phase: "start",
           goals: toGenerate.map((g) => ({ id: g.id, title: g.title }))
         });
 
-        const contextBlocks = yield* fetchContext;
+        // Coach prep (incl. the once-a-day notes distillation) runs alongside
+        // the context fetch — placeholders are already on screen.
+        const [coach, contextBlocks] = yield* Effect.all([prepareCoach, fetchContext], {
+          concurrency: 2
+        });
         yield* emit({
           phase: "context-fetched",
           labels: contextBlocks.map((b) => b.label)
@@ -191,7 +273,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
 
         const results = yield* Effect.forEach(
           toGenerate,
-          (goal) => Effect.either(composeGoal(date, goal, contextBlocks, model)),
+          (goal) => Effect.either(composeGoal(date, goal, contextBlocks, coach)),
           { concurrency: GOAL_CONCURRENCY }
         );
 
@@ -213,13 +295,14 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     const composeOne = (goal: Goal, extraNote?: string) =>
       Effect.gen(function* () {
         const date = localDate();
-        const { model } = yield* settings.get();
 
         yield* emit({ phase: "start", goals: [{ id: goal.id, title: goal.title }] });
-        const contextBlocks = yield* fetchContext;
+        const [coach, contextBlocks] = yield* Effect.all([prepareCoach, fetchContext], {
+          concurrency: 2
+        });
         yield* emit({ phase: "context-fetched", labels: contextBlocks.map((b) => b.label) });
 
-        const inserted = yield* composeGoal(date, goal, contextBlocks, model, extraNote).pipe(
+        const inserted = yield* composeGoal(date, goal, contextBlocks, coach, extraNote).pipe(
           Effect.tapError(() => emit({ phase: "done", items: [] }))
         );
         yield* emit({ phase: "done", items: [inserted] });

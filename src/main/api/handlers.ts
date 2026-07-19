@@ -9,6 +9,7 @@ import type {
   AppSettings,
   ChecklistDay,
   ChecklistStats,
+  CoachMemory,
   GenerationProgress,
   Goal,
   HistoryDay,
@@ -23,6 +24,7 @@ import { Checklist } from "../checklist/Checklist";
 import { Progress, type ProgressListener } from "../checklist/Progress";
 import { LinkPreview } from "../links/LinkPreview";
 import { GoalsRepo } from "../repo/Goals";
+import { MemoryRepo } from "../repo/Memory";
 import { ReflectionsRepo } from "../repo/Reflections";
 import { SettingsRepo } from "../repo/Settings";
 import { SuggestionsRepo } from "../repo/Suggestions";
@@ -89,6 +91,10 @@ export const handlers = {
       run(SettingsRepo.pipe(Effect.flatMap((s) => s.update(update)))),
     markScheduledRun: (date: string): Promise<void> =>
       run(SettingsRepo.pipe(Effect.flatMap((s) => s.markScheduledRun(date))))
+  },
+  coach: {
+    memory: (): Promise<CoachMemory | null> =>
+      run(MemoryRepo.pipe(Effect.flatMap((s) => s.get())))
   },
   /** Imperative progress subscription for transports (IPC push / SSE). */
   subscribeProgress: (listener: ProgressListener): Promise<() => void> =>

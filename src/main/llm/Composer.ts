@@ -16,9 +16,11 @@
  */
 import { Data, Effect, Schema } from "effect";
 import {
+  CoachNotesSchema,
   DayBriefSchema,
   SearchQueriesSchema,
   SuggestionDraftSchema,
+  coachNotesJsonSchema,
   dayBriefJsonSchema,
   searchQueriesJsonSchema,
   suggestionDraftJsonSchema,
@@ -41,6 +43,9 @@ Rules:
 - Use the supplied web search results to choose real, current, high-quality resources.
 - URLS ARE STRICTLY ALLOWLISTED: you may ONLY use URLs that appear verbatim in the "Web search results" section below. NEVER invent, guess, autocomplete, or modify a URL. If no result fits, set resourceUrl to null and include no link in detailMarkdown.
 - Don't repeat past suggestions in the history. Match difficulty and style to what the user actually engaged with.
+- If an "About the user" section is present, it is the user's own words about what they want. It outranks everything you infer from history — shape the task's direction, format, and size around it.
+- If a "Coach notes" section is present, those are preferences learned from the user's past feedback. Apply them unless the user's own words contradict them.
+- If a "Momentum" section says nothing is done yet and it's late in the day, propose something genuinely small (10-20 minutes) that still moves the goal — protecting the user's daily streak beats an ambitious task they won't start.
 - READ the history carefully:
    - Thumbs up means the user liked it -> produce more in that direction.
    - Thumbs down means the user didn't -> change the level, style, or angle.
@@ -65,6 +70,18 @@ Rules:
 - Prefer concrete nouns and specifics over filler words like "best" or "how to".
 - Each query should target a different angle when more than one is useful.
 - Respond with a JSON object: {"queries": string[]}`;
+
+const NOTES_SYSTEM_INSTRUCTIONS = `You maintain a coach's private working notes about one user, learned from how they respond to daily tasks.
+
+Given the existing notes and recent evidence (completions, skips with reasons, thumb ratings, the user's own reflection notes), write the UPDATED notes.
+
+Rules:
+- Capture only durable, actionable preferences: formats that land (video vs. article vs. build-something), session length, difficulty, time of day, topics or angles that get skipped.
+- Evidence-based, never invented. One thumbs-down is a data point; a pattern is a note.
+- Keep what's still supported, drop what new evidence contradicts, merge duplicates.
+- At most 8 short lines, each starting with "- ". 120 words max. No preamble, no headers.
+
+Respond with a JSON object: {"notes": string}`;
 
 const BRIEF_SYSTEM_INSTRUCTIONS = `You are Komorebi, a warm but no-nonsense personal coach. Each morning you write a short brief for the user's day.
 
@@ -96,6 +113,12 @@ export type ComposeInput = {
   date: string;
   contextBlocks?: ContextBlock[];
   model?: string;
+  /** The user's own words about what they want (settings.profile). */
+  profile?: string | null;
+  /** The coach's learned notes, distilled from past feedback. */
+  coachNotes?: string | null;
+  /** Completion momentum, so late-day tasks shrink instead of overreaching. */
+  stats?: ChecklistStats;
   /**
    * One-off steering note for this composition only (e.g. the user's
    * "regenerate, but shorter" note). Unlike a reflection it isn't persisted.
@@ -252,9 +275,60 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
         return decoded.right.brief.replace(/https?:\/\/\S+/g, "").trim();
       });
 
-    return { compose, composeBrief } as const;
+    /**
+     * Re-distill the coach's working notes from recent feedback. Returns the
+     * updated notes ("" when there's nothing worth keeping). One attempt —
+     * callers fall back to the existing notes on failure.
+     */
+    const distillNotes = (input: NotesInput): Effect.Effect<string, LlmError | DraftInvalidError> =>
+      Effect.gen(function* () {
+        const model = input.model ?? defaultModel();
+        const raw = yield* ollama.chat({
+          model,
+          system: NOTES_SYSTEM_INSTRUCTIONS,
+          messages: [{ role: "user", content: buildNotesPrompt(input) }],
+          format: coachNotesJsonSchema,
+          temperature: 0.2
+        });
+
+        const decoded = decodeJson(CoachNotesSchema)(raw);
+        if (decoded._tag === "Left") {
+          return yield* Effect.fail(
+            new DraftInvalidError({
+              message: `The model produced invalid coach notes: ${decoded.left}`,
+              raw
+            })
+          );
+        }
+        return decoded.right.notes.trim();
+      });
+
+    return { compose, composeBrief, distillNotes } as const;
   })
 }) {}
+
+export type NotesInput = {
+  existingNotes: string | null;
+  /** Recent suggestions (newest first) with their reflections attached. */
+  evidence: HistoryItem[];
+  model?: string;
+};
+
+function buildNotesPrompt(input: NotesInput): string {
+  const evidenceBlock = input.evidence.length
+    ? input.evidence.map(formatHistoryItem).join("\n")
+    : "(no recent activity)";
+
+  return `## Existing notes
+
+${input.existingNotes?.trim() || "(none yet)"}
+
+## Recent evidence (newest first; [liked]/[disliked] are thumb ratings, "Note:" lines are the user's own words)
+
+${evidenceBlock}
+
+Write the updated notes now.`;
+}
 
 export type BriefInput = {
   date: string;
@@ -264,6 +338,8 @@ export type BriefInput = {
   yesterday: Suggestion[];
   stats: ChecklistStats;
   contextBlocks: ContextBlock[];
+  /** The user's own words about what they want (settings.profile). */
+  profile?: string | null;
   model?: string;
 };
 
@@ -287,8 +363,12 @@ function buildBriefPrompt(input: BriefInput): string {
       ? `Current streak: ${input.stats.currentStreak} days with at least one task completed.`
       : `Total tasks completed so far: ${input.stats.totalDone}.`;
 
+  const profileSection = input.profile?.trim()
+    ? `\n\n## What the user says they want\n\n${input.profile.trim()}`
+    : "";
+
   return `Today's date: ${input.date}
-${streakLine}${contextSection}
+${streakLine}${profileSection}${contextSection}
 
 ## Today's tasks
 
@@ -368,15 +448,25 @@ function goalBlock(input: ComposeInput): string {
 }
 
 function buildPrompt(input: ComposeInput, searchResults: SearchResult[]): string {
-  const { history, contextBlocks, extraNote } = input;
+  const { history, contextBlocks, extraNote, profile, coachNotes, stats } = input;
 
   const historyBlock = history.length
     ? history.map(formatHistoryItem).join("\n")
     : "(none yet - this is the first suggestion for this goal)";
 
+  const profileSection = profile?.trim()
+    ? `\n\n## About the user (their own words)\n\n${profile.trim()}`
+    : "";
+
+  const notesSection = coachNotes?.trim()
+    ? `\n\n## Coach notes (learned from past feedback)\n\n${coachNotes.trim()}`
+    : "";
+
   const contextSection = contextBlocks?.length
     ? `\n\n## Context\n\n${contextBlocks.map((b) => `### ${b.label}\n${b.body}`).join("\n\n")}`
     : "";
+
+  const momentumSection = stats ? `\n\n## Momentum\n\n${momentumBlock(stats)}` : "";
 
   const noteSection = extraNote?.trim()
     ? `\n\n## Instruction for this regeneration\n\nNote: "${extraNote.trim()}" (this outranks everything else)`
@@ -389,7 +479,7 @@ function buildPrompt(input: ComposeInput, searchResults: SearchResult[]): string
     : "(No web search results available. Prefer a suggestion that does not require a URL unless you are confident the URL is real.)";
 
   return `---
-${contextSection}${noteSection}
+${profileSection}${notesSection}${contextSection}${momentumSection}${noteSection}
 
 ## Goal
 
@@ -404,6 +494,22 @@ ${historyBlock}
 ${searchSection}
 
 Generate one suggestion now.`;
+}
+
+function momentumBlock(stats: ChecklistStats): string {
+  const hour = new Date().getHours();
+  const timeOfDay =
+    hour < 12 ? "morning" : hour < 17 ? "afternoon" : hour < 21 ? "evening" : "late evening";
+  const lines = [
+    `Local time of day: ${timeOfDay}.`,
+    stats.currentStreak >= 2
+      ? `The user is on a ${stats.currentStreak}-day completion streak.`
+      : null,
+    stats.doneToday > 0
+      ? `They have already completed ${stats.doneToday} task${stats.doneToday === 1 ? "" : "s"} today.`
+      : `Nothing is completed yet today.`
+  ];
+  return lines.filter(Boolean).join(" ");
 }
 
 function formatHistoryItem({ suggestion: s, reflections }: HistoryItem): string {

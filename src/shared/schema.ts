@@ -177,6 +177,18 @@ export const searchQueriesJsonSchema = {
   required: ["queries"]
 } as const;
 
+/** Coach-notes distillation output: {"notes": string} */
+export const CoachNotesSchema = Schema.Struct({
+  notes: Schema.String
+});
+export const coachNotesJsonSchema = {
+  type: "object",
+  properties: {
+    notes: { type: "string" }
+  },
+  required: ["notes"]
+} as const;
+
 /** Daily coach brief output: {"brief": string} */
 export const DayBriefSchema = Schema.Struct({
   brief: TrimmedNonEmpty
@@ -212,7 +224,12 @@ export const ScheduleSettingsSchema = Schema.Struct({
   /** Local time of day, "HH:MM" (24h). */
   time: Schema.String,
   /** YYYY-MM-DD of the last scheduled run, so we only fire once per day. */
-  lastRunDate: Schema.NullOr(Schema.String)
+  lastRunDate: Schema.NullOr(Schema.String),
+  /**
+   * YYYY-MM-DD of the last evening streak-saver nudge, so an at-risk streak
+   * is only flagged once per day.
+   */
+  lastNudgeDate: Schema.NullOr(Schema.String)
 });
 export type ScheduleSettings = typeof ScheduleSettingsSchema.Type;
 
@@ -228,14 +245,33 @@ export const AppSettingsSchema = Schema.Struct({
    * null means "use the server default" (the OLLAMA_MODEL env var, or the
    * built-in fallback). An explicit choice here takes precedence over env.
    */
-  model: Schema.NullOr(Schema.String)
+  model: Schema.NullOr(Schema.String),
+  /**
+   * The user's own words about what they want from their coach — priorities,
+   * constraints, taste ("I want to ship a game by December, I only have
+   * evenings, I learn best by building"). Injected verbatim into every
+   * composition, above everything the model infers.
+   */
+  profile: Schema.NullOr(Schema.String)
 });
 export type AppSettings = typeof AppSettingsSchema.Type;
 
 export const defaultSettings: AppSettings = {
-  schedule: { enabled: true, time: "07:00", lastRunDate: null },
+  schedule: { enabled: true, time: "07:00", lastRunDate: null, lastNudgeDate: null },
   theme: "system",
-  model: null
+  model: null,
+  profile: null
+};
+
+/**
+ * The coach's learned working notes — distilled automatically (at most once
+ * a day) from ratings, skip reasons, and reflections, then injected into
+ * every composition.
+ */
+export type CoachMemory = {
+  markdown: string;
+  /** YYYY-MM-DD the notes were last distilled. */
+  updatedDate: string;
 };
 
 // ---------------------------------------------------------------------------

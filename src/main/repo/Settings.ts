@@ -11,13 +11,17 @@ import { Db, DbError } from "../db/Db";
 /** Keep model tags short and on a single line; trim/clamp pasted junk. */
 const MAX_MODEL_LENGTH = 120;
 
+/** Enough room to actually say what you want, not enough to paste a novel. */
+const MAX_PROFILE_LENGTH = 2000;
+
 const VALID_THEMES: ReadonlySet<string> = new Set(["light", "dark", "system"]);
 
 function freshDefaults(): AppSettings {
   return {
     schedule: { ...defaultSettings.schedule },
     theme: defaultSettings.theme,
-    model: defaultSettings.model
+    model: defaultSettings.model,
+    profile: defaultSettings.profile
   };
 }
 
@@ -25,6 +29,13 @@ function freshDefaults(): AppSettings {
 function normalizeModel(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const trimmed = input.trim().slice(0, MAX_MODEL_LENGTH);
+  return trimmed.length === 0 ? null : trimmed;
+}
+
+/** Normalize the profile text: trim, clamp, blank means "none". */
+function normalizeProfile(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const trimmed = input.trim().slice(0, MAX_PROFILE_LENGTH);
   return trimmed.length === 0 ? null : trimmed;
 }
 
@@ -46,7 +57,8 @@ function normalize(raw: Partial<AppSettings> | null | undefined): AppSettings {
   return {
     schedule: { ...defaultSettings.schedule, ...(raw?.schedule ?? {}) },
     theme: normalizeTheme(raw?.theme),
-    model: normalizeModel(raw?.model)
+    model: normalizeModel(raw?.model),
+    profile: normalizeProfile(raw?.profile)
   };
 }
 
@@ -88,12 +100,16 @@ export class SettingsRepo extends Effect.Service<SettingsRepo>()("SettingsRepo",
               : {}),
             ...(schedulePatch.lastRunDate !== undefined
               ? { lastRunDate: schedulePatch.lastRunDate }
+              : {}),
+            ...(schedulePatch.lastNudgeDate !== undefined
+              ? { lastNudgeDate: schedulePatch.lastNudgeDate }
               : {})
           };
           const next: AppSettings = {
             schedule,
             theme: patch.theme !== undefined ? normalizeTheme(patch.theme) : current.theme,
-            model: patch.model !== undefined ? normalizeModel(patch.model) : current.model
+            model: patch.model !== undefined ? normalizeModel(patch.model) : current.model,
+            profile: patch.profile !== undefined ? normalizeProfile(patch.profile) : current.profile
           };
           return persist(next);
         })

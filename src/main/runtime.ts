@@ -12,6 +12,7 @@ import { LinkPreview } from "./links/LinkPreview";
 import { Composer } from "./llm/Composer";
 import { BriefsRepo } from "./repo/Briefs";
 import { GoalsRepo } from "./repo/Goals";
+import { MemoryRepo } from "./repo/Memory";
 import { ReflectionsRepo } from "./repo/Reflections";
 import { SettingsRepo } from "./repo/Settings";
 import { SuggestionsRepo } from "./repo/Suggestions";
@@ -24,6 +25,7 @@ const AppLayer = Layer.mergeAll(
   ReflectionsRepo.Default,
   SettingsRepo.Default,
   BriefsRepo.Default,
+  MemoryRepo.Default,
   Composer.Default,
   Context.Default,
   Weather.Default,

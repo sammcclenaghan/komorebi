@@ -48,6 +48,9 @@ const api: KomorebiApi = {
     get: () => ipcRenderer.invoke("settings:get"),
     update: (update) => ipcRenderer.invoke("settings:update", update)
   },
+  coach: {
+    memory: () => ipcRenderer.invoke("coach:memory")
+  },
   onNavigate: (handler) => {
     const listener = (_: unknown, view: string) => handler(view);
     ipcRenderer.on("app:navigate", listener);

@@ -10,6 +10,7 @@ import type {
   AppSettings,
   ChecklistDay,
   ChecklistStats,
+  CoachMemory,
   GenerationProgress,
   Goal,
   GoalPriority,
@@ -39,6 +40,8 @@ export type SettingsUpdate = {
   theme?: AppSettings["theme"];
   /** Explicit null resets to the server default model. */
   model?: string | null;
+  /** The user's own words about what they want. Explicit null/"" clears it. */
+  profile?: string | null;
 };
 
 export type KomorebiApi = {
@@ -99,6 +102,10 @@ export type KomorebiApi = {
   settings: {
     get: () => Promise<AppSettings>;
     update: (update: SettingsUpdate) => Promise<AppSettings>;
+  };
+  coach: {
+    /** The coach's learned notes about the user (null until first distilled). */
+    memory: () => Promise<CoachMemory | null>;
   };
   onNavigate: (handler: (view: string) => void) => () => void;
 };
