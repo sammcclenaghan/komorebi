@@ -97,7 +97,11 @@ export class Ollama extends Effect.Service<Ollama>()("Ollama", {
                   ...request.messages
                 ],
                 format: request.format,
-                options: { temperature: request.temperature ?? 0.4 }
+                // Gemma 4's recommended sampling (temp 1.0, top_p 0.95, top_k
+                // 64). Output is grammar-constrained by `format`, so running hot
+                // can't break the JSON. Callers that want determinism (notes,
+                // brief) still pass their own lower temperature.
+                options: { temperature: request.temperature ?? 1.0, top_p: 0.95, top_k: 64 }
               })
             });
           } catch (err) {
