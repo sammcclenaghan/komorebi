@@ -18,7 +18,8 @@ const EXA_SEARCH_SYSTEM_PROMPT =
   "Find specific, high-quality, directly actionable resources for the user's goal. " +
   "Strongly prefer primary and authoritative sources: official docs, the original author's blog or essay, " +
   "reputable engineering blogs (company or personal), canonical books, and well-known practitioner sites. " +
-  "Avoid SEO content farms, thin listicles, auto-generated roundups, and low-quality aggregators. " +
+  "Avoid SEO content farms, thin listicles, auto-generated roundups, low-quality aggregators, " +
+  "forum threads (e.g. Reddit), generic Medium reposts, and AI-generated slop sites. " +
   "Each result should be a concrete thing the user can read, watch, or do today.";
 
 export class SearchError extends Data.TaggedError("SearchError")<{
