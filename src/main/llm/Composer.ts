@@ -17,14 +17,17 @@
 import { Data, Effect, Schema } from "effect";
 import {
   CoachNotesSchema,
+  CoachReplySchema,
   DayBriefSchema,
   SearchQueriesSchema,
   SuggestionDraftSchema,
   coachNotesJsonSchema,
+  coachReplyJsonSchema,
   dayBriefJsonSchema,
   searchQueriesJsonSchema,
   suggestionDraftJsonSchema,
   type ChecklistStats,
+  type CoachMessage,
   type Reflection,
   type Suggestion,
   type SuggestionDraft
@@ -84,6 +87,17 @@ Rules:
 
 Respond with a JSON object: {"brief": string}`;
 
+const CHECK_IN_SYSTEM_INSTRUCTIONS = `You are Komorebi, the user's thoughtful, direct coach in a weekly check-in conversation. Help them examine whether their goals, daily tasks, and resources are actually working, then decide what to adjust.
+
+Rules:
+- Respond to what the user just said; do not deliver a generic progress report.
+- Use the supplied goals and recent activity as evidence. Notice avoidance, repeated skips, poor recommendations, or a plan that no longer fits without shaming the user.
+- Ask at most one useful question at a time. When there is enough information, offer a concrete adjustment to the path.
+- You may recommend goal or task changes, but never claim you changed them automatically.
+- 120 words max. Plain conversational language. No headers, URLs, or emoji.
+
+Respond with a JSON object: {"reply": string}`;
+
 /** How many times the drafting chat may run in total (1 try + N corrections). */
 const MAX_DRAFT_ATTEMPTS = 3;
 
@@ -107,6 +121,8 @@ export type ComposeInput = {
   profile?: string | null;
   /** The coach's learned notes, distilled from past feedback. */
   coachNotes?: string | null;
+  /** Direct statements from recent weekly coaching conversations. */
+  weeklyNotes?: string | null;
   /** Completion momentum, so late-day tasks shrink instead of overreaching. */
   stats?: ChecklistStats;
   /**
@@ -303,9 +319,60 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
         return decoded.right.notes.trim();
       });
 
-    return { compose, composeBrief, distillNotes } as const;
+    const composeCheckInReply = (
+      input: CheckInInput
+    ): Effect.Effect<string, LlmError | DraftInvalidError> =>
+      Effect.gen(function* () {
+        const model = input.model ?? defaultModel();
+        const raw = yield* ollama.chat({
+          model,
+          system: CHECK_IN_SYSTEM_INSTRUCTIONS,
+          messages: [{ role: "user", content: buildCheckInPrompt(input) }],
+          format: coachReplyJsonSchema,
+          temperature: 0.5
+        });
+
+        const decoded = decodeJson(CoachReplySchema)(raw);
+        if (decoded._tag === "Left") {
+          return yield* Effect.fail(
+            new DraftInvalidError({
+              message: `The model produced an invalid check-in reply: ${decoded.left}`,
+              raw
+            })
+          );
+        }
+        return decoded.right.reply.replace(/https?:\/\/\S+/g, "").trim();
+      });
+
+    return { compose, composeBrief, distillNotes, composeCheckInReply } as const;
   })
 }) {}
+
+export type CheckInInput = {
+  goals: Goal[];
+  recentActivity: HistoryItem[];
+  messages: CoachMessage[];
+  stats: ChecklistStats;
+  profile?: string | null;
+  coachNotes?: string | null;
+  model?: string;
+};
+
+function buildCheckInPrompt(input: CheckInInput): string {
+  const goals = input.goals.length
+    ? input.goals
+        .map((g) => `- [${g.priority}] ${g.title}${g.description ? ` — ${g.description}` : ""}`)
+        .join("\n")
+    : "(no active goals)";
+  const activity = input.recentActivity.length
+    ? input.recentActivity.map(formatHistoryItem).join("\n")
+    : "(no recent activity)";
+  const conversation = input.messages
+    .map((m) => `${m.role === "user" ? "User" : "Coach"}: ${m.content}`)
+    .join("\n");
+
+  return `## User profile\n${input.profile?.trim() || "(none)"}\n\n## Coach notes\n${input.coachNotes?.trim() || "(none)"}\n\n## Active goals\n${goals}\n\n## Momentum\n${input.stats.totalDone} total completed; current streak ${input.stats.currentStreak} days.\n\n## Recent activity\n${activity}\n\n## This week's conversation\n${conversation}\n\nReply to the user's latest message.`;
+}
 
 export type NotesInput = {
   existingNotes: string | null;
@@ -449,7 +516,7 @@ function goalBlock(input: ComposeInput, opts?: { includeContext?: boolean }): st
 }
 
 function buildPrompt(input: ComposeInput, searchResults: SearchResult[]): string {
-  const { history, contextBlocks, extraNote, profile, coachNotes, stats } = input;
+  const { history, contextBlocks, extraNote, profile, coachNotes, weeklyNotes, stats } = input;
 
   const historyBlock = history.length
     ? history.map(formatHistoryItem).join("\n")
@@ -461,6 +528,10 @@ function buildPrompt(input: ComposeInput, searchResults: SearchResult[]): string
 
   const notesSection = coachNotes?.trim()
     ? `\n\n## Coach notes (learned from past feedback)\n\n${coachNotes.trim()}`
+    : "";
+
+  const weeklySection = weeklyNotes?.trim()
+    ? `\n\n## Recent weekly check-in (the user's own words — treat as a top-priority instruction)\n\n${weeklyNotes.trim()}`
     : "";
 
   const contextSection = contextBlocks?.length
@@ -484,7 +555,7 @@ function buildPrompt(input: ComposeInput, searchResults: SearchResult[]): string
     : "(No web search results available. Prefer a suggestion that does not require a URL unless you are confident the URL is real.)";
 
   return `---
-${profileSection}${goalConstraintsSection}${notesSection}${contextSection}${momentumSection}${noteSection}
+${profileSection}${goalConstraintsSection}${notesSection}${weeklySection}${contextSection}${momentumSection}${noteSection}
 
 ## Goal
 

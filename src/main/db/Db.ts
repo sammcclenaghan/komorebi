@@ -81,9 +81,17 @@ const SCHEMA: string[] = [
     markdown TEXT NOT NULL,
     updated_date TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS coach_checkin_messages (
+    id TEXT PRIMARY KEY,
+    week_start TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
   `CREATE INDEX IF NOT EXISTS idx_suggestions_date ON suggestions(date)`,
   `CREATE INDEX IF NOT EXISTS idx_suggestions_goal ON suggestions(goal_id, date)`,
-  `CREATE INDEX IF NOT EXISTS idx_reflections_suggestion ON reflections(suggestion_id)`
+  `CREATE INDEX IF NOT EXISTS idx_reflections_suggestion ON reflections(suggestion_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_coach_checkins_week ON coach_checkin_messages(week_start, created_at)`
 ];
 
 async function initSchema(client: Client): Promise<void> {

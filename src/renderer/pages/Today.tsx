@@ -20,6 +20,7 @@ import { GoalModal } from "../components/GoalModal";
 import { ChecklistRow } from "../components/ChecklistRow";
 import { GeneratingRow } from "../components/GeneratingRow";
 import { AllCaughtUp } from "../components/AllCaughtUp";
+import { WeeklyCheckIn } from "../components/WeeklyCheckIn";
 import { Button } from "../components/ui/Button";
 import { Tooltip } from "@base-ui/react/tooltip";
 import type { Goal, Suggestion, WeatherSummary } from "~/shared/schema";
@@ -281,6 +282,8 @@ export function Today({ onOpenSuggestion, progress }: Props) {
         {checklist?.brief && !isLoading && !noGoals && (
           <CoachBrief text={checklist.brief} />
         )}
+
+        {!isLoading && goals.length > 0 && <WeeklyCheckIn />}
 
         {isLoading ? (
           <LoadingState />

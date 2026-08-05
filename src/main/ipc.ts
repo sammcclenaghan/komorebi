@@ -58,6 +58,10 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("link:preview", (_e, url: string) => handlers.links.preview(url));
 
   ipcMain.handle("coach:memory", () => handlers.coach.memory());
+  ipcMain.handle("coach:weekly-check-in", () => handlers.coach.weeklyCheckIn());
+  ipcMain.handle("coach:send-check-in-message", (_e, content: string) =>
+    handlers.coach.sendCheckInMessage(content)
+  );
 
   ipcMain.handle("settings:get", () => handlers.settings.get());
   ipcMain.handle("settings:update", async (_e, update: SettingsUpdate) => {

@@ -20,7 +20,8 @@ import type {
   Suggestion,
   SuggestionRating,
   SuggestionStatus,
-  WeatherSummary
+  WeatherSummary,
+  WeeklyCheckIn
 } from "./schema";
 
 export type GoalAddInput = {
@@ -106,6 +107,9 @@ export type KomorebiApi = {
   coach: {
     /** The coach's learned notes about the user (null until first distilled). */
     memory: () => Promise<CoachMemory | null>;
+    /** This week's persisted coaching conversation. */
+    weeklyCheckIn: () => Promise<WeeklyCheckIn>;
+    sendCheckInMessage: (content: string) => Promise<WeeklyCheckIn>;
   };
   onNavigate: (handler: (view: string) => void) => () => void;
 };

@@ -18,7 +18,8 @@ import type {
   Suggestion,
   SuggestionRating,
   SuggestionStatus,
-  WeatherSummary
+  WeatherSummary,
+  WeeklyCheckIn
 } from "~/shared/schema";
 import { Checklist } from "../checklist/Checklist";
 import { Progress, type ProgressListener } from "../checklist/Progress";
@@ -94,7 +95,11 @@ export const handlers = {
   },
   coach: {
     memory: (): Promise<CoachMemory | null> =>
-      run(MemoryRepo.pipe(Effect.flatMap((s) => s.get())))
+      run(MemoryRepo.pipe(Effect.flatMap((s) => s.get()))),
+    weeklyCheckIn: (): Promise<WeeklyCheckIn> =>
+      run(Checklist.pipe(Effect.flatMap((s) => s.weeklyCheckIn()))),
+    sendCheckInMessage: (content: string): Promise<WeeklyCheckIn> =>
+      run(Checklist.pipe(Effect.flatMap((s) => s.sendCheckInMessage(content))))
   },
   /** Imperative progress subscription for transports (IPC push / SSE). */
   subscribeProgress: (listener: ProgressListener): Promise<() => void> =>

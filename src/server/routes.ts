@@ -131,6 +131,12 @@ export async function handleApi(
   }
 
   if (method === "GET" && pathname === "/api/coach/memory") return handlers.coach.memory();
+  if (method === "GET" && pathname === "/api/coach/weekly-check-in") {
+    return handlers.coach.weeklyCheckIn();
+  }
+  if (method === "POST" && pathname === "/api/coach/weekly-check-in/messages") {
+    return handlers.coach.sendCheckInMessage((body as { content?: string })?.content ?? "");
+  }
 
   if (method === "GET" && pathname === "/api/settings") return handlers.settings.get();
   if (method === "PATCH" && pathname === "/api/settings") {

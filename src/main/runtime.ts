@@ -11,6 +11,7 @@ import { Db } from "./db/Db";
 import { LinkPreview } from "./links/LinkPreview";
 import { Composer } from "./llm/Composer";
 import { BriefsRepo } from "./repo/Briefs";
+import { CheckInsRepo } from "./repo/CheckIns";
 import { GoalsRepo } from "./repo/Goals";
 import { MemoryRepo } from "./repo/Memory";
 import { ReflectionsRepo } from "./repo/Reflections";
@@ -25,6 +26,7 @@ const AppLayer = Layer.mergeAll(
   ReflectionsRepo.Default,
   SettingsRepo.Default,
   BriefsRepo.Default,
+  CheckInsRepo.Default,
   MemoryRepo.Default,
   Composer.Default,
   Context.Default,

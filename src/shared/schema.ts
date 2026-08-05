@@ -212,6 +212,18 @@ export const dayBriefJsonSchema = {
   required: ["brief"]
 } as const;
 
+/** Weekly coaching conversation reply: {"reply": string} */
+export const CoachReplySchema = Schema.Struct({
+  reply: TrimmedNonEmpty
+});
+export const coachReplyJsonSchema = {
+  type: "object",
+  properties: {
+    reply: { type: "string" }
+  },
+  required: ["reply"]
+} as const;
+
 // ---------------------------------------------------------------------------
 // Reflections
 // ---------------------------------------------------------------------------
@@ -283,6 +295,26 @@ export type CoachMemory = {
   markdown: string;
   /** YYYY-MM-DD the notes were last distilled. */
   updatedDate: string;
+};
+
+export const CoachMessageRoleSchema = Schema.Literal("user", "coach");
+export type CoachMessageRole = typeof CoachMessageRoleSchema.Type;
+
+export const CoachMessageSchema = Schema.Struct({
+  id: Schema.String,
+  weekStart: Schema.String,
+  role: CoachMessageRoleSchema,
+  content: Schema.String,
+  createdAt: Schema.String
+});
+export type CoachMessage = typeof CoachMessageSchema.Type;
+
+/** The current Monday-Sunday coaching conversation. */
+export type WeeklyCheckIn = {
+  weekStart: string;
+  /** True until the user sends their first message for this week. */
+  due: boolean;
+  messages: CoachMessage[];
 };
 
 // ---------------------------------------------------------------------------

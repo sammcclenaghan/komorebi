@@ -21,11 +21,13 @@ import type {
   Goal,
   HistoryDay,
   Reflection,
-  Suggestion
+  Suggestion,
+  WeeklyCheckIn
 } from "~/shared/schema";
 import { Composer, type HistoryItem } from "../llm/Composer";
 import { Context } from "../context/Context";
 import { BriefsRepo } from "../repo/Briefs";
+import { CheckInsRepo } from "../repo/CheckIns";
 import { MemoryRepo } from "../repo/Memory";
 import { GoalsRepo, GoalNotFoundError } from "../repo/Goals";
 import { ReflectionsRepo } from "../repo/Reflections";
@@ -42,6 +44,14 @@ export function localDate(d: Date = new Date()): string {
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+/** Monday of the local calendar week, as YYYY-MM-DD. */
+export function localWeekStart(d: Date = new Date()): string {
+  const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const daysSinceMonday = (monday.getDay() + 6) % 7;
+  monday.setDate(monday.getDate() - daysSinceMonday);
+  return localDate(monday);
 }
 
 /** How many goals compose concurrently within one generation pass. */
@@ -62,6 +72,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     ReflectionsRepo.Default,
     SettingsRepo.Default,
     BriefsRepo.Default,
+    CheckInsRepo.Default,
     MemoryRepo.Default,
     Composer.Default,
     Context.Default,
@@ -73,6 +84,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     const reflections = yield* ReflectionsRepo;
     const settings = yield* SettingsRepo;
     const briefs = yield* BriefsRepo;
+    const checkIns = yield* CheckInsRepo;
     const memory = yield* MemoryRepo;
     const composer = yield* Composer;
     const context = yield* Context;
@@ -82,6 +94,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     // the top of each pass this makes generation idempotent under races
     // (scheduler + renderer auto-fire on first launch).
     const generationLock = yield* Effect.makeSemaphore(1);
+    const checkInLock = yield* Effect.makeSemaphore(1);
 
     const emit = (event: GenerationProgress) => progress.emit(event);
 
@@ -108,11 +121,17 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
      */
     const prepareCoach = Effect.gen(function* () {
       const current = yield* settings.get();
-      const all = yield* suggestions.listAll();
+      const [all, weeklyMessages] = yield* Effect.all(
+        [suggestions.listAll(), checkIns.recentUserNotes()],
+        { concurrency: 2 }
+      );
       const today = localDate();
       const stats = computeStats(all, today);
       const notes = yield* refreshNotes(current.model, all, today);
-      return { model: current.model, profile: current.profile, notes, stats };
+      const weeklyNotes = weeklyMessages.length
+        ? weeklyMessages.map((m) => `- ${m.weekStart}: ${m.content}`).join("\n")
+        : null;
+      return { model: current.model, profile: current.profile, notes, weeklyNotes, stats };
     });
 
     type CoachInputs = Effect.Effect.Success<typeof prepareCoach>;
@@ -229,6 +248,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           model: coach.model ?? undefined,
           profile: coach.profile,
           coachNotes: coach.notes,
+          weeklyNotes: coach.weeklyNotes,
           stats: coach.stats,
           extraNote,
           onStatus: statusCallback,
@@ -373,6 +393,77 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
         Effect.catchAll(() =>
           Effect.succeed({ currentStreak: 0, bestStreak: 0, totalDone: 0, doneToday: 0 })
         )
+      );
+
+    const weeklyCheckIn = (): Effect.Effect<WeeklyCheckIn, unknown> =>
+      Effect.gen(function* () {
+        const weekStart = localWeekStart();
+        const messages = yield* checkIns.listForWeek(weekStart);
+        return {
+          weekStart,
+          due: !messages.some((message) => message.role === "user"),
+          messages
+        };
+      });
+
+    const sendCheckInMessage = (content: string): Effect.Effect<WeeklyCheckIn, unknown> =>
+      checkInLock.withPermits(1)(
+        Effect.gen(function* () {
+          const trimmed = content.trim().slice(0, 2000);
+          if (!trimmed) return yield* weeklyCheckIn();
+
+          const weekStart = localWeekStart();
+          const [activeGoals, allSuggestions, allReflections, current, coachMemory, messages] =
+            yield* Effect.all(
+              [
+                goals.listActive(),
+                suggestions.listAll(),
+                reflections.listAll(),
+                settings.get(),
+                memory.get(),
+                checkIns.listForWeek(weekStart)
+              ],
+              { concurrency: 6 }
+            );
+
+          const bySuggestion = new Map<string, Reflection[]>();
+          for (const reflection of allReflections) {
+            const bucket = bySuggestion.get(reflection.suggestionId) ?? [];
+            bucket.push(reflection);
+            bySuggestion.set(reflection.suggestionId, bucket);
+          }
+          const recentActivity: HistoryItem[] = [...allSuggestions]
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+            .slice(0, 20)
+            .map((suggestion) => ({
+              suggestion,
+              reflections: bySuggestion.get(suggestion.id) ?? []
+            }));
+
+          const reply = yield* composer.composeCheckInReply({
+            goals: activeGoals,
+            recentActivity,
+            stats: computeStats(allSuggestions, localDate()),
+            profile: current.profile,
+            coachNotes: coachMemory?.markdown ?? null,
+            model: current.model ?? undefined,
+            messages: [
+              ...messages,
+              {
+                id: "pending",
+                weekStart,
+                role: "user",
+                content: trimmed,
+                createdAt: new Date().toISOString()
+              }
+            ]
+          });
+          // Persist both turns only after the model succeeds, so a failed
+          // reply leaves the user's draft in the UI instead of a half-turn.
+          yield* checkIns.add(weekStart, "user", trimmed);
+          yield* checkIns.add(weekStart, "coach", reply);
+          return yield* weeklyCheckIn();
+        })
       );
 
     /**
@@ -600,6 +691,8 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     return {
       today,
       stats,
+      weeklyCheckIn,
+      sendCheckInMessage,
       generate,
       regenerateDay,
       retryGoal,

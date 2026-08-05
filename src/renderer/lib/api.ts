@@ -163,7 +163,13 @@ export function createHttpClient(): KomorebiApi {
     },
 
     coach: {
-      memory: () => apiFetch("/api/coach/memory")
+      memory: () => apiFetch("/api/coach/memory"),
+      weeklyCheckIn: () => apiFetch("/api/coach/weekly-check-in"),
+      sendCheckInMessage: (content) =>
+        apiFetch("/api/coach/weekly-check-in/messages", {
+          method: "POST",
+          body: JSON.stringify({ content })
+        })
     },
 
     onNavigate: (handler) => {
