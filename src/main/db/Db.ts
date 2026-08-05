@@ -48,6 +48,8 @@ const SCHEMA: string[] = [
   `CREATE TABLE IF NOT EXISTS suggestions (
     id TEXT PRIMARY KEY,
     goal_id TEXT NOT NULL,
+    path_id TEXT,
+    milestone_id TEXT,
     date TEXT NOT NULL,
     title TEXT NOT NULL,
     summary TEXT NOT NULL,
@@ -60,6 +62,22 @@ const SCHEMA: string[] = [
     created_at TEXT NOT NULL,
     completed_at TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS goal_paths (
+    id TEXT PRIMARY KEY, goal_id TEXT NOT NULL, version INTEGER NOT NULL, status TEXT NOT NULL,
+    revision INTEGER NOT NULL DEFAULT 0, assumptions TEXT NOT NULL DEFAULT '', research_summary TEXT NOT NULL DEFAULT '',
+    research_at TEXT, error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS path_milestones (
+    id TEXT PRIMARY KEY, path_id TEXT NOT NULL, position INTEGER NOT NULL, title TEXT NOT NULL,
+    outcome TEXT NOT NULL, rationale TEXT NOT NULL, completion_criteria TEXT NOT NULL, status TEXT NOT NULL,
+    completion_evidence TEXT, completed_at TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS path_sources (id TEXT PRIMARY KEY, path_id TEXT NOT NULL, title TEXT NOT NULL, url TEXT NOT NULL, excerpt TEXT NOT NULL)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_path ON goal_paths(goal_id) WHERE status = 'active'`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_one_current_milestone ON path_milestones(path_id) WHERE status = 'current'`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_path_version ON goal_paths(goal_id, version)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_one_path_candidate ON goal_paths(goal_id)
+    WHERE status IN ('generating', 'draft')`,
   `CREATE TABLE IF NOT EXISTS reflections (
     id TEXT PRIMARY KEY,
     suggestion_id TEXT NOT NULL,
@@ -107,6 +125,16 @@ async function initSchema(client: Client): Promise<void> {
     await client.execute("ALTER TABLE suggestions ADD COLUMN generation_warning TEXT");
   } catch {
     // Column already exists.
+  }
+  for (const sql of [
+    "ALTER TABLE suggestions ADD COLUMN path_id TEXT",
+    "ALTER TABLE suggestions ADD COLUMN milestone_id TEXT"
+  ]) {
+    try {
+      await client.execute(sql);
+    } catch {
+      // Column already exists.
+    }
   }
 }
 

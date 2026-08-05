@@ -17,12 +17,16 @@ import { MemoryRepo } from "./repo/Memory";
 import { ReflectionsRepo } from "./repo/Reflections";
 import { SettingsRepo } from "./repo/Settings";
 import { SuggestionsRepo } from "./repo/Suggestions";
+import { PathsRepo } from "./repo/Paths";
+import { PathPlanner } from "./paths/PathPlanner";
 import { Weather } from "./weather/Weather";
 
 const AppLayer = Layer.mergeAll(
   Db.Default,
   GoalsRepo.Default,
   SuggestionsRepo.Default,
+  PathsRepo.Default,
+  PathPlanner.Default,
   ReflectionsRepo.Default,
   SettingsRepo.Default,
   BriefsRepo.Default,

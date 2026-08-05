@@ -254,6 +254,18 @@
     @apply focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20;
   }
 
+  @keyframes path-research {
+    0% {
+      transform: translateX(-110%);
+    }
+    50% {
+      transform: translateX(110%);
+    }
+    100% {
+      transform: translateX(330%);
+    }
+  }
+
   /* Swipe-action layer: icon grows slightly once the drag passes the
      commit threshold, so release-will-commit is visible. */
   .swipe-action-icon {

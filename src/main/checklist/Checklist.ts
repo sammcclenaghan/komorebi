@@ -33,6 +33,7 @@ import { GoalsRepo, GoalNotFoundError } from "../repo/Goals";
 import { ReflectionsRepo } from "../repo/Reflections";
 import { SettingsRepo } from "../repo/Settings";
 import { SuggestionsRepo, SuggestionNotFoundError } from "../repo/Suggestions";
+import { PathsRepo, PathValidationError } from "../repo/Paths";
 import { Progress } from "./Progress";
 import { selectGoalsForToday } from "./selection";
 import { computeStats, prevDate } from "./stats";
@@ -76,7 +77,8 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     MemoryRepo.Default,
     Composer.Default,
     Context.Default,
-    Progress.Default
+    Progress.Default,
+    PathsRepo.Default
   ],
   effect: Effect.gen(function* () {
     const goals = yield* GoalsRepo;
@@ -89,6 +91,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     const composer = yield* Composer;
     const context = yield* Context;
     const progress = yield* Progress;
+    const paths = yield* PathsRepo;
 
     // Serializes generation passes. Combined with the coverage re-check at
     // the top of each pass this makes generation idempotent under races
@@ -209,6 +212,10 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
       extraNote?: string
     ) =>
       Effect.gen(function* () {
+        const path = yield* paths.getActive(goal.id);
+        if (!path) return yield* Effect.fail(new PathValidationError({ message: `Create and activate a path for “${goal.title}” before generating daily actions.` }));
+        const milestone = path.milestones.find((m) => m.status === "current");
+        if (!milestone) return yield* Effect.fail(new PathValidationError({ message: "The active path has no current milestone." }));
         yield* emit({ phase: "goal-start", goalId: goal.id });
 
         const recent = yield* suggestions.listRecentForGoal(goal.id, 14);
@@ -242,6 +249,8 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
 
         const draft = yield* composer.compose({
           goal,
+          path,
+          milestone,
           history,
           date,
           contextBlocks,
@@ -259,7 +268,9 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           goalId: goal.id,
           date,
           draft,
-          warning: searchWarning
+          warning: searchWarning,
+          pathId: path.id,
+          milestoneId: milestone.id
         });
         yield* emit({ phase: "goal-done", goalId: goal.id, suggestion: inserted });
         return inserted;
@@ -498,7 +509,16 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           // least-recently-suggested first.
           const candidates = activeGoals.filter((g) => !alreadyCovered.has(g.id));
           const allSuggestions = yield* suggestions.listAll();
-          const toGenerate = selectGoalsForToday(candidates, allSuggestions, candidates.length);
+          const candidatesWithPaths = yield* Effect.filter(
+            candidates,
+            (goal) => paths.getActive(goal.id).pipe(Effect.map(Boolean)),
+            { concurrency: 4 }
+          );
+          const toGenerate = selectGoalsForToday(
+            candidatesWithPaths,
+            allSuggestions,
+            candidatesWithPaths.length
+          );
 
           if (toGenerate.length === 0) {
             return {
@@ -554,7 +574,16 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           yield* briefs.remove(date);
 
           const allSuggestions = yield* suggestions.listAll();
-          const toGenerate = selectGoalsForToday(activeGoals, allSuggestions, activeGoals.length);
+          const goalsWithPaths = yield* Effect.filter(
+            activeGoals,
+            (goal) => paths.getActive(goal.id).pipe(Effect.map(Boolean)),
+            { concurrency: 4 }
+          );
+          const toGenerate = selectGoalsForToday(
+            goalsWithPaths,
+            allSuggestions,
+            goalsWithPaths.length
+          );
 
           const { fresh, contextBlocks } = yield* composeForGoals(date, toGenerate).pipe(
             Effect.tapError(() => emit({ phase: "done", items: [] }))
@@ -685,6 +714,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
       Effect.gen(function* () {
         const removedIds = yield* suggestions.removeForGoal(goalId);
         yield* reflections.removeForSuggestions(removedIds);
+        yield* paths.removeForGoal(goalId);
         yield* goals.remove(goalId);
       });
 

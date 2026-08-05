@@ -10,6 +10,12 @@ const api: KomorebiApi = {
     update: (input) => ipcRenderer.invoke("goals:update", input),
     delete: (id) => ipcRenderer.invoke("goals:delete", id)
   },
+  paths: {
+    get: (id) => ipcRenderer.invoke("paths:get", id),
+    generate: (id) => ipcRenderer.invoke("paths:generate", id),
+    activate: (input) => ipcRenderer.invoke("paths:activate", input),
+    completeMilestone: (input) => ipcRenderer.invoke("paths:complete-milestone", input)
+  },
   checklist: {
     today: () => ipcRenderer.invoke("checklist:today"),
     generate: () => ipcRenderer.invoke("checklist:generate"),

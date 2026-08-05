@@ -91,6 +91,21 @@ export function createHttpClient(): KomorebiApi {
       delete: (id) =>
         apiFetch(`/api/goals/${encodeURIComponent(id)}`, { method: "DELETE" })
     },
+    paths: {
+      get: (id) => apiFetch(`/api/goals/${encodeURIComponent(id)}/path`),
+      generate: (id) =>
+        apiFetch(`/api/goals/${encodeURIComponent(id)}/path/generate`, { method: "POST" }),
+      activate: (input) =>
+        apiFetch(`/api/paths/${encodeURIComponent(input.pathId)}/activate`, {
+          method: "POST",
+          body: JSON.stringify(input)
+        }),
+      completeMilestone: (input) =>
+        apiFetch(`/api/paths/${encodeURIComponent(input.pathId)}/complete-milestone`, {
+          method: "POST",
+          body: JSON.stringify(input)
+        })
+    },
 
     checklist: {
       today: () => apiFetch("/api/checklist/today"),

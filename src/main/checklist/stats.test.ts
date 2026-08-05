@@ -6,6 +6,8 @@ function done(date: string): Suggestion {
   return {
     id: `${date}-${Math.random()}`,
     goalId: "g",
+    pathId: null,
+    milestoneId: null,
     date,
     title: "t",
     summary: "s",

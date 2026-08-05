@@ -15,6 +15,12 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("goals:add", (_e, input: GoalAddInput) => handlers.goals.add(input));
   ipcMain.handle("goals:update", (_e, input: GoalUpdateInput) => handlers.goals.update(input));
   ipcMain.handle("goals:delete", (_e, id: string) => handlers.goals.delete(id));
+  ipcMain.handle("paths:get", (_event, id: string) => handlers.paths.get(id));
+  ipcMain.handle("paths:generate", (_event, id: string) => handlers.paths.generate(id));
+  ipcMain.handle("paths:activate", (_event, input) => handlers.paths.activate(input));
+  ipcMain.handle("paths:complete-milestone", (_event, input) =>
+    handlers.paths.completeMilestone(input)
+  );
 
   ipcMain.handle("checklist:today", () => handlers.checklist.today());
   ipcMain.handle("checklist:generate", () => handlers.checklist.generate());

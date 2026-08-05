@@ -35,6 +35,50 @@ export const GoalSchema = Schema.Struct({
 });
 export type Goal = typeof GoalSchema.Type;
 
+export const PathStatusSchema = Schema.Literal("generating", "draft", "active", "failed", "superseded", "completed");
+export const MilestoneStatusSchema = Schema.Literal("pending", "current", "completed", "skipped");
+export const PathMilestoneSchema = Schema.Struct({
+  id: Schema.String, pathId: Schema.String, position: Schema.Number,
+  title: Schema.String, outcome: Schema.String, rationale: Schema.String,
+  completionCriteria: Schema.String, status: MilestoneStatusSchema,
+  completionEvidence: Schema.NullOr(Schema.String), completedAt: Schema.NullOr(Schema.String)
+});
+export type PathMilestone = typeof PathMilestoneSchema.Type;
+export const PathSourceSchema = Schema.Struct({ id: Schema.String, pathId: Schema.String, title: Schema.String, url: Schema.String, excerpt: Schema.String });
+export type PathSource = typeof PathSourceSchema.Type;
+export const GoalPathSchema = Schema.Struct({
+  id: Schema.String, goalId: Schema.String, version: Schema.Number, status: PathStatusSchema,
+  revision: Schema.Number, assumptions: Schema.String, researchSummary: Schema.String,
+  researchAt: Schema.NullOr(Schema.String), error: Schema.NullOr(Schema.String),
+  createdAt: Schema.String, updatedAt: Schema.String,
+  milestones: Schema.Array(PathMilestoneSchema), sources: Schema.Array(PathSourceSchema)
+});
+export type GoalPath = typeof GoalPathSchema.Type;
+
+const PathText = Schema.String.pipe(Schema.filter((s) => s.trim().length > 0));
+export const PathPlanDraftSchema = Schema.Struct({
+  assumptions: PathText,
+  researchSummary: PathText,
+  milestones: Schema.Array(Schema.Struct({ title: PathText, outcome: PathText, rationale: PathText, completionCriteria: PathText }))
+}).pipe(Schema.filter((p) => p.milestones.length > 0, { message: () => "at least one milestone is required" }));
+export type PathPlanDraft = typeof PathPlanDraftSchema.Type;
+export const pathPlanJsonSchema = {
+  type: "object",
+  properties: {
+    assumptions: { type: "string" },
+    researchSummary: { type: "string" },
+    milestones: {
+      type: "array", minItems: 1, maxItems: 12,
+      items: {
+        type: "object",
+        properties: { title: { type: "string" }, outcome: { type: "string" }, rationale: { type: "string" }, completionCriteria: { type: "string" } },
+        required: ["title", "outcome", "rationale", "completionCriteria"]
+      }
+    }
+  },
+  required: ["assumptions", "researchSummary", "milestones"]
+} as const;
+
 // ---------------------------------------------------------------------------
 // Suggestions
 // ---------------------------------------------------------------------------
@@ -62,6 +106,8 @@ export type GenerationWarningKind = typeof GenerationWarningKindSchema.Type;
 export const SuggestionSchema = Schema.Struct({
   id: Schema.String,
   goalId: Schema.String,
+  pathId: Schema.NullOr(Schema.String),
+  milestoneId: Schema.NullOr(Schema.String),
   /** YYYY-MM-DD (local) of the checklist day this suggestion belongs to. */
   date: Schema.String,
   title: Schema.String,
@@ -186,6 +232,21 @@ export const searchQueriesJsonSchema = {
     queries: { type: "array", items: { type: "string" }, maxItems: 3 }
   },
   required: ["queries"]
+} as const;
+
+/** Resource-selection output. null is valid when search found nothing suitable. */
+export const ResourceSelectionSchema = Schema.Struct({
+  selectedUrl: Schema.NullOr(Schema.String),
+  reason: Schema.String
+});
+export type ResourceSelection = typeof ResourceSelectionSchema.Type;
+export const resourceSelectionJsonSchema = {
+  type: "object",
+  properties: {
+    selectedUrl: { type: ["string", "null"] },
+    reason: { type: "string" }
+  },
+  required: ["selectedUrl", "reason"]
 } as const;
 
 /** Coach-notes distillation output: {"notes": string} */

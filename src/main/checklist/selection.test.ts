@@ -19,6 +19,8 @@ function suggestion(goalId: string, date: string): Suggestion {
   return {
     id: `${goalId}-${date}`,
     goalId,
+    pathId: null,
+    milestoneId: null,
     date,
     title: "x",
     summary: "x",

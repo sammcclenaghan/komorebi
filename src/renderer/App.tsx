@@ -7,6 +7,7 @@ import { History } from "./pages/History";
 import { Goals } from "./pages/Goals";
 import { Settings } from "./pages/Settings";
 import { SuggestionDetail } from "./pages/SuggestionDetail";
+import { PathDetail } from "./pages/PathDetail";
 import { IconButton } from "./components/ui/IconButton";
 import { useApplyTheme } from "./lib/use-theme";
 import { useChecklistProgress } from "./lib/use-checklist-progress";
@@ -18,6 +19,7 @@ const KNOWN_VIEWS: View[] = ["today", "history", "goals", "settings"];
 export function App() {
   const [view, setView] = useState<View>("today");
   const [openSuggestionId, setOpenSuggestionId] = useState<string | null>(null);
+  const [openPathGoalId, setOpenPathGoalId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem("komorebi.sidebarOpen");
@@ -46,6 +48,7 @@ export function App() {
   function selectView(next: View) {
     setView(next);
     setOpenSuggestionId(null);
+    setOpenPathGoalId(null);
   }
 
   useEffect(() => {
@@ -69,7 +72,7 @@ export function App() {
 
   const pageKey = openSuggestionId
     ? `suggestion:${openSuggestionId}`
-    : `view:${view}`;
+    : openPathGoalId ? `path:${openPathGoalId}` : `view:${view}`;
 
   return (
     <div className="flex h-[100dvh] w-screen overflow-hidden bg-[var(--color-panel)]">
@@ -95,12 +98,16 @@ export function App() {
               suggestionId={openSuggestionId}
               onBack={() => setOpenSuggestionId(null)}
             />
-          ) : view === "today" ? (
-            <Today onOpenSuggestion={setOpenSuggestionId} progress={progress} />
+          ) : openPathGoalId ? <PathDetail goalId={openPathGoalId} onBack={()=>setOpenPathGoalId(null)}/> : view === "today" ? (
+            <Today
+              onOpenSuggestion={setOpenSuggestionId}
+              onOpenPath={setOpenPathGoalId}
+              progress={progress}
+            />
           ) : view === "history" ? (
             <History onOpenSuggestion={setOpenSuggestionId} />
           ) : view === "goals" ? (
-            <Goals />
+            <Goals onOpenPath={setOpenPathGoalId} />
           ) : (
             <Settings />
           )}

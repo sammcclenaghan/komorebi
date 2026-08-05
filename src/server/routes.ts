@@ -27,6 +27,25 @@ function readAppVersion(): string {
   }
 }
 
+function recordBody(body: unknown): Record<string, unknown> {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new Error("Expected a JSON object body.");
+  }
+  return body as Record<string, unknown>;
+}
+
+function requiredString(value: unknown, field: string): string {
+  if (typeof value !== "string" || !value.trim()) throw new Error(`${field} is required.`);
+  return value;
+}
+
+function requiredNumber(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new Error(`${field} must be a non-negative integer.`);
+  }
+  return value;
+}
+
 export async function handleApi(
   method: string,
   pathname: string,
@@ -38,6 +57,32 @@ export async function handleApi(
   }
 
   if (method === "GET" && pathname === "/api/goals") return handlers.goals.list();
+  const pathGet = pathname.match(/^\/api\/goals\/([^/]+)\/path$/);
+  if (pathGet?.[1] && method === "GET") {
+    return handlers.paths.get(decodeURIComponent(pathGet[1]));
+  }
+  const pathGenerate = pathname.match(/^\/api\/goals\/([^/]+)\/path\/generate$/);
+  if (pathGenerate?.[1] && method === "POST") {
+    return handlers.paths.generate(decodeURIComponent(pathGenerate[1]));
+  }
+  const activate = pathname.match(/^\/api\/paths\/([^/]+)\/activate$/);
+  if (activate?.[1] && method === "POST") {
+    const input = recordBody(body);
+    return handlers.paths.activate({
+      pathId: decodeURIComponent(activate[1]),
+      expectedRevision: requiredNumber(input.expectedRevision, "expectedRevision")
+    });
+  }
+  const complete = pathname.match(/^\/api\/paths\/([^/]+)\/complete-milestone$/);
+  if (complete?.[1] && method === "POST") {
+    const input = recordBody(body);
+    return handlers.paths.completeMilestone({
+      pathId: decodeURIComponent(complete[1]),
+      milestoneId: requiredString(input.milestoneId, "milestoneId"),
+      evidence: requiredString(input.evidence, "evidence"),
+      expectedRevision: requiredNumber(input.expectedRevision, "expectedRevision")
+    });
+  }
   if (method === "POST" && pathname === "/api/goals") {
     return handlers.goals.add(body as GoalAddInput);
   }

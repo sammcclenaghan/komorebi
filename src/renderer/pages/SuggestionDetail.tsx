@@ -46,6 +46,13 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
     queryFn: () => window.komorebi.goals.list()
   });
 
+  const pathGoalId = suggestionQuery.data?.goalId;
+  const pathQuery = useQuery({
+    queryKey: ["path", pathGoalId],
+    queryFn: () => window.komorebi.paths.get(pathGoalId!),
+    enabled: Boolean(pathGoalId && suggestionQuery.data?.milestoneId)
+  });
+
   // Same optimistic mutations as the checklist row — status and rating
   // changes render instantly here too.
   const { setStatus, setRating, skipRegen, regenerate } = useSuggestionMutations(suggestionId);
@@ -105,6 +112,9 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
   }
 
   const goal = goalsQuery.data?.find((g) => g.id === suggestion.goalId);
+  const milestone = pathQuery.data?.milestones.find(
+    (candidate) => candidate.id === suggestion.milestoneId
+  );
   const isDone = suggestion.status === "done";
   const isSkipped = suggestion.status === "skipped";
   const regenerating = regenerate.isPending;
@@ -141,6 +151,19 @@ export function SuggestionDetail({ suggestionId, onBack }: Props) {
         <p className="mt-3 text-lg leading-relaxed text-[var(--color-ink-2)]">
           {suggestion.summary}
         </p>
+
+        {suggestion.milestoneId && (
+          <div className="mt-5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-panel)] p-4 text-sm">
+            <div className="font-mono text-2xs uppercase tracking-[0.22em] text-[var(--color-ink-3)]">
+              Path milestone
+            </div>
+            <p className="mt-1 font-medium">{milestone?.title ?? "Loading milestone…"}</p>
+            <p className="mt-2 text-[var(--color-ink-2)]">
+              Completing this daily action does not complete the milestone. Record milestone
+              evidence separately on the goal’s path page.
+            </p>
+          </div>
+        )}
 
         {suggestion.resourceUrl && <MediaEmbed url={suggestion.resourceUrl} />}
         {!suggestion.resourceUrl && suggestion.generationWarning && (

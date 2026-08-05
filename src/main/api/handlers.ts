@@ -29,6 +29,8 @@ import { MemoryRepo } from "../repo/Memory";
 import { ReflectionsRepo } from "../repo/Reflections";
 import { SettingsRepo } from "../repo/Settings";
 import { SuggestionsRepo } from "../repo/Suggestions";
+import { PathsRepo } from "../repo/Paths";
+import { PathPlanner } from "../paths/PathPlanner";
 import { Weather } from "../weather/Weather";
 import { run } from "../runtime";
 
@@ -41,6 +43,35 @@ export const handlers = {
       run(GoalsRepo.pipe(Effect.flatMap((s) => s.update(input.id, input.updates)))),
     delete: (id: string): Promise<void> =>
       run(Checklist.pipe(Effect.flatMap((s) => s.deleteGoalCascade(id))))
+  },
+  paths: {
+    get: (goalId: string) => run(PathsRepo.pipe(Effect.flatMap((repo) => repo.getForGoal(goalId)))),
+    generate: (goalId: string) =>
+      run(PathPlanner.pipe(Effect.flatMap((planner) => planner.generate(goalId)))),
+    activate: (input: { pathId: string; expectedRevision: number }) =>
+      run(
+        PathsRepo.pipe(
+          Effect.flatMap((repo) => repo.activate(input.pathId, input.expectedRevision))
+        )
+      ),
+    completeMilestone: (input: {
+      pathId: string;
+      milestoneId: string;
+      evidence: string;
+      expectedRevision: number;
+    }) =>
+      run(
+        PathsRepo.pipe(
+          Effect.flatMap((repo) =>
+            repo.completeMilestone(
+              input.pathId,
+              input.milestoneId,
+              input.evidence,
+              input.expectedRevision
+            )
+          )
+        )
+      )
   },
   checklist: {
     today: (): Promise<ChecklistDay> => run(Checklist.pipe(Effect.flatMap((s) => s.today()))),

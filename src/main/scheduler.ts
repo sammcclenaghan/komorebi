@@ -125,8 +125,8 @@ export async function runScheduledGeneration(opts: { force?: boolean } = {}): Pr
     const result = await handlers.checklist.generate();
     await handlers.settings.markScheduledRun(today);
 
-    if (result.hasGoals) {
-      const count = result.items.filter((s) => s.status !== "skipped").length;
+    const count = result.items.filter((s) => s.status !== "skipped").length;
+    if (count > 0) {
       notifyChecklistReady(count);
     }
   } catch (err) {

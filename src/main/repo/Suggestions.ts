@@ -20,12 +20,18 @@ export class SuggestionNotFoundError extends Data.TaggedError("SuggestionNotFoun
   }
 }
 
+export class SuggestionProvenanceError extends Data.TaggedError("SuggestionProvenanceError")<{
+  message: string;
+}> {}
+
 const decodeSuggestion = decodeRow(SuggestionSchema, "suggestion");
 
 const fromRow = (row: Row): Effect.Effect<Suggestion, DbError> =>
   decodeSuggestion({
     id: text(row, "id"),
     goalId: text(row, "goal_id"),
+    pathId: text(row, "path_id"),
+    milestoneId: text(row, "milestone_id"),
     date: text(row, "date"),
     title: text(row, "title"),
     summary: text(row, "summary"),
@@ -45,6 +51,8 @@ export type InsertSuggestionInput = {
   draft: SuggestionDraft;
   /** Why this task is degraded (e.g. composed without web search), if at all. */
   warning?: GenerationWarningKind | null;
+  pathId?: string | null;
+  milestoneId?: string | null;
 };
 
 export class SuggestionsRepo extends Effect.Service<SuggestionsRepo>()("SuggestionsRepo", {
@@ -89,11 +97,15 @@ export class SuggestionsRepo extends Effect.Service<SuggestionsRepo>()("Suggesti
         )
       );
 
-    const insert = (input: InsertSuggestionInput): Effect.Effect<Suggestion, DbError> =>
-      Effect.suspend(() => {
+    const insert = (
+      input: InsertSuggestionInput
+    ): Effect.Effect<Suggestion, DbError | SuggestionProvenanceError> =>
+      Effect.suspend((): Effect.Effect<Suggestion, DbError | SuggestionProvenanceError> => {
         const suggestion: Suggestion = {
           id: randomUUID(),
           goalId: input.goalId,
+          pathId: input.pathId ?? null,
+          milestoneId: input.milestoneId ?? null,
           date: input.date,
           title: input.draft.title,
           summary: input.draft.summary,
@@ -106,15 +118,30 @@ export class SuggestionsRepo extends Effect.Service<SuggestionsRepo>()("Suggesti
           createdAt: new Date().toISOString(),
           completedAt: null
         };
+        const provenanceSql = suggestion.pathId && suggestion.milestoneId
+          ? `WHERE EXISTS (
+               SELECT 1 FROM goal_paths p
+               JOIN path_milestones m ON m.path_id = p.id
+               WHERE p.id = ? AND p.goal_id = ? AND p.status = 'active'
+                 AND m.id = ? AND m.status = 'current'
+             )`
+          : "";
+        const provenanceArgs = suggestion.pathId && suggestion.milestoneId
+          ? [suggestion.pathId, suggestion.goalId, suggestion.milestoneId]
+          : [];
         return db
-          .execute(
+          .rows(
             `INSERT INTO suggestions
-               (id, goal_id, date, title, summary, detail_markdown, resource_url,
+               (id, goal_id, path_id, milestone_id, date, title, summary, detail_markdown, resource_url,
                 estimated_minutes, status, rating, generation_warning, created_at, completed_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+             ${provenanceSql}
+             RETURNING *`,
             [
               suggestion.id,
               suggestion.goalId,
+              suggestion.pathId ?? null,
+              suggestion.milestoneId ?? null,
               suggestion.date,
               suggestion.title,
               suggestion.summary,
@@ -125,10 +152,22 @@ export class SuggestionsRepo extends Effect.Service<SuggestionsRepo>()("Suggesti
               suggestion.rating,
               suggestion.generationWarning,
               suggestion.createdAt,
-              suggestion.completedAt
+              suggestion.completedAt,
+              ...provenanceArgs
             ]
           )
-          .pipe(Effect.as(suggestion));
+          .pipe(
+            Effect.flatMap(
+              (rows): Effect.Effect<Suggestion, DbError | SuggestionProvenanceError> =>
+              rows.length > 0
+                ? fromRow(rows[0]!)
+                : Effect.fail(
+                    new SuggestionProvenanceError({
+                      message: "The path milestone advanced before this action could be saved."
+                    })
+                  )
+            )
+          );
       });
 
     const setStatus = (

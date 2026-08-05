@@ -8,7 +8,7 @@ import { IconButton } from "../components/ui/IconButton";
 import { ConfirmDialog } from "../components/ui/Modal";
 import type { Goal } from "~/shared/schema";
 
-export function Goals() {
+export function Goals({onOpenPath}:{onOpenPath?:(id:string)=>void}) {
   const queryClient = useQueryClient();
   const [modalGoal, setModalGoal] = useState<Goal | null | undefined>(undefined);
   const [confirmDelete, setConfirmDelete] = useState<Goal | null>(null);
@@ -76,6 +76,7 @@ export function Goals() {
                     goal={g}
                     onEdit={() => setModalGoal(g)}
                     onDelete={() => setConfirmDelete(g)}
+                    onPath={() => onOpenPath?.(g.id)}
                   />
                 </li>
               ))}
@@ -94,6 +95,7 @@ export function Goals() {
         open={modalGoal !== undefined}
         goal={modalGoal}
         onClose={() => setModalGoal(undefined)}
+        onSaved={(id) => { if (!modalGoal) onOpenPath?.(id); }}
       />
 
       <ConfirmDialog
@@ -118,10 +120,12 @@ function GoalCard({
   goal,
   onEdit,
   onDelete
+  ,onPath
 }: {
   goal: Goal;
   onEdit: () => void;
   onDelete: () => void;
+  onPath: () => void;
 }) {
   return (
     <article
@@ -164,6 +168,7 @@ function GoalCard({
           </p>
         </div>
       )}
+      <Button variant="secondary" size="sm" className="mt-3" onClick={onPath}>Create / view path</Button>
     </article>
   );
 }

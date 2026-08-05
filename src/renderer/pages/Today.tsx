@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Cloud,
   CloudDrizzle,
@@ -123,11 +123,12 @@ function WeatherTooltipBody({ summary }: { summary: WeatherSummary }) {
 
 type Props = {
   onOpenSuggestion: (id: string) => void;
+  onOpenPath: (goalId: string) => void;
   /** Owned by App so it survives page navigation mid-generation. */
   progress: ChecklistProgress;
 };
 
-export function Today({ onOpenSuggestion, progress }: Props) {
+export function Today({ onOpenSuggestion, onOpenPath, progress }: Props) {
   const queryClient = useQueryClient();
   const [showAddGoal, setShowAddGoal] = useState(false);
 
@@ -178,6 +179,22 @@ export function Today({ onOpenSuggestion, progress }: Props) {
 
   const goals = goalsQuery.data ?? [];
   const activeGoals = goals.filter((g) => g.status === "active");
+  const pathQueries = useQueries({
+    queries: activeGoals.map((goal) => ({
+      queryKey: ["path", goal.id],
+      queryFn: () => window.komorebi.paths.get(goal.id)
+    }))
+  });
+  const pathlessGoals = activeGoals.filter((_, index) => {
+    const query = pathQueries[index];
+    return query && !query.isLoading && query.data?.status !== "active";
+  });
+  const readyGoalIds = new Set(
+    activeGoals
+      .filter((_, index) => pathQueries[index]?.data?.status === "active")
+      .map((goal) => goal.id)
+  );
+  const pathsLoading = pathQueries.some((query) => query.isLoading);
   const checklist = checklistQuery.data;
   const items = checklist?.items ?? [];
   const streak = statsQuery.data?.currentStreak ?? 0;
@@ -207,6 +224,7 @@ export function Today({ onOpenSuggestion, progress }: Props) {
     [items],
   );
   const topUpCount = activeGoals.filter((g) => {
+    if (!readyGoalIds.has(g.id)) return false;
     if (coveredGoalIds.has(g.id)) return false;
     // A goal whose generation failed is retryable, not in flight.
     const pending = inFlight.get(g.id);
@@ -219,7 +237,7 @@ export function Today({ onOpenSuggestion, progress }: Props) {
     day: "numeric",
   });
 
-  const isLoading = goalsQuery.isLoading || checklistQuery.isLoading;
+  const isLoading = goalsQuery.isLoading || checklistQuery.isLoading || pathsLoading;
   const noGoals = activeGoals.length === 0;
   const showChecklist =
     items.length > 0 || visiblePlaceholders.length > 0 || active;
@@ -230,11 +248,12 @@ export function Today({ onOpenSuggestion, progress }: Props) {
     if (autoFiredRef.current) return;
     if (isLoading) return;
     if (noGoals) return;
+    if (readyGoalIds.size === 0) return;
     if (items.length > 0) return;
     if (active || generate.isPending) return;
     autoFiredRef.current = true;
     generate.mutate();
-  }, [isLoading, noGoals, items.length, active, generate]);
+  }, [isLoading, noGoals, readyGoalIds.size, items.length, active, generate]);
 
   return (
     <>
@@ -279,6 +298,23 @@ export function Today({ onOpenSuggestion, progress }: Props) {
           )}
         </header>
 
+        {pathlessGoals.length > 0 && (
+          <section className="mt-6 rounded-xl border border-[var(--color-rule)] bg-[var(--color-panel)] p-4">
+            <h2 className="font-medium text-[var(--color-ink)]">Create or activate a path</h2>
+            <p className="mt-1 text-sm text-[var(--color-ink-2)]">
+              Komorebi only generates daily actions from an active path. Set up these destinations
+              to make them actionable.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {pathlessGoals.map((goal) => (
+                <Button key={goal.id} variant="secondary" size="sm" onClick={() => onOpenPath(goal.id)}>
+                  Set up {goal.title}
+                </Button>
+              ))}
+            </div>
+          </section>
+        )}
+
         {checklist?.brief && !isLoading && !noGoals && (
           <CoachBrief text={checklist.brief} />
         )}
@@ -308,9 +344,19 @@ export function Today({ onOpenSuggestion, progress }: Props) {
               items.some((s) => s.status === "done")
             }
           />
+        ) : readyGoalIds.size === 0 ? (
+          <div className="mt-10">
+            <h1 className="text-4xl font-semibold text-[var(--color-ink)]">
+              Your paths set the agenda.
+            </h1>
+            <p className="mt-3 max-w-md text-base leading-relaxed text-[var(--color-ink-2)]">
+              There are no active paths to work from yet. Set up a destination above, review its
+              milestones, and activate it before Komorebi creates daily actions.
+            </p>
+          </div>
         ) : (
           <NoChecklistYet
-            goals={activeGoals}
+            goals={activeGoals.filter((goal) => readyGoalIds.has(goal.id))}
             onGenerate={() => generate.mutate()}
             generating={generate.isPending}
             error={generate.error as Error | null}

@@ -13,6 +13,7 @@ import type {
   CoachMemory,
   GenerationProgress,
   Goal,
+  GoalPath,
   GoalPriority,
   HistoryDay,
   LinkPreview,
@@ -52,6 +53,12 @@ export type KomorebiApi = {
     add: (input: GoalAddInput) => Promise<Goal>;
     update: (input: GoalUpdateInput) => Promise<Goal>;
     delete: (id: string) => Promise<void>;
+  };
+  paths: {
+    get: (goalId: string) => Promise<GoalPath | null>;
+    generate: (goalId: string) => Promise<GoalPath>;
+    activate: (input: { pathId: string; expectedRevision: number }) => Promise<GoalPath>;
+    completeMilestone: (input: { pathId: string; milestoneId: string; evidence: string; expectedRevision: number }) => Promise<GoalPath>;
   };
   checklist: {
     today: () => Promise<ChecklistDay>;

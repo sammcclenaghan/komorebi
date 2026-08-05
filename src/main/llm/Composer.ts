@@ -19,11 +19,13 @@ import {
   CoachNotesSchema,
   CoachReplySchema,
   DayBriefSchema,
+  ResourceSelectionSchema,
   SearchQueriesSchema,
   SuggestionDraftSchema,
   coachNotesJsonSchema,
   coachReplyJsonSchema,
   dayBriefJsonSchema,
+  resourceSelectionJsonSchema,
   searchQueriesJsonSchema,
   suggestionDraftJsonSchema,
   type ChecklistStats,
@@ -32,16 +34,16 @@ import {
   type Suggestion,
   type SuggestionDraft
 } from "~/shared/schema";
-import type { Goal, GenerationNoticeKind } from "~/shared/schema";
+import type { Goal, GenerationNoticeKind, GoalPath, PathMilestone } from "~/shared/schema";
 import type { ContextBlock } from "../context/types";
 import { Ollama, defaultModel, type LlmError } from "./Ollama";
 import { Search, normalizeUrl, searchProvider, type SearchResult } from "./Search";
 
-const SYSTEM_INSTRUCTIONS = `You are Komorebi, a personal coach. Each day you turn the user's long-term goal into ONE concrete action they can do today that genuinely moves it forward.
+const SYSTEM_INSTRUCTIONS = `You are Komorebi, a personal coach. Each day you turn the user's current path milestone into ONE concrete action they can do today that genuinely moves it forward.
 
 Rules:
 - Be specific and real. Bad: "Read about React hooks." Good: "Read 'A Complete Guide to useEffect' by Dan Abramov."
-- Anchor on a search result: when "Web search results" are present, build the action around the single best one and set resourceUrl to its EXACT url. Favor primary, authoritative sources — official docs, the original author, respected practitioners — over forum threads (e.g. Reddit), generic Medium reposts, SEO listicles, and AI-generated slop sites. Only use urls that appear verbatim in the results; never invent, guess, or edit one. Use null only when nothing there fits.
+- When a "Selected resource" is present, build the action around it and set resourceUrl to its EXACT url. When none is present, create a useful action that needs no link and set resourceUrl to null. Never invent, guess, or edit a URL.
 - Coach off the history: thumbs-up -> more in that direction; thumbs-down -> change the level, style, or angle; [skipped] -> it was likely too long, too generic, or wrong for the moment, so go smaller or different.
 - The user's "Note:" lines — what they wrote when finishing or reflecting on a task — are your MOST important signal. They say, in the user's own words, how it actually went and what they want next. Read every one, weight them above ratings and above your own defaults, and let them directly shape today's suggestion.
 - Obey the goal's "Constraints" section exactly (format, difficulty, time). It outranks your defaults.
@@ -63,6 +65,12 @@ Rules:
 - Each query should target a different angle when more than one is useful.
 - If the goal's context asks for a specific format or source (e.g. an article, an essay, a video, docs, a tool, "from experienced engineers"), bias the queries toward surfacing that — e.g. add "article", "blog", "essay", or the domain of expertise so the results match what the user wants to click.
 - Respond with a JSON object: {"queries": string[]}`;
+
+const RESOURCE_SELECTOR_INSTRUCTIONS = `Choose at most one resource for today's action.
+
+Judge whether each candidate directly advances the current milestone and is credible, specific, and usable today. Prefer canonical/first-party sources, then authoritative discovery results. Reject thin, generic, outdated, mismatched, or low-quality pages. Search rank alone is not evidence of suitability.
+
+Return selectedUrl as the candidate's EXACT URL, or null when no candidate is good enough. A useful action without a link is better than a weak resource.`;
 
 const NOTES_SYSTEM_INSTRUCTIONS = `You maintain a coach's private working notes about one user, learned from how they respond to daily tasks.
 
@@ -113,6 +121,8 @@ export type HistoryItem = {
 
 export type ComposeInput = {
   goal: Goal;
+  path?: GoalPath;
+  milestone?: PathMilestone;
   history: HistoryItem[];
   date: string;
   contextBlocks?: ContextBlock[];
@@ -225,6 +235,27 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
         );
       });
 
+    const selectResource = (
+      input: ComposeInput,
+      model: string,
+      results: SearchResult[]
+    ): Effect.Effect<SearchResult | null, LlmError> =>
+      Effect.gen(function* () {
+        if (results.length === 0) return null;
+        input.onStatus?.("Choosing a resource...");
+        const raw = yield* ollama.chat({
+          model,
+          system: RESOURCE_SELECTOR_INSTRUCTIONS,
+          messages: [{ role: "user", content: buildResourceSelectionPrompt(input, results) }],
+          format: resourceSelectionJsonSchema,
+          temperature: 0.1
+        });
+        const decoded = decodeJson(ResourceSelectionSchema)(raw);
+        if (decoded._tag === "Left" || !decoded.right.selectedUrl) return null;
+        const selected = normalizeUrl(decoded.right.selectedUrl);
+        return results.find((result) => normalizeUrl(result.url) === selected) ?? null;
+      });
+
     const compose = (
       input: ComposeInput
     ): Effect.Effect<SuggestionDraft, LlmError | DraftInvalidError> =>
@@ -238,7 +269,9 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
           input.onStatus?.("Searching the web...");
           // A search failure must not kill the goal — degrade to no results
           // (the URL allowlist then simply stays empty).
-          const searched = yield* Effect.either(search.search(queries));
+          const searched = yield* Effect.either(
+            search.search(queries, canonicalDomains(input.path?.sources.map((source) => source.url) ?? []))
+          );
           if (searched._tag === "Right") {
             results = searched.right;
           } else {
@@ -257,9 +290,15 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
           );
         }
 
+        const selected = yield* Effect.either(selectResource(input, model, results));
+        if (selected._tag === "Left") {
+          yield* Effect.logWarning(`resource selection failed: ${selected.left.message}`);
+        }
+        const selectedResults =
+          selected._tag === "Right" && selected.right ? [selected.right] : [];
         input.onStatus?.("Drafting today's action...");
-        const rawDraft = yield* draft(input, model, results);
-        return sanitizeUrls(rawDraft, results);
+        const rawDraft = yield* draft(input, model, selectedResults);
+        return sanitizeUrls(rawDraft, selectedResults);
       });
 
     /**
@@ -510,6 +549,7 @@ function goalBlock(input: ComposeInput, opts?: { includeContext?: boolean }): st
     goal.description ? `Description: ${goal.description}` : null,
     includeContext && goal.context ? `User context: ${goal.context}` : null,
     `Today's date: ${date}`
+    ,input.milestone ? `Current path milestone: ${input.milestone.title}\nOutcome: ${input.milestone.outcome}\nCompletion criteria: ${input.milestone.completionCriteria}\nFocus this action only on advancing this milestone.` : null
   ]
     .filter(Boolean)
     .join("\n");
@@ -550,9 +590,9 @@ function buildPrompt(input: ComposeInput, searchResults: SearchResult[]): string
 
   const searchSection = searchResults.length
     ? searchResults
-        .map((r, i) => `${i + 1}. ${r.title}\nURL: ${r.url}\nSnippet: ${r.content}`)
+        .map((r) => `${r.title}\nURL: ${r.url}\nSnippet: ${r.content}`)
         .join("\n\n")
-    : "(No web search results available. Prefer a suggestion that does not require a URL unless you are confident the URL is real.)";
+    : "(No resource was selected. The action must not require a URL.)";
 
   return `---
 ${profileSection}${goalConstraintsSection}${notesSection}${weeklySection}${contextSection}${momentumSection}${noteSection}
@@ -565,11 +605,38 @@ ${goalBlock(input, { includeContext: false })}
 
 ${historyBlock}
 
-## Web search results
+## Selected resource
 
 ${searchSection}
 
 Generate one suggestion now.`;
+}
+
+function buildResourceSelectionPrompt(input: ComposeInput, results: SearchResult[]): string {
+  const milestone = input.milestone;
+  const candidates = results
+    .map(
+      (result, index) =>
+        `${index + 1}. ${result.title}\n` +
+        `URL: ${result.url}\n` +
+        `Lane: ${result.lane}; provider: ${result.provider}\n` +
+        `Author: ${result.author ?? "unknown"}; published: ${result.publishedDate ?? "unknown"}\n` +
+        `Highlights: ${result.highlights.join(" … ") || result.content || "(none)"}`
+    )
+    .join("\n\n");
+  return `Goal: ${input.goal.title}\nCurrent milestone: ${milestone?.title ?? "unknown"}\nOutcome: ${milestone?.outcome ?? "unknown"}\nCompletion criteria: ${milestone?.completionCriteria ?? "unknown"}\n\nCandidates:\n${candidates}`;
+}
+
+function canonicalDomains(urls: string[]): string[] {
+  const domains = new Set<string>();
+  for (const url of urls) {
+    try {
+      domains.add(new URL(url).hostname.toLowerCase().replace(/^www\./, ""));
+    } catch {
+      // Ignore malformed persisted sources rather than breaking daily retrieval.
+    }
+  }
+  return [...domains];
 }
 
 function momentumBlock(stats: ChecklistStats): string {

@@ -10,10 +10,7 @@ import { CLOUD_HOST, extractError } from "./Ollama";
 const EXA_SEARCH_URL = "https://api.exa.ai/search";
 const SEARCH_TIMEOUT_MS = 30_000;
 
-// Deep search does multi-step planning + reasoning to surface specific, real
-// resources instead of whatever ranks first. "deep-lite" keeps latency ~4s;
-// bump to "deep" for harder goals at the cost of more latency.
-const EXA_SEARCH_TYPE = "deep-lite";
+// Ordinary resource discovery lets Exa choose the appropriate search mode.
 const EXA_SEARCH_SYSTEM_PROMPT =
   "Find specific, high-quality, directly actionable resources for the user's goal. " +
   "Strongly prefer primary and authoritative sources: official docs, the original author's blog or essay, " +
@@ -27,7 +24,17 @@ export class SearchError extends Data.TaggedError("SearchError")<{
   raw?: string;
 }> {}
 
-export type SearchResult = { title: string; url: string; content: string };
+export type SearchResult = {
+  title: string;
+  url: string;
+  content: string;
+  highlights: string[];
+  author: string | null;
+  publishedDate: string | null;
+  provider: "exa" | "ollama";
+  lane: "canonical" | "discovery";
+};
+export type PathResearch = { summary: string; sources: SearchResult[] };
 
 export type SearchProviderKind = "exa" | "ollama" | "none";
 
@@ -46,16 +53,99 @@ export function normalizeUrl(url: string): string {
   }
 }
 
-type ExaSearchResponse = {
-  results?: Array<{ title?: string; url?: string; highlights?: string[]; text?: string }>;
+export type ExaSearchResponse = {
+  results?: Array<{
+    title?: string;
+    url?: string;
+    highlights?: string[];
+    text?: string;
+    author?: string;
+    publishedDate?: string;
+  }>;
   // Deep search variants synthesize an answer and ground it in vetted citations.
   output?: {
-    content?: string;
+    content?: string | { summary?: unknown };
     grounding?: Array<{
       citations?: Array<{ url?: string; title?: string }>;
     }>;
   };
 };
+
+export const buildExaSearchRequest = (
+  query: string,
+  options: { includeDomains?: string[]; excludeDomains?: string[] } = {}
+) => ({
+  query,
+  type: "auto" as const,
+  numResults: 5,
+  systemPrompt: EXA_SEARCH_SYSTEM_PROMPT,
+  ...(options.includeDomains?.length ? { includeDomains: options.includeDomains } : {}),
+  ...(options.excludeDomains?.length ? { excludeDomains: options.excludeDomains } : {}),
+  contents: { highlights: true }
+});
+
+export const buildExaPathRequest = (query: string) => ({
+  query,
+  type: "deep" as const,
+  numResults: 8,
+  systemPrompt:
+    "Research a realistic path using current first-party and authoritative sources. Distinguish sourced requirements from assumptions.",
+  outputSchema: {
+    type: "object",
+    properties: { summary: { type: "string" } },
+    required: ["summary"]
+  },
+  contents: { highlights: true }
+});
+
+export function decodeExaPathResearch(input: unknown): PathResearch {
+  if (!input || typeof input !== "object") {
+    throw new SearchError({ message: "Exa path research returned invalid JSON" });
+  }
+  const response = input as ExaSearchResponse;
+  const content = response.output?.content;
+  let structured: unknown = content;
+  if (typeof content === "string") {
+    try {
+      structured = JSON.parse(content) as unknown;
+    } catch {
+      structured = { summary: content };
+    }
+  }
+  const summary =
+    structured && typeof structured === "object" && "summary" in structured
+      ? String(structured.summary ?? "").trim()
+      : "";
+  const citations = (response.output?.grounding ?? [])
+    .flatMap((group) => group.citations ?? [])
+    .filter((citation): citation is { url: string; title?: string } =>
+      Boolean(citation.url?.trim())
+    );
+  if (!summary || citations.length === 0) {
+    throw new SearchError({
+      message: "Exa path research was not grounded in cited sources."
+    });
+  }
+  const results = response.results ?? [];
+  return {
+    summary,
+    sources: citations.map((citation) => {
+      const result = results.find(
+        (candidate) => candidate.url && normalizeUrl(candidate.url) === normalizeUrl(citation.url)
+      );
+      return {
+        title: citation.title?.trim() || result?.title?.trim() || citation.url,
+        url: citation.url,
+        content: (result?.highlights ?? []).join(" … ").trim() || String(result?.text ?? "").slice(0, 1500),
+        highlights: result?.highlights ?? [],
+        author: result?.author?.trim() || null,
+        publishedDate: result?.publishedDate?.trim() || null,
+        provider: "exa" as const,
+        lane: "canonical" as const
+      };
+    })
+  };
+}
 
 type OllamaWebSearchResponse = {
   results?: Array<{ title?: string; url?: string; content?: string }>;
@@ -84,7 +174,11 @@ const timedFetch = (
     }
   });
 
-const searchExa = (query: string): Effect.Effect<SearchResult[], SearchError> =>
+const searchExa = (
+  query: string,
+  lane: SearchResult["lane"],
+  domains: string[]
+): Effect.Effect<SearchResult[], SearchError> =>
   Effect.gen(function* () {
     const apiKey = process.env.EXA_API_KEY;
     if (!apiKey) return [];
@@ -94,13 +188,14 @@ const searchExa = (query: string): Effect.Effect<SearchResult[], SearchError> =>
       {
         method: "POST",
         headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query,
-          type: EXA_SEARCH_TYPE,
-          numResults: 5,
-          systemPrompt: EXA_SEARCH_SYSTEM_PROMPT,
-          contents: { highlights: true }
-        })
+        body: JSON.stringify(
+          buildExaSearchRequest(
+            query,
+            lane === "canonical"
+              ? { includeDomains: domains }
+              : { excludeDomains: ["dev.to", "medium.com"] }
+          )
+        )
       },
       "Exa web search"
     );
@@ -127,22 +222,13 @@ const searchExa = (query: string): Effect.Effect<SearchResult[], SearchError> =>
       .map((r) => ({
         title: String(r.title),
         url: String(r.url),
-        content: (r.highlights ?? []).join(" … ").trim() || String(r.text ?? "").slice(0, 1000)
+        content: (r.highlights ?? []).join(" … ").trim() || String(r.text ?? "").slice(0, 1000),
+        highlights: r.highlights ?? [],
+        author: r.author?.trim() || null,
+        publishedDate: r.publishedDate?.trim() || null,
+        provider: "exa" as const,
+        lane
       }));
-
-    // Deep search returns a synthesized answer grounded in citations. Those
-    // cited URLs are Exa's vetted picks, so add any that aren't already in
-    // results — this keeps them on the URL allowlist the model is restricted
-    // to. Attach the synthesized summary as their snippet.
-    const summary = String(parsed.output?.content ?? "").slice(0, 1000);
-    const known = new Set(results.map((r) => normalizeUrl(r.url)));
-    for (const g of parsed.output?.grounding ?? []) {
-      for (const c of g.citations ?? []) {
-        if (!c.url || known.has(normalizeUrl(c.url))) continue;
-        known.add(normalizeUrl(c.url));
-        results.push({ title: String(c.title ?? c.url), url: String(c.url), content: summary });
-      }
-    }
 
     return results;
   });
@@ -192,7 +278,12 @@ const searchOllama = (query: string): Effect.Effect<SearchResult[], SearchError>
       .map((r) => ({
         title: String(r.title),
         url: String(r.url),
-        content: String(r.content ?? "")
+        content: String(r.content ?? ""),
+        highlights: [] as string[],
+        author: null,
+        publishedDate: null,
+        provider: "ollama" as const,
+        lane: "discovery" as const
       }));
   });
 
@@ -204,26 +295,75 @@ export class Search extends Effect.Service<Search>()("Search", {
      * URL so a few angles produce one clean result set. Capped so the prompt
      * stays small.
      */
-    search: (queries: string[]): Effect.Effect<SearchResult[], SearchError> =>
+    search: (
+      queries: string[],
+      canonicalDomains: string[] = []
+    ): Effect.Effect<SearchResult[], SearchError> =>
       Effect.gen(function* () {
         const provider = searchProvider();
         if (provider === "none" || queries.length === 0) return [];
 
-        const perQuery = yield* Effect.forEach(
-          queries,
-          (q) => (provider === "exa" ? searchExa(q) : searchOllama(q)),
+        const searches =
+          provider === "exa"
+            ? [
+                ...(canonicalDomains.length
+                  ? queries.map((query) => searchExa(query, "canonical", canonicalDomains))
+                  : []),
+                ...queries.map((query) => searchExa(query, "discovery", []))
+              ]
+            : queries.map(searchOllama);
+        const batches = yield* Effect.forEach(
+          searches,
+          (search) => search,
           { concurrency: "unbounded" }
         );
 
         const seen = new Set<string>();
         const merged: SearchResult[] = [];
-        for (const r of perQuery.flat()) {
+        // Canonical searches are deliberately queued first above, so the
+        // dedupe and cap prefer grounded first-party domains.
+        for (const r of batches.flat()) {
           const key = normalizeUrl(r.url);
           if (seen.has(key)) continue;
           seen.add(key);
           merged.push(r);
         }
         return merged.slice(0, 8);
+      }),
+    researchPath: (query: string): Effect.Effect<PathResearch, SearchError> =>
+      Effect.gen(function* () {
+        const apiKey = process.env.EXA_API_KEY;
+        if (!apiKey) {
+          return yield* Effect.fail(
+            new SearchError({ message: "Exa is required to research a path." })
+          );
+        }
+        const res = yield* timedFetch(
+          EXA_SEARCH_URL,
+          {
+            method: "POST",
+            headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
+            body: JSON.stringify(buildExaPathRequest(query))
+          },
+          "Exa path research"
+        );
+        if (!res.ok) {
+          return yield* Effect.fail(
+            new SearchError({
+              message: `Exa path research failed (${res.status}): ${extractError(res.text)}`,
+              raw: res.text
+            })
+          );
+        }
+        try {
+          return decodeExaPathResearch(JSON.parse(res.text) as unknown);
+        } catch (error) {
+          return yield* Effect.fail(
+            error instanceof SearchError
+              ? error
+              : new SearchError({ message: "Exa path research returned invalid JSON" })
+          );
+        }
       })
   }
 }) {}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Schema } from "effect";
-import { SuggestionDraftSchema } from "~/shared/schema";
+import { ResourceSelectionSchema, SuggestionDraftSchema } from "~/shared/schema";
 import { sanitizeUrls } from "./Composer";
 
 const decode = Schema.decodeUnknownEither(SuggestionDraftSchema);
@@ -82,7 +82,16 @@ describe("SuggestionDraftSchema", () => {
 
 describe("sanitizeUrls", () => {
   const results = [
-    { title: "Guide", url: "https://example.com/guide", content: "..." }
+    {
+      title: "Guide",
+      url: "https://example.com/guide",
+      content: "...",
+      highlights: ["Useful excerpt"],
+      author: "Example author",
+      publishedDate: "2026-01-01",
+      provider: "exa" as const,
+      lane: "canonical" as const
+    }
   ];
 
   it("keeps allowlisted urls", () => {
@@ -117,5 +126,15 @@ describe("sanitizeUrls", () => {
     expect(draft.detailMarkdown).not.toContain("invented.example.net");
     expect(draft.detailMarkdown).not.toContain("also-fake.example.org");
     expect(draft.detailMarkdown).toContain("fake"); // link text survives
+  });
+});
+
+describe("ResourceSelectionSchema", () => {
+  it("accepts an explicit no-resource decision", () => {
+    const decoded = Schema.decodeUnknownEither(ResourceSelectionSchema)({
+      selectedUrl: null,
+      reason: "None of the candidates directly advances this milestone."
+    });
+    expect(decoded._tag).toBe("Right");
   });
 });
