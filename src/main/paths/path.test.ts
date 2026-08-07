@@ -10,6 +10,7 @@ import {
   decodeExaPathResearch
 } from "../llm/Search";
 import { Db } from "../db/Db";
+import { decodePathPlan } from "./PathPlanner";
 import { PathsRepo, STALE_PATH_GENERATION_MS } from "../repo/Paths";
 
 const validPlan = {
@@ -41,6 +42,17 @@ describe("PathPlanDraftSchema", () => {
       ...validPlan,
       milestones: [{ ...validPlan.milestones[0], completionCriteria: "" }]
     })._tag).toBe("Left");
+  });
+
+  it("accepts valid plans wrapped in markdown or model commentary", () => {
+    const json = JSON.stringify(validPlan);
+    expect(decodePathPlan(`\`\`\`json\n${json}\n\`\`\``)._tag).toBe("Right");
+    expect(decodePathPlan(`<think>Planning the response</think>\n${json}`)._tag).toBe("Right");
+  });
+
+  it("rejects truncated JSON and schema-invalid plans", () => {
+    expect(decodePathPlan('{"assumptions":')._tag).toBe("Left");
+    expect(decodePathPlan(JSON.stringify({ ...validPlan, milestones: [] }))._tag).toBe("Left");
   });
 });
 

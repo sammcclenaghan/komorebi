@@ -13,8 +13,34 @@ Create a short, ordered sequence of outcome milestones toward the stable goal.
 Each completion criterion must describe concrete, observable evidence, not effort or intention.
 Return only the required JSON.`;
 
+const MAX_PLAN_ATTEMPTS = 3;
+
 function plannerFailure(message: string): PathValidationError {
   return new PathValidationError({ message });
+}
+
+export function decodePathPlan(raw: string) {
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/)?.[1];
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  const extracted = start >= 0 && end > start ? raw.slice(start, end + 1) : undefined;
+  const candidates = [raw.trim(), fenced?.trim(), extracted?.trim()];
+  let error = "Path planner returned invalid JSON.";
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    let json: unknown;
+    try {
+      json = JSON.parse(candidate) as unknown;
+    } catch {
+      continue;
+    }
+    const decoded = Schema.decodeUnknownEither(PathPlanDraftSchema)(json);
+    if (decoded._tag === "Right") return decoded;
+    error = decoded.left.message;
+  }
+
+  return { _tag: "Left", left: error } as const;
 }
 
 export class PathPlanner extends Effect.Service<PathPlanner>()("PathPlanner", {
@@ -41,49 +67,57 @@ export class PathPlanner extends Effect.Service<PathPlanner>()("PathPlanner", {
             `${goal.title}\n${goal.description ?? ""}\n${goal.context ?? ""}`
           );
           const config = yield* settings.get();
-          const raw = yield* ollama.chat({
-            model: config.model ?? defaultModel(),
-            system: SYSTEM_PROMPT,
-            format: pathPlanJsonSchema,
-            messages: [
+          const messages: Array<{ role: "user" | "assistant"; content: string }> = [
+            {
+              role: "user",
+              content: [
+                `Goal: ${goal.title}`,
+                `Description: ${goal.description ?? ""}`,
+                `Context: ${goal.context ?? ""}`,
+                `User profile: ${config.profile ?? ""}`,
+                `Grounded research: ${research.summary}`,
+                "Cited sources:",
+                ...research.sources.map(
+                  (source) => `${source.title}: ${source.url}\n${source.content}`
+                )
+              ].join("\n")
+            }
+          ];
+          let lastError = "Path planner returned invalid JSON.";
+          for (let planAttempt = 1; planAttempt <= MAX_PLAN_ATTEMPTS; planAttempt++) {
+            const raw = yield* ollama.chat({
+              model: config.model ?? defaultModel(),
+              system: SYSTEM_PROMPT,
+              format: pathPlanJsonSchema,
+              messages,
+              temperature: 0.2
+            });
+            const decoded = decodePathPlan(raw);
+            if (decoded._tag === "Right") {
+              return yield* paths.saveDraft(
+                attempt.id,
+                decoded.right,
+                research.sources.map((source) => ({
+                  id: randomUUID(),
+                  pathId: attempt.id,
+                  title: source.title,
+                  url: source.url,
+                  excerpt: source.content.slice(0, 1500)
+                }))
+              );
+            }
+            lastError = decoded.left;
+            messages.push(
+              { role: "assistant", content: raw.slice(0, 8000) },
               {
                 role: "user",
-                content: [
-                  `Goal: ${goal.title}`,
-                  `Description: ${goal.description ?? ""}`,
-                  `Context: ${goal.context ?? ""}`,
-                  `User profile: ${config.profile ?? ""}`,
-                  `Grounded research: ${research.summary}`,
-                  "Cited sources:",
-                  ...research.sources.map(
-                    (source) => `${source.title}: ${source.url}\n${source.content}`
-                  )
-                ].join("\n")
+                content:
+                  `That response was invalid: ${lastError.slice(0, 500)}. ` +
+                  "Return only a complete JSON object matching the requested schema."
               }
-            ],
-            temperature: 0.2
-          });
-          let json: unknown;
-          try {
-            json = JSON.parse(raw) as unknown;
-          } catch {
-            return yield* Effect.fail(plannerFailure("Path planner returned invalid JSON."));
+            );
           }
-          const decoded = Schema.decodeUnknownEither(PathPlanDraftSchema)(json);
-          if (decoded._tag === "Left") {
-            return yield* Effect.fail(plannerFailure(decoded.left.message));
-          }
-          return yield* paths.saveDraft(
-            attempt.id,
-            decoded.right,
-            research.sources.map((source) => ({
-              id: randomUUID(),
-              pathId: attempt.id,
-              title: source.title,
-              url: source.url,
-              excerpt: source.content.slice(0, 1500)
-            }))
-          );
+          return yield* Effect.fail(plannerFailure(lastError));
         });
 
         const result = yield* Effect.either(work);
