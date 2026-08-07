@@ -11,12 +11,41 @@ const SYSTEM_PROMPT = `You are Komorebi's path strategist.
 Use the supplied grounded research for every external fact. Put uncertainty in assumptions.
 Create a short, ordered sequence of outcome milestones toward the stable goal.
 Each completion criterion must describe concrete, observable evidence, not effort or intention.
+The assumptions and researchSummary fields must each be a single string, not an object or array.
 Return only the required JSON.`;
 
 const MAX_PLAN_ATTEMPTS = 3;
 
 function plannerFailure(message: string): PathValidationError {
   return new PathValidationError({ message });
+}
+
+function normalizePlanText(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizePlanText).filter((item) => typeof item === "string").join("\n");
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value)
+      .map(([key, item]) => {
+        const text = normalizePlanText(item);
+        if (typeof text !== "string" || !text.trim()) return null;
+        const label = key.replaceAll("_", " ").replace(/^./, (character) => character.toUpperCase());
+        return `${label}: ${text}`;
+      })
+      .filter((item): item is string => item !== null)
+      .join("\n");
+  }
+  return value;
+}
+
+function normalizePathPlan(input: unknown): unknown {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return input;
+  const plan = input as Record<string, unknown>;
+  return {
+    ...plan,
+    assumptions: normalizePlanText(plan.assumptions),
+    researchSummary: normalizePlanText(plan.researchSummary)
+  };
 }
 
 export function decodePathPlan(raw: string) {
@@ -35,9 +64,13 @@ export function decodePathPlan(raw: string) {
     } catch {
       continue;
     }
-    const decoded = Schema.decodeUnknownEither(PathPlanDraftSchema)(json);
+    const decoded = Schema.decodeUnknownEither(PathPlanDraftSchema)(normalizePathPlan(json));
     if (decoded._tag === "Right") return decoded;
-    error = decoded.left.message;
+    error = `Path planner returned an invalid plan: ${decoded.left.message
+      .split("\n")
+      .slice(0, 6)
+      .join(" ")
+      .slice(0, 500)}`;
   }
 
   return { _tag: "Left", left: error } as const;

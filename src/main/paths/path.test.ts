@@ -50,6 +50,27 @@ describe("PathPlanDraftSchema", () => {
     expect(decodePathPlan(`<think>Planning the response</think>\n${json}`)._tag).toBe("Right");
   });
 
+  it("turns structured assumptions and research summaries into display text", () => {
+    const decoded = decodePathPlan(JSON.stringify({
+      ...validPlan,
+      assumptions: {
+        technical_baseline: "The user has strong language-specific skills.",
+        learning_style: "The user prefers rigorous materials."
+      },
+      researchSummary: ["Employers value practical experience.", "Projects demonstrate it."]
+    }));
+    expect(decoded._tag).toBe("Right");
+    if (decoded._tag === "Right") {
+      expect(decoded.right.assumptions).toBe(
+        "Technical baseline: The user has strong language-specific skills.\n" +
+        "Learning style: The user prefers rigorous materials."
+      );
+      expect(decoded.right.researchSummary).toBe(
+        "Employers value practical experience.\nProjects demonstrate it."
+      );
+    }
+  });
+
   it("rejects truncated JSON and schema-invalid plans", () => {
     expect(decodePathPlan('{"assumptions":')._tag).toBe("Left");
     expect(decodePathPlan(JSON.stringify({ ...validPlan, milestones: [] }))._tag).toBe("Left");
