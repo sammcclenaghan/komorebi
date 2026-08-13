@@ -10,6 +10,14 @@ import { rescheduleScheduler } from "./scheduler";
 
 export function registerIpcHandlers(): void {
   ipcMain.handle("app:version", () => app.getVersion());
+  ipcMain.handle(
+    "generation:enqueue-checklist",
+    (_event, input: { requestId: string }) =>
+      handlers.generation.enqueueChecklist(input.requestId)
+  );
+  ipcMain.handle("generation:recent-jobs", (_event, limit?: number) =>
+    handlers.generation.recentJobs(limit)
+  );
 
   ipcMain.handle("goals:list", () => handlers.goals.list());
   ipcMain.handle("goals:add", (_e, input: GoalAddInput) => handlers.goals.add(input));

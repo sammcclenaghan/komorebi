@@ -46,8 +46,26 @@ export type SettingsUpdate = {
   profile?: string | null;
 };
 
+export type GenerationJobView = {
+  id: string;
+  kind: string;
+  status: "queued" | "running" | "retry_wait" | "succeeded" | "failed";
+  attemptCount: number;
+  maxAttempts: number;
+  availableAt: string;
+  errorKind: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+};
+
 export type KomorebiApi = {
   getVersion: () => Promise<string>;
+  generation: {
+    enqueueChecklist: (input: { requestId: string }) => Promise<GenerationJobView>;
+    recentJobs: (limit?: number) => Promise<GenerationJobView[]>;
+  };
   goals: {
     list: () => Promise<Goal[]>;
     add: (input: GoalAddInput) => Promise<Goal>;

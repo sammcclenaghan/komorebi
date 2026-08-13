@@ -4,7 +4,12 @@
  * and the HTTP router both call these — one implementation, two transports.
  */
 import { Effect } from "effect";
-import type { GoalAddInput, GoalUpdateInput, SettingsUpdate } from "~/shared/api";
+import type {
+  GenerationJobView,
+  GoalAddInput,
+  GoalUpdateInput,
+  SettingsUpdate
+} from "~/shared/api";
 import type {
   AppSettings,
   ChecklistDay,
@@ -24,6 +29,7 @@ import type {
 import { Checklist } from "../checklist/Checklist";
 import { Progress, type ProgressListener } from "../checklist/Progress";
 import { Db } from "../db/Db";
+import { GenerationJobs, type GenerationJob } from "../jobs/GenerationJobs";
 import { LinkPreview } from "../links/LinkPreview";
 import { GoalsRepo } from "../repo/Goals";
 import { MemoryRepo } from "../repo/Memory";
@@ -42,6 +48,28 @@ export const handlers = {
         Db.pipe(
           Effect.flatMap((db) => db.execute("SELECT 1")),
           Effect.asVoid
+        )
+      )
+  },
+  generation: {
+    enqueueChecklist: (requestId: string): Promise<GenerationJobView> =>
+      run(
+        GenerationJobs.pipe(
+          Effect.flatMap((jobs) =>
+            jobs.enqueue({
+              kind: "checklist-generate",
+              idempotencyKey: `checklist-generate:${requestId}`,
+              payload: {}
+            })
+          ),
+          Effect.map(toGenerationJobView)
+        )
+      ),
+    recentJobs: (limit?: number): Promise<GenerationJobView[]> =>
+      run(
+        GenerationJobs.pipe(
+          Effect.flatMap((jobs) => jobs.listRecent(limit)),
+          Effect.map((jobs) => jobs.map(toGenerationJobView))
         )
       )
   },
@@ -149,3 +177,19 @@ export const handlers = {
 
 export type Handlers = typeof handlers;
 export type { GenerationProgress };
+
+function toGenerationJobView(job: GenerationJob): GenerationJobView {
+  return {
+    id: job.id,
+    kind: job.kind,
+    status: job.status,
+    attemptCount: job.attemptCount,
+    maxAttempts: job.maxAttempts,
+    availableAt: job.availableAt,
+    errorKind: job.errorKind,
+    errorMessage: job.errorMessage,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    completedAt: job.completedAt
+  };
+}

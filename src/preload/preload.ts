@@ -4,6 +4,10 @@ import type { GenerationProgress } from "~/shared/schema";
 
 const api: KomorebiApi = {
   getVersion: () => ipcRenderer.invoke("app:version"),
+  generation: {
+    enqueueChecklist: (input) => ipcRenderer.invoke("generation:enqueue-checklist", input),
+    recentJobs: (limit) => ipcRenderer.invoke("generation:recent-jobs", limit)
+  },
   goals: {
     list: () => ipcRenderer.invoke("goals:list"),
     add: (input) => ipcRenderer.invoke("goals:add", input),

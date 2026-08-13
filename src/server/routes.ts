@@ -56,6 +56,18 @@ export async function handleApi(
     return appVersion;
   }
 
+  if (method === "POST" && pathname === "/api/generation/checklist") {
+    const input = recordBody(body);
+    return handlers.generation.enqueueChecklist(requiredString(input.requestId, "requestId"));
+  }
+  if (method === "GET" && pathname === "/api/generation/jobs") {
+    const params = new URLSearchParams(search);
+    const limit = params.has("limit") ? Number(params.get("limit")) : undefined;
+    return handlers.generation.recentJobs(
+      typeof limit === "number" && Number.isInteger(limit) ? limit : undefined
+    );
+  }
+
   if (method === "GET" && pathname === "/api/goals") return handlers.goals.list();
   const pathGet = pathname.match(/^\/api\/goals\/([^/]+)\/path$/);
   if (pathGet?.[1] && method === "GET") {

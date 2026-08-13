@@ -25,6 +25,8 @@ export function AppToaster() {
       offset={{ bottom: 20 }}
       gap={8}
       visibleToasts={3}
+      richColors
+      closeButton
       toastOptions={{
         style: {
           // Map Sonner's surface tokens onto the app's palette so toasts read

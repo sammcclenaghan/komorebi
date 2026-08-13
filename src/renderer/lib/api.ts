@@ -80,6 +80,16 @@ export function createHttpClient(): KomorebiApi {
   return {
     getVersion: () => apiFetch<string>("/api/version"),
 
+    generation: {
+      enqueueChecklist: (input) =>
+        apiFetch("/api/generation/checklist", {
+          method: "POST",
+          body: JSON.stringify(input)
+        }),
+      recentJobs: (limit) =>
+        apiFetch("/api/generation/jobs", { search: { limit } })
+    },
+
     goals: {
       list: () => apiFetch("/api/goals"),
       add: (input) => apiFetch("/api/goals", { method: "POST", body: JSON.stringify(input) }),

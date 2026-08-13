@@ -11,6 +11,7 @@ import { PathDetail } from "./pages/PathDetail";
 import { IconButton } from "./components/ui/IconButton";
 import { useApplyTheme } from "./lib/use-theme";
 import { useChecklistProgress } from "./lib/use-checklist-progress";
+import { useGenerationFeedback } from "./lib/use-generation-feedback";
 import { isWebMode } from "./lib/api";
 import { cn } from "~/lib/cn";
 
@@ -44,6 +45,7 @@ export function App() {
   // checklist cache keeps getting invalidated — while the user is on another
   // page. Pages remount on navigation via the keyed <main> below.
   const progress = useChecklistProgress();
+  useGenerationFeedback();
 
   function selectView(next: View) {
     setView(next);

@@ -28,6 +28,7 @@ import type {
   ChecklistProgress,
   InFlightGoal,
 } from "../lib/use-checklist-progress";
+import { showQueuedFeedback, showQueueError } from "../lib/use-generation-feedback";
 
 function locationFromTimezone(): string {
   try {
@@ -143,13 +144,10 @@ export function Today({ onOpenSuggestion, onOpenPath, progress }: Props) {
   });
 
   const generate = useMutation({
-    mutationFn: () => window.komorebi.checklist.generate(),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["checklist", "today"], data);
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
-    },
+    mutationFn: (requestId: string) =>
+      window.komorebi.generation.enqueueChecklist({ requestId }),
+    onSuccess: showQueuedFeedback,
+    onError: showQueueError
   });
 
   // Per-goal recovery: a failed goal retries alone instead of re-running the
@@ -252,7 +250,7 @@ export function Today({ onOpenSuggestion, onOpenPath, progress }: Props) {
     if (items.length > 0) return;
     if (active || generate.isPending) return;
     autoFiredRef.current = true;
-    generate.mutate();
+    generate.mutate(crypto.randomUUID());
   }, [isLoading, noGoals, readyGoalIds.size, items.length, active, generate]);
 
   return (
@@ -331,7 +329,7 @@ export function Today({ onOpenSuggestion, onOpenPath, progress }: Props) {
             placeholders={visiblePlaceholders}
             goalsById={goalsById}
             onOpenSuggestion={onOpenSuggestion}
-            onRefresh={() => generate.mutate()}
+            onRefresh={() => generate.mutate(crypto.randomUUID())}
             onRetryGoal={(goalId) => retryGoal.mutate(goalId)}
             generating={generate.isPending || active}
             topUpCount={topUpCount}
@@ -357,7 +355,7 @@ export function Today({ onOpenSuggestion, onOpenPath, progress }: Props) {
         ) : (
           <NoChecklistYet
             goals={activeGoals.filter((goal) => readyGoalIds.has(goal.id))}
-            onGenerate={() => generate.mutate()}
+            onGenerate={() => generate.mutate(crypto.randomUUID())}
             generating={generate.isPending}
             error={generate.error as Error | null}
             onAddGoal={() => setShowAddGoal(true)}

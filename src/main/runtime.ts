@@ -8,6 +8,8 @@ import { Checklist } from "./checklist/Checklist";
 import { Progress } from "./checklist/Progress";
 import { Context } from "./context/Context";
 import { Db } from "./db/Db";
+import { GenerationJobs } from "./jobs/GenerationJobs";
+import { GenerationWorker } from "./jobs/GenerationWorker";
 import { LinkPreview } from "./links/LinkPreview";
 import { Composer } from "./llm/Composer";
 import { BriefsRepo } from "./repo/Briefs";
@@ -23,6 +25,7 @@ import { Weather } from "./weather/Weather";
 
 const AppLayer = Layer.mergeAll(
   Db.Default,
+  GenerationJobs.Default,
   GoalsRepo.Default,
   SuggestionsRepo.Default,
   PathsRepo.Default,
@@ -37,7 +40,8 @@ const AppLayer = Layer.mergeAll(
   Weather.Default,
   LinkPreview.Default,
   Progress.Default,
-  Checklist.Default
+  Checklist.Default,
+  GenerationWorker.Default
 );
 
 export const runtime = ManagedRuntime.make(AppLayer);
