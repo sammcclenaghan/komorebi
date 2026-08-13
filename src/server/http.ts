@@ -21,6 +21,8 @@ const MIME: Record<string, string> = {
   ".webmanifest": "application/manifest+json"
 };
 
+const MAX_JSON_BODY_BYTES = 1024 * 1024;
+
 export type ServerOptions = {
   port: number;
   host: string;
@@ -40,6 +42,22 @@ export function createServer(options: ServerOptions): http.Server {
 
       const url = new URL(req.url, "http://local");
       const pathname = url.pathname;
+
+      if (pathname === "/health/live") {
+        writeJson(res, 200, { status: "ok" });
+        return;
+      }
+
+      if (pathname === "/health/ready") {
+        try {
+          await handlers.health.ready();
+          writeJson(res, 200, { status: "ready" });
+        } catch (err) {
+          console.error("[server] readiness check failed:", err);
+          writeJson(res, 503, { status: "not-ready" });
+        }
+        return;
+      }
 
       if (req.method === "OPTIONS") {
         writeCors(res);
@@ -99,8 +117,18 @@ export function createServer(options: ServerOptions): http.Server {
 
       res.writeHead(404).end("Not found");
     } catch (err) {
-      console.error("[server] request failed:", err);
-      if (!res.headersSent) res.writeHead(500).end("Internal error");
+      if (!res.headersSent) {
+        if (err instanceof RequestBodyTooLargeError) {
+          writeJson(res, 413, { error: err.message });
+        } else if (err instanceof SyntaxError) {
+          writeJson(res, 400, { error: "Request body must be valid JSON." });
+        } else {
+          console.error("[server] request failed:", err);
+          writeJson(res, 500, { error: "Internal error" });
+        }
+      } else {
+        console.error("[server] request failed after headers were sent:", err);
+      }
     }
   });
 }
@@ -117,6 +145,11 @@ function writeCors(res: http.ServerResponse): void {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+}
+
+function writeJson(res: http.ServerResponse, status: number, body: unknown): void {
+  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(body));
 }
 
 function handleProgressStream(req: http.IncomingMessage, res: http.ServerResponse): void {
@@ -155,12 +188,25 @@ function handleProgressStream(req: http.IncomingMessage, res: http.ServerRespons
 
 async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
+  let size = 0;
   for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    size += buffer.byteLength;
+    if (size > MAX_JSON_BODY_BYTES) {
+      throw new RequestBodyTooLargeError(MAX_JSON_BODY_BYTES);
+    }
+    chunks.push(buffer);
   }
   const raw = Buffer.concat(chunks).toString("utf8");
   if (!raw.trim()) return undefined;
   return JSON.parse(raw) as unknown;
+}
+
+class RequestBodyTooLargeError extends Error {
+  constructor(readonly maxBytes: number) {
+    super(`Request body exceeds the ${maxBytes}-byte limit.`);
+    this.name = "RequestBodyTooLargeError";
+  }
 }
 
 async function serveStatic(

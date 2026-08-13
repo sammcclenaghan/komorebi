@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: komorebi
     restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
     ports:
       - "3847:3847"
     environment:

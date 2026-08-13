@@ -23,6 +23,7 @@ import type {
 } from "~/shared/schema";
 import { Checklist } from "../checklist/Checklist";
 import { Progress, type ProgressListener } from "../checklist/Progress";
+import { Db } from "../db/Db";
 import { LinkPreview } from "../links/LinkPreview";
 import { GoalsRepo } from "../repo/Goals";
 import { MemoryRepo } from "../repo/Memory";
@@ -35,6 +36,15 @@ import { Weather } from "../weather/Weather";
 import { run } from "../runtime";
 
 export const handlers = {
+  health: {
+    ready: (): Promise<void> =>
+      run(
+        Db.pipe(
+          Effect.flatMap((db) => db.execute("SELECT 1")),
+          Effect.asVoid
+        )
+      )
+  },
   goals: {
     list: (): Promise<Goal[]> => run(GoalsRepo.pipe(Effect.flatMap((s) => s.list()))),
     add: (input: GoalAddInput): Promise<Goal> =>
