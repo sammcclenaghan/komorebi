@@ -10,6 +10,7 @@
  *    immediately with the server's real error message.
  */
 import { Data, Duration, Effect, Schedule } from "effect";
+import { ProviderCircuitBreaker } from "./ProviderCircuitBreaker";
 
 const LOCAL_HOST = "http://localhost:11434";
 export const CLOUD_HOST = "https://ollama.com";
@@ -19,11 +20,18 @@ const DEFAULT_CLOUD_MODEL = "gpt-oss:120b";
 // Without a timeout, a hung host blocks the coalesced in-flight generation
 // forever — the UI just shows "Composing…" until the process restarts.
 const CHAT_TIMEOUT_MS = 120_000;
+const chatCircuit = new ProviderCircuitBreaker();
+
+export function resetOllamaChatCircuits(): void {
+  chatCircuit.reset();
+}
 
 export class LlmError extends Data.TaggedError("LlmError")<{
   message: string;
   /** Retrying won't help (bad model tag, auth failure, 4xx). */
   permanent: boolean;
+  /** This attempt was skipped because recent failures already opened the circuit. */
+  circuitOpen?: boolean;
   raw?: string;
 }> {}
 
@@ -76,6 +84,16 @@ export class Ollama extends Effect.Service<Ollama>()("Ollama", {
       const attempt = Effect.tryPromise({
         try: async () => {
           const host = (process.env.OLLAMA_HOST ?? defaultHost()).replace(/\/$/, "");
+          const circuitKey = `${host}|${request.model}`;
+          if (!chatCircuit.canRequest(circuitKey)) {
+            throw new LlmError({
+              message: `Ollama is cooling down after repeated failures; retrying in ${Math.ceil(
+                chatCircuit.remainingMs(circuitKey) / 1000
+              )}s`,
+              permanent: false,
+              circuitOpen: true
+            });
+          }
           const chatApiKey = process.env.OLLAMA_CHAT_API_KEY;
           const cloudApiKey = host === CLOUD_HOST ? process.env.OLLAMA_API_KEY : undefined;
           const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -167,10 +185,27 @@ export class Ollama extends Effect.Service<Ollama>()("Ollama", {
               })
       });
 
-      return attempt.pipe(
+      const protectedAttempt = attempt.pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            const host = (process.env.OLLAMA_HOST ?? defaultHost()).replace(/\/$/, "");
+            chatCircuit.recordSuccess(`${host}|${request.model}`);
+          })
+        ),
+        Effect.tapError((error) =>
+          error.circuitOpen
+            ? Effect.void
+            : Effect.sync(() => {
+                const host = (process.env.OLLAMA_HOST ?? defaultHost()).replace(/\/$/, "");
+                chatCircuit.recordFailure(`${host}|${request.model}`, error.permanent);
+              })
+        )
+      );
+
+      return protectedAttempt.pipe(
         Effect.retry({
           schedule: transientRetry,
-          while: (error) => !error.permanent
+          while: (error) => !error.permanent && !error.circuitOpen
         })
       );
     }
