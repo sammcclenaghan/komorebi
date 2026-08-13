@@ -6,6 +6,17 @@ const api: KomorebiApi = {
   getVersion: () => ipcRenderer.invoke("app:version"),
   generation: {
     enqueueChecklist: (input) => ipcRenderer.invoke("generation:enqueue-checklist", input),
+    enqueueChecklistRegeneration: (input) =>
+      ipcRenderer.invoke("generation:enqueue-checklist-regeneration", input),
+    enqueueGoalRetry: (input) => ipcRenderer.invoke("generation:enqueue-goal-retry", input),
+    enqueuePathGeneration: (input) =>
+      ipcRenderer.invoke("generation:enqueue-path-generation", input),
+    enqueueSuggestionRegeneration: (input) =>
+      ipcRenderer.invoke("generation:enqueue-suggestion-regeneration", input),
+    enqueueSuggestionSkip: (input) =>
+      ipcRenderer.invoke("generation:enqueue-suggestion-skip", input),
+    enqueueCheckInReply: (input) =>
+      ipcRenderer.invoke("generation:enqueue-check-in-reply", input),
     recentJobs: (limit) => ipcRenderer.invoke("generation:recent-jobs", limit)
   },
   goals: {
@@ -16,15 +27,11 @@ const api: KomorebiApi = {
   },
   paths: {
     get: (id) => ipcRenderer.invoke("paths:get", id),
-    generate: (id) => ipcRenderer.invoke("paths:generate", id),
     activate: (input) => ipcRenderer.invoke("paths:activate", input),
     completeMilestone: (input) => ipcRenderer.invoke("paths:complete-milestone", input)
   },
   checklist: {
     today: () => ipcRenderer.invoke("checklist:today"),
-    generate: () => ipcRenderer.invoke("checklist:generate"),
-    regenerate: () => ipcRenderer.invoke("checklist:regenerate"),
-    retryGoal: (goalId) => ipcRenderer.invoke("checklist:retry-goal", goalId),
     stats: () => ipcRenderer.invoke("checklist:stats"),
     onProgress: (handler) => {
       const listener = (_: unknown, payload: GenerationProgress) => handler(payload);
@@ -38,8 +45,6 @@ const api: KomorebiApi = {
     get: (id) => ipcRenderer.invoke("suggestion:get", id),
     setStatus: (input) => ipcRenderer.invoke("suggestion:set-status", input),
     setRating: (input) => ipcRenderer.invoke("suggestion:set-rating", input),
-    skipAndRegenerate: (id, reason) => ipcRenderer.invoke("suggestion:skip-regenerate", id, reason),
-    regenerate: (id, note) => ipcRenderer.invoke("suggestion:regenerate", id, note)
   },
   reflections: {
     list: (suggestionId) => ipcRenderer.invoke("reflection:list", suggestionId),
@@ -60,8 +65,7 @@ const api: KomorebiApi = {
   },
   coach: {
     memory: () => ipcRenderer.invoke("coach:memory"),
-    weeklyCheckIn: () => ipcRenderer.invoke("coach:weekly-check-in"),
-    sendCheckInMessage: (content) => ipcRenderer.invoke("coach:send-check-in-message", content)
+    weeklyCheckIn: () => ipcRenderer.invoke("coach:weekly-check-in")
   },
   onNavigate: (handler) => {
     const listener = (_: unknown, view: string) => handler(view);

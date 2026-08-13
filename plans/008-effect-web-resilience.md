@@ -84,5 +84,6 @@ turn optional dependency outages into whole-application outages.
 
 - Slice 1: DONE
 - Slice 2: DONE
-- Slice 3: IN PROGRESS
-- Slices 4-6: TODO
+- Slice 3: DONE
+- Slice 4: IN PROGRESS
+- Slices 5-6: TODO

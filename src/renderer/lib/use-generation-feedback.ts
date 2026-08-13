@@ -3,12 +3,18 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { GenerationJobView } from "~/shared/api";
 
+export const GENERATION_JOBS_KEY = ["generation", "jobs"] as const;
+
+export function isActiveGenerationJob(job: GenerationJobView): boolean {
+  return job.status === "queued" || job.status === "running" || job.status === "retry_wait";
+}
+
 export function useGenerationFeedback(): void {
   const queryClient = useQueryClient();
   const previous = useRef<Map<string, GenerationJobView>>(new Map());
   const initialized = useRef(false);
   const jobsQuery = useQuery({
-    queryKey: ["generation", "jobs"],
+    queryKey: GENERATION_JOBS_KEY,
     queryFn: () => window.komorebi.generation.recentJobs(20),
     refetchInterval: 2_000,
     refetchIntervalInBackground: true
@@ -27,9 +33,14 @@ export function useGenerationFeedback(): void {
 
       showJobFeedback(job);
 
+      if (job.status === "running" || isTerminal(job)) {
+        void queryClient.invalidateQueries({ queryKey: ["path"] });
+      }
       if (job.status === "succeeded") {
         void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
         void queryClient.invalidateQueries({ queryKey: ["checklist", "stats"] });
+        void queryClient.invalidateQueries({ queryKey: ["suggestion"] });
+        void queryClient.invalidateQueries({ queryKey: ["coach", "weekly-check-in"] });
       }
     }
 
@@ -39,7 +50,7 @@ export function useGenerationFeedback(): void {
 }
 
 export function showQueuedFeedback(job: GenerationJobView): void {
-  toast.loading("Safely queued", {
+  toast.loading(jobTitle(job.kind, "queued"), {
     id: job.id,
     description: "You can leave this page. Komorebi will keep working."
   });
@@ -58,7 +69,7 @@ function showJobFeedback(job: GenerationJobView): void {
       showQueuedFeedback(job);
       break;
     case "running":
-      toast.loading("Composing today’s plan", {
+      toast.loading(jobTitle(job.kind, "running"), {
         id: job.id,
         description:
           job.attemptCount > 1
@@ -73,7 +84,7 @@ function showJobFeedback(job: GenerationJobView): void {
       });
       break;
     case "succeeded":
-      toast.success("Today’s plan is ready", {
+      toast.success(jobTitle(job.kind, "succeeded"), {
         id: job.id,
         description: "Everything was saved successfully.",
         duration: 5_000
@@ -88,6 +99,43 @@ function showJobFeedback(job: GenerationJobView): void {
       });
       break;
   }
+}
+
+function jobTitle(
+  kind: string,
+  state: "queued" | "running" | "succeeded"
+): string {
+  const labels: Record<string, [string, string, string]> = {
+    "path-generate": ["Path safely queued", "Building your path", "Your path is ready"],
+    "goal-retry": ["Retry safely queued", "Trying that goal again", "Your new action is ready"],
+    "suggestion-regenerate": [
+      "New action safely queued",
+      "Composing a new action",
+      "Your new action is ready"
+    ],
+    "suggestion-skip-regenerate": [
+      "Replacement safely queued",
+      "Finding a better action",
+      "Your replacement is ready"
+    ],
+    "checklist-regenerate": [
+      "New plan safely queued",
+      "Rebuilding today’s plan",
+      "Today’s new plan is ready"
+    ],
+    "coach-checkin-reply": [
+      "Message safely queued",
+      "Your coach is thinking",
+      "Your coach replied"
+    ]
+  };
+  const fallback: [string, string, string] = [
+    "Safely queued",
+    "Composing today’s plan",
+    "Today’s plan is ready"
+  ];
+  const [queued, running, succeeded] = labels[kind] ?? fallback;
+  return state === "queued" ? queued : state === "running" ? running : succeeded;
 }
 
 function retryDescription(job: GenerationJobView): string {

@@ -28,7 +28,12 @@ import type {
   ChecklistProgress,
   InFlightGoal,
 } from "../lib/use-checklist-progress";
-import { showQueuedFeedback, showQueueError } from "../lib/use-generation-feedback";
+import {
+  GENERATION_JOBS_KEY,
+  isActiveGenerationJob,
+  showQueuedFeedback,
+  showQueueError
+} from "../lib/use-generation-feedback";
 
 function locationFromTimezone(): string {
   try {
@@ -142,6 +147,15 @@ export function Today({ onOpenSuggestion, onOpenPath, progress }: Props) {
     queryKey: ["checklist", "today"],
     queryFn: () => window.komorebi.checklist.today(),
   });
+  const generationJobsQuery = useQuery({
+    queryKey: GENERATION_JOBS_KEY,
+    queryFn: () => window.komorebi.generation.recentJobs(20)
+  });
+  const checklistJobActive = (generationJobsQuery.data ?? []).some(
+    (job) =>
+      (job.kind === "checklist-generate" || job.kind === "checklist-regenerate") &&
+      isActiveGenerationJob(job)
+  );
 
   const generate = useMutation({
     mutationFn: (requestId: string) =>
@@ -153,10 +167,13 @@ export function Today({ onOpenSuggestion, onOpenPath, progress }: Props) {
   // Per-goal recovery: a failed goal retries alone instead of re-running the
   // whole day. The progress events drive the placeholder back to "composing".
   const retryGoal = useMutation({
-    mutationFn: (goalId: string) => window.komorebi.checklist.retryGoal(goalId),
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
-    },
+    mutationFn: (goalId: string) =>
+      window.komorebi.generation.enqueueGoalRetry({
+        requestId: crypto.randomUUID(),
+        goalId
+      }),
+    onSuccess: showQueuedFeedback,
+    onError: showQueueError
   });
 
   const { inFlight, active } = progress;
@@ -248,10 +265,18 @@ export function Today({ onOpenSuggestion, onOpenPath, progress }: Props) {
     if (noGoals) return;
     if (readyGoalIds.size === 0) return;
     if (items.length > 0) return;
-    if (active || generate.isPending) return;
+    if (active || generate.isPending || checklistJobActive) return;
     autoFiredRef.current = true;
     generate.mutate(crypto.randomUUID());
-  }, [isLoading, noGoals, readyGoalIds.size, items.length, active, generate]);
+  }, [
+    isLoading,
+    noGoals,
+    readyGoalIds.size,
+    items.length,
+    active,
+    checklistJobActive,
+    generate
+  ]);
 
   return (
     <>
@@ -331,7 +356,7 @@ export function Today({ onOpenSuggestion, onOpenPath, progress }: Props) {
             onOpenSuggestion={onOpenSuggestion}
             onRefresh={() => generate.mutate(crypto.randomUUID())}
             onRetryGoal={(goalId) => retryGoal.mutate(goalId)}
-            generating={generate.isPending || active}
+            generating={generate.isPending || active || checklistJobActive}
             topUpCount={topUpCount}
             allDone={
               items.length > 0 &&
@@ -356,7 +381,7 @@ export function Today({ onOpenSuggestion, onOpenPath, progress }: Props) {
           <NoChecklistYet
             goals={activeGoals.filter((goal) => readyGoalIds.has(goal.id))}
             onGenerate={() => generate.mutate(crypto.randomUUID())}
-            generating={generate.isPending}
+            generating={generate.isPending || checklistJobActive}
             error={generate.error as Error | null}
             onAddGoal={() => setShowAddGoal(true)}
           />

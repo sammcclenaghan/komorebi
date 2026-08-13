@@ -328,7 +328,11 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     const composeForGoals = (date: string, toGenerate: Goal[]) =>
       Effect.gen(function* () {
         if (toGenerate.length === 0) {
-          return { fresh: [] as Suggestion[], contextBlocks: [] as ContextBlock[] };
+          return {
+            fresh: [] as Suggestion[],
+            failures: [] as unknown[],
+            contextBlocks: [] as ContextBlock[]
+          };
         }
 
         yield* emit({
@@ -356,14 +360,11 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           .filter((r): r is Extract<typeof r, { _tag: "Right" }> => r._tag === "Right")
           .map((r) => r.right);
 
-        if (succeeded.length === 0 && results.length > 0) {
-          const first = results.find((r) => r._tag === "Left");
-          if (first && first._tag === "Left") {
-            return yield* Effect.fail(first.left);
-          }
-        }
+        const failures = results
+          .filter((r): r is Extract<typeof r, { _tag: "Left" }> => r._tag === "Left")
+          .map((r) => r.left);
 
-        return { fresh: succeeded, contextBlocks };
+        return { fresh: succeeded, failures, contextBlocks };
       });
 
     /** Single-goal compose used by retry / skip / regenerate flows. */
@@ -529,7 +530,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
             } satisfies ChecklistDay;
           }
 
-          const { fresh, contextBlocks } = yield* composeForGoals(date, toGenerate).pipe(
+          const { fresh, failures, contextBlocks } = yield* composeForGoals(date, toGenerate).pipe(
             // Progress listeners key off "done" to unstick the UI, so emit it
             // with whatever already exists before surfacing a total failure.
             Effect.tapError(() => emit({ phase: "done", items: existing }))
@@ -546,6 +547,10 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           }
           yield* emit({ phase: "done", items });
 
+          if (failures.length > 0) {
+            return yield* Effect.fail(failures[0]);
+          }
+
           return {
             date,
             items,
@@ -556,9 +561,9 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
       );
 
     /**
-     * Throw away today's composed list and compose a fresh action for every
-     * active goal. Deletes today's suggestions (and their reflections) so
-     * the day starts clean rather than stacking skipped rows on top.
+     * Compose replacements before removing today's existing actions. A failed
+     * goal keeps its previous action, while successful goals are swapped only
+     * after their replacements are safely stored.
      */
     const regenerateDay = () =>
       generationLock.withPermits(1)(
@@ -569,9 +574,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
             return { date, items: [], hasGoals: false, brief: null } satisfies ChecklistDay;
           }
 
-          const removedIds = yield* suggestions.removeForDate(date);
-          yield* reflections.removeForSuggestions(removedIds);
-          yield* briefs.remove(date);
+          const existing = yield* suggestions.listForDate(date);
 
           const allSuggestions = yield* suggestions.listAll();
           const goalsWithPaths = yield* Effect.filter(
@@ -585,15 +588,31 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
             goalsWithPaths.length
           );
 
-          const { fresh, contextBlocks } = yield* composeForGoals(date, toGenerate).pipe(
-            Effect.tapError(() => emit({ phase: "done", items: [] }))
+          const { fresh, failures, contextBlocks } = yield* composeForGoals(date, toGenerate).pipe(
+            Effect.tapError(() => emit({ phase: "done", items: existing }))
           );
 
-          const items = [...fresh].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+          const replacedGoalIds = new Set(fresh.map((suggestion) => suggestion.goalId));
+          const replacedIds = existing
+            .filter((suggestion) => replacedGoalIds.has(suggestion.goalId))
+            .map((suggestion) => suggestion.id);
+          const removedIds = yield* suggestions.removeMany(replacedIds);
+          yield* reflections.removeForSuggestions(removedIds);
+
+          const preserved = existing.filter(
+            (suggestion) => !replacedGoalIds.has(suggestion.goalId)
+          );
+          const items = [...preserved, ...fresh].sort((a, b) =>
+            a.createdAt.localeCompare(b.createdAt)
+          );
           if (fresh.length > 0) {
             yield* composeDayBrief(date, items, contextBlocks);
           }
           yield* emit({ phase: "done", items });
+
+          if (failures.length > 0) {
+            return yield* Effect.fail(failures[0]);
+          }
 
           return {
             date,
@@ -645,9 +664,8 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
       );
 
     /**
-     * Discard a suggestion entirely and compose a fresh one for the same
-     * goal and day. Unlike skip, nothing is kept — this is "that's not it,
-     * try again". Works from any status, so a task can always be redone.
+     * Compose a fresh suggestion before removing the original. If generation
+     * fails, the known-good original remains available.
      */
     const regenerateSuggestion = (suggestionId: string, note?: string) =>
       generationLock.withPermits(1)(
@@ -655,10 +673,11 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           const original = yield* suggestions.getOrFail(suggestionId);
           const goal = yield* goals.getOrFail(original.goalId);
 
+          const replacement = yield* composeOne(goal, note);
           yield* suggestions.remove(suggestionId);
           yield* reflections.removeForSuggestions([suggestionId]);
 
-          return yield* composeOne(goal, note);
+          return replacement;
         })
       );
 

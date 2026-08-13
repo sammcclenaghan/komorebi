@@ -418,7 +418,7 @@ export type HistoryDay = {
  * Progress events emitted while a generation pass runs. The renderer
  * subscribes (IPC push or SSE) and fills in placeholders as goals complete.
  * A `goal-error` is always recoverable: the goal stays on screen with a
- * retry affordance wired to `checklist.retryGoal`.
+ * retry affordance that enqueues a durable per-goal job.
  */
 /**
  * Non-fatal degradations surfaced to the user as transient notices (toasts)

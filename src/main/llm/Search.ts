@@ -4,7 +4,7 @@
  * degrades gracefully: a broken search never kills a goal's generation, it
  * just produces a draft without web links.
  */
-import { Data, Effect } from "effect";
+import { Data, Duration, Effect, Schedule } from "effect";
 import { CLOUD_HOST, extractError } from "./Ollama";
 
 const EXA_SEARCH_URL = "https://api.exa.ai/search";
@@ -21,6 +21,7 @@ const EXA_SEARCH_SYSTEM_PROMPT =
 
 export class SearchError extends Data.TaggedError("SearchError")<{
   message: string;
+  permanent?: boolean;
   raw?: string;
 }> {}
 
@@ -174,6 +175,24 @@ const timedFetch = (
     }
   });
 
+const searchRetry = Schedule.exponential(Duration.seconds(1)).pipe(
+  Schedule.intersect(Schedule.recurs(2))
+);
+
+const withSearchRetry = <A>(
+  effect: Effect.Effect<A, SearchError>
+): Effect.Effect<A, SearchError> =>
+  effect.pipe(
+    Effect.retry({
+      schedule: searchRetry,
+      while: (error) => !error.permanent
+    })
+  );
+
+function permanentHttpFailure(status: number): boolean {
+  return status >= 400 && status < 500 && status !== 408 && status !== 429;
+}
+
 const searchExa = (
   query: string,
   lane: SearchResult["lane"],
@@ -203,6 +222,7 @@ const searchExa = (
       return yield* Effect.fail(
         new SearchError({
           message: `Exa web search failed (${res.status}): ${extractError(res.text)}`,
+          permanent: permanentHttpFailure(res.status),
           raw: res.text
         })
       );
@@ -254,6 +274,7 @@ const searchOllama = (query: string): Effect.Effect<SearchResult[], SearchError>
       return yield* Effect.fail(
         new SearchError({
           message: `Ollama web search failed (${res.status}): ${extractError(res.text)}`,
+          permanent: permanentHttpFailure(res.status),
           raw: res.text
         })
       );
@@ -287,6 +308,32 @@ const searchOllama = (query: string): Effect.Effect<SearchResult[], SearchError>
       }));
   });
 
+const searchWithFallback = (
+  query: string,
+  lane: SearchResult["lane"],
+  domains: string[]
+): Effect.Effect<SearchResult[], SearchError> =>
+  Effect.gen(function* () {
+    let exaFailure: SearchError | null = null;
+    if (process.env.EXA_API_KEY) {
+      const exa = yield* Effect.either(withSearchRetry(searchExa(query, lane, domains)));
+      if (exa._tag === "Right") return exa.right;
+      exaFailure = exa.left;
+    }
+
+    if (process.env.OLLAMA_WEB_SEARCH_API_KEY ?? process.env.OLLAMA_API_KEY) {
+      return yield* withSearchRetry(searchOllama(query));
+    }
+
+    if (exaFailure) return yield* Effect.fail(exaFailure);
+    return yield* Effect.fail(
+      new SearchError({
+        message: "No web search provider is configured.",
+        permanent: true
+      })
+    );
+  });
+
 export class Search extends Effect.Service<Search>()("Search", {
   succeed: {
     provider: searchProvider,
@@ -303,26 +350,36 @@ export class Search extends Effect.Service<Search>()("Search", {
         const provider = searchProvider();
         if (provider === "none" || queries.length === 0) return [];
 
-        const searches =
-          provider === "exa"
-            ? [
-                ...(canonicalDomains.length
-                  ? queries.map((query) => searchExa(query, "canonical", canonicalDomains))
-                  : []),
-                ...queries.map((query) => searchExa(query, "discovery", []))
-              ]
-            : queries.map(searchOllama);
+        const searches = [
+          ...(canonicalDomains.length
+            ? queries.map((query) => searchWithFallback(query, "canonical", canonicalDomains))
+            : []),
+          ...queries.map((query) => searchWithFallback(query, "discovery", []))
+        ];
         const batches = yield* Effect.forEach(
           searches,
-          (search) => search,
+          (search) => Effect.either(search),
           { concurrency: "unbounded" }
         );
+
+        const successful = batches
+          .filter((batch): batch is Extract<typeof batch, { _tag: "Right" }> =>
+            batch._tag === "Right"
+          )
+          .flatMap((batch) => batch.right);
+        if (successful.length === 0) {
+          const failure = batches.find(
+            (batch): batch is Extract<typeof batch, { _tag: "Left" }> =>
+              batch._tag === "Left"
+          );
+          if (failure) return yield* Effect.fail(failure.left);
+        }
 
         const seen = new Set<string>();
         const merged: SearchResult[] = [];
         // Canonical searches are deliberately queued first above, so the
         // dedupe and cap prefer grounded first-party domains.
-        for (const r of batches.flat()) {
+        for (const r of successful) {
           const key = normalizeUrl(r.url);
           if (seen.has(key)) continue;
           seen.add(key);
@@ -333,37 +390,66 @@ export class Search extends Effect.Service<Search>()("Search", {
     researchPath: (query: string): Effect.Effect<PathResearch, SearchError> =>
       Effect.gen(function* () {
         const apiKey = process.env.EXA_API_KEY;
-        if (!apiKey) {
-          return yield* Effect.fail(
-            new SearchError({ message: "Exa is required to research a path." })
+        if (apiKey) {
+          const exaResearch = withSearchRetry(
+            Effect.gen(function* () {
+              const res = yield* timedFetch(
+                EXA_SEARCH_URL,
+                {
+                  method: "POST",
+                  headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
+                  body: JSON.stringify(buildExaPathRequest(query))
+                },
+                "Exa path research"
+              );
+              if (!res.ok) {
+                return yield* Effect.fail(
+                  new SearchError({
+                    message: `Exa path research failed (${res.status}): ${extractError(res.text)}`,
+                    permanent: permanentHttpFailure(res.status),
+                    raw: res.text
+                  })
+                );
+              }
+              try {
+                return decodeExaPathResearch(JSON.parse(res.text) as unknown);
+              } catch (error) {
+                return yield* Effect.fail(
+                  error instanceof SearchError
+                    ? error
+                    : new SearchError({ message: "Exa path research returned invalid JSON" })
+                );
+              }
+            })
           );
+          const result = yield* Effect.either(exaResearch);
+          if (result._tag === "Right") return result.right;
+          if (!(process.env.OLLAMA_WEB_SEARCH_API_KEY ?? process.env.OLLAMA_API_KEY)) {
+            return yield* Effect.fail(result.left);
+          }
         }
-        const res = yield* timedFetch(
-          EXA_SEARCH_URL,
-          {
-            method: "POST",
-            headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
-            body: JSON.stringify(buildExaPathRequest(query))
-          },
-          "Exa path research"
-        );
-        if (!res.ok) {
+
+        if (!(process.env.OLLAMA_WEB_SEARCH_API_KEY ?? process.env.OLLAMA_API_KEY)) {
           return yield* Effect.fail(
             new SearchError({
-              message: `Exa path research failed (${res.status}): ${extractError(res.text)}`,
-              raw: res.text
+              message: "No web search provider is configured for path research.",
+              permanent: true
             })
           );
         }
-        try {
-          return decodeExaPathResearch(JSON.parse(res.text) as unknown);
-        } catch (error) {
+        const sources = yield* withSearchRetry(searchOllama(query));
+        if (sources.length === 0) {
           return yield* Effect.fail(
-            error instanceof SearchError
-              ? error
-              : new SearchError({ message: "Exa path research returned invalid JSON" })
+            new SearchError({ message: "Ollama web search returned no path research sources." })
           );
         }
+        return {
+          summary: sources
+            .map((source) => `${source.title}: ${source.content}`)
+            .join("\n")
+            .slice(0, 8_000),
+          sources
+        };
       })
   }
 }) {}

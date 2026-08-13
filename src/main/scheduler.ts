@@ -4,10 +4,11 @@
  * run — including an immediate catch-up if the app launched after today's
  * configured time.
  */
+import { randomUUID } from "node:crypto";
 import { powerMonitor } from "electron";
 import { handlers } from "./api/handlers";
 import { localDate } from "./checklist/Checklist";
-import { notifyChecklistReady, notifyStreakAtRisk } from "./notify";
+import { notifyStreakAtRisk } from "./notify";
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 let nudgeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -108,9 +109,8 @@ async function onTimer(): Promise<void> {
 }
 
 /**
- * Generate today's checklist (if not already done today) and notify. Wrapped
- * so a partial-goal failure never kills the timer. `force` bypasses the
- * once-a-day guard — used by the tray's "Compose today now".
+ * Durably enqueue today's checklist (if not already queued today). `force`
+ * bypasses the once-a-day guard — used by the tray's "Compose today now".
  */
 export async function runScheduledGeneration(opts: { force?: boolean } = {}): Promise<void> {
   if (running) return;
@@ -122,15 +122,11 @@ export async function runScheduledGeneration(opts: { force?: boolean } = {}): Pr
       if (schedule.lastRunDate === today) return;
     }
 
-    const result = await handlers.checklist.generate();
+    const requestId = opts.force ? randomUUID() : `scheduled:${today}`;
+    await handlers.generation.enqueueChecklist(requestId);
     await handlers.settings.markScheduledRun(today);
-
-    const count = result.items.filter((s) => s.status !== "skipped").length;
-    if (count > 0) {
-      notifyChecklistReady(count);
-    }
   } catch (err) {
-    console.error("[scheduler] scheduled generation failed:", err);
+    console.error("[scheduler] could not queue scheduled generation:", err);
   } finally {
     running = false;
   }

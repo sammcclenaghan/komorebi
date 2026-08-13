@@ -4,18 +4,34 @@
  * identically everywhere — the old split where the detail view visibly
  * lagged on rating is gone.
  */
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   ChecklistDay,
   Suggestion,
   SuggestionRating,
   SuggestionStatus
 } from "~/shared/schema";
+import {
+  GENERATION_JOBS_KEY,
+  isActiveGenerationJob,
+  showQueuedFeedback,
+  showQueueError
+} from "./use-generation-feedback";
 
 export const TODAY_KEY = ["checklist", "today"];
 
 export function useSuggestionMutations(id: string) {
   const queryClient = useQueryClient();
+  const generationJobsQuery = useQuery({
+    queryKey: GENERATION_JOBS_KEY,
+    queryFn: () => window.komorebi.generation.recentJobs(20)
+  });
+  const durableGenerationActive = (generationJobsQuery.data ?? []).some(
+    (job) =>
+      job.targetId === id &&
+      (job.kind === "suggestion-regenerate" || job.kind === "suggestion-skip-regenerate") &&
+      isActiveGenerationJob(job)
+  );
 
   /**
    * Optimistically patch the suggestion in both caches (today's checklist
@@ -80,10 +96,13 @@ export function useSuggestionMutations(id: string) {
 
   const skipRegen = useMutation({
     mutationFn: (reason?: string) =>
-      window.komorebi.suggestions.skipAndRegenerate(id, reason || undefined),
-    onMutate: () => beginOptimistic((s) => ({ ...s, status: "skipped" as const })),
-    onError: (_err, _vars, ctx) => rollback(ctx),
-    onSettled: settle
+      window.komorebi.generation.enqueueSuggestionSkip({
+        requestId: crypto.randomUUID(),
+        suggestionId: id,
+        reason: reason || undefined
+      }),
+    onSuccess: showQueuedFeedback,
+    onError: showQueueError
   });
 
   /**
@@ -92,9 +111,25 @@ export function useSuggestionMutations(id: string) {
    */
   const regenerate = useMutation({
     mutationFn: (note?: string) =>
-      window.komorebi.suggestions.regenerate(id, note || undefined),
-    onSettled: settle
+      window.komorebi.generation.enqueueSuggestionRegeneration({
+        requestId: crypto.randomUUID(),
+        suggestionId: id,
+        note: note || undefined
+      }),
+    onSuccess: showQueuedFeedback,
+    onError: showQueueError
   });
 
-  return { setStatus, setRating, skipRegen, regenerate };
+  return {
+    setStatus,
+    setRating,
+    skipRegen: {
+      ...skipRegen,
+      isPending: skipRegen.isPending || durableGenerationActive
+    },
+    regenerate: {
+      ...regenerate,
+      isPending: regenerate.isPending || durableGenerationActive
+    }
+  };
 }

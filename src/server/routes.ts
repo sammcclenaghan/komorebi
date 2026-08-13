@@ -60,6 +60,54 @@ export async function handleApi(
     const input = recordBody(body);
     return handlers.generation.enqueueChecklist(requiredString(input.requestId, "requestId"));
   }
+  if (method === "POST" && pathname === "/api/generation/checklist/regenerate") {
+    const input = recordBody(body);
+    return handlers.generation.enqueueChecklistRegeneration(
+      requiredString(input.requestId, "requestId")
+    );
+  }
+  const generationGoalRetry = pathname.match(/^\/api\/generation\/goals\/([^/]+)\/retry$/);
+  if (method === "POST" && generationGoalRetry?.[1]) {
+    const input = recordBody(body);
+    return handlers.generation.enqueueGoalRetry(
+      requiredString(input.requestId, "requestId"),
+      decodeURIComponent(generationGoalRetry[1])
+    );
+  }
+  const generationPath = pathname.match(/^\/api\/generation\/goals\/([^/]+)\/path$/);
+  if (method === "POST" && generationPath?.[1]) {
+    const input = recordBody(body);
+    return handlers.generation.enqueuePathGeneration(
+      requiredString(input.requestId, "requestId"),
+      decodeURIComponent(generationPath[1])
+    );
+  }
+  const generationSuggestion = pathname.match(
+    /^\/api\/generation\/suggestions\/([^/]+)\/(regenerate|skip-regenerate)$/
+  );
+  if (method === "POST" && generationSuggestion?.[1] && generationSuggestion[2]) {
+    const input = recordBody(body);
+    const requestId = requiredString(input.requestId, "requestId");
+    const suggestionId = decodeURIComponent(generationSuggestion[1]);
+    return generationSuggestion[2] === "regenerate"
+      ? handlers.generation.enqueueSuggestionRegeneration(
+          requestId,
+          suggestionId,
+          typeof input.note === "string" ? input.note : undefined
+        )
+      : handlers.generation.enqueueSuggestionSkip(
+          requestId,
+          suggestionId,
+          typeof input.reason === "string" ? input.reason : undefined
+        );
+  }
+  if (method === "POST" && pathname === "/api/generation/coach/check-in") {
+    const input = recordBody(body);
+    return handlers.generation.enqueueCheckInReply(
+      requiredString(input.requestId, "requestId"),
+      requiredString(input.content, "content")
+    );
+  }
   if (method === "GET" && pathname === "/api/generation/jobs") {
     const params = new URLSearchParams(search);
     const limit = params.has("limit") ? Number(params.get("limit")) : undefined;
@@ -72,10 +120,6 @@ export async function handleApi(
   const pathGet = pathname.match(/^\/api\/goals\/([^/]+)\/path$/);
   if (pathGet?.[1] && method === "GET") {
     return handlers.paths.get(decodeURIComponent(pathGet[1]));
-  }
-  const pathGenerate = pathname.match(/^\/api\/goals\/([^/]+)\/path\/generate$/);
-  if (pathGenerate?.[1] && method === "POST") {
-    return handlers.paths.generate(decodeURIComponent(pathGenerate[1]));
   }
   const activate = pathname.match(/^\/api\/paths\/([^/]+)\/activate$/);
   if (activate?.[1] && method === "POST") {
@@ -111,16 +155,6 @@ export async function handleApi(
 
   if (method === "GET" && pathname === "/api/checklist/today") return handlers.checklist.today();
   if (method === "GET" && pathname === "/api/checklist/stats") return handlers.checklist.stats();
-  if (method === "POST" && pathname === "/api/checklist/generate") {
-    return handlers.checklist.generate();
-  }
-  if (method === "POST" && pathname === "/api/checklist/regenerate") {
-    return handlers.checklist.regenerate();
-  }
-  if (method === "POST" && pathname.startsWith("/api/checklist/retry/")) {
-    const goalId = decodeURIComponent(pathname.slice("/api/checklist/retry/".length));
-    return handlers.checklist.retryGoal(goalId);
-  }
 
   if (method === "GET" && pathname === "/api/history") {
     const params = new URLSearchParams(search);
@@ -137,28 +171,6 @@ export async function handleApi(
     const id = decodeURIComponent(pathname.slice("/api/suggestions/".length, -"/rating".length));
     const input = body as { rating: SuggestionRating };
     return handlers.suggestions.setRating({ id, rating: input.rating });
-  }
-  if (
-    method === "POST" &&
-    pathname.startsWith("/api/suggestions/") &&
-    pathname.endsWith("/skip-regenerate")
-  ) {
-    const id = decodeURIComponent(
-      pathname.slice("/api/suggestions/".length, -"/skip-regenerate".length)
-    );
-    const input = (body ?? {}) as { reason?: string };
-    return handlers.suggestions.skipAndRegenerate(id, input.reason);
-  }
-  if (
-    method === "POST" &&
-    pathname.startsWith("/api/suggestions/") &&
-    pathname.endsWith("/regenerate")
-  ) {
-    const id = decodeURIComponent(
-      pathname.slice("/api/suggestions/".length, -"/regenerate".length)
-    );
-    const input = (body ?? {}) as { note?: string };
-    return handlers.suggestions.regenerate(id, input.note);
   }
   if (method === "GET" && pathname.startsWith("/api/suggestions/")) {
     const id = decodeURIComponent(pathname.slice("/api/suggestions/".length));
@@ -191,10 +203,6 @@ export async function handleApi(
   if (method === "GET" && pathname === "/api/coach/weekly-check-in") {
     return handlers.coach.weeklyCheckIn();
   }
-  if (method === "POST" && pathname === "/api/coach/weekly-check-in/messages") {
-    return handlers.coach.sendCheckInMessage((body as { content?: string })?.content ?? "");
-  }
-
   if (method === "GET" && pathname === "/api/settings") return handlers.settings.get();
   if (method === "PATCH" && pathname === "/api/settings") {
     return handlers.settings.update(body as SettingsUpdate);

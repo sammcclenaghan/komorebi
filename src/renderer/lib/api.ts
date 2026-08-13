@@ -86,6 +86,42 @@ export function createHttpClient(): KomorebiApi {
           method: "POST",
           body: JSON.stringify(input)
         }),
+      enqueueChecklistRegeneration: (input) =>
+        apiFetch("/api/generation/checklist/regenerate", {
+          method: "POST",
+          body: JSON.stringify(input)
+        }),
+      enqueueGoalRetry: (input) =>
+        apiFetch(`/api/generation/goals/${encodeURIComponent(input.goalId)}/retry`, {
+          method: "POST",
+          body: JSON.stringify({ requestId: input.requestId })
+        }),
+      enqueuePathGeneration: (input) =>
+        apiFetch(`/api/generation/goals/${encodeURIComponent(input.goalId)}/path`, {
+          method: "POST",
+          body: JSON.stringify({ requestId: input.requestId })
+        }),
+      enqueueSuggestionRegeneration: (input) =>
+        apiFetch(
+          `/api/generation/suggestions/${encodeURIComponent(input.suggestionId)}/regenerate`,
+          {
+            method: "POST",
+            body: JSON.stringify({ requestId: input.requestId, note: input.note })
+          }
+        ),
+      enqueueSuggestionSkip: (input) =>
+        apiFetch(
+          `/api/generation/suggestions/${encodeURIComponent(input.suggestionId)}/skip-regenerate`,
+          {
+            method: "POST",
+            body: JSON.stringify({ requestId: input.requestId, reason: input.reason })
+          }
+        ),
+      enqueueCheckInReply: (input) =>
+        apiFetch("/api/generation/coach/check-in", {
+          method: "POST",
+          body: JSON.stringify(input)
+        }),
       recentJobs: (limit) =>
         apiFetch("/api/generation/jobs", { search: { limit } })
     },
@@ -103,8 +139,6 @@ export function createHttpClient(): KomorebiApi {
     },
     paths: {
       get: (id) => apiFetch(`/api/goals/${encodeURIComponent(id)}/path`),
-      generate: (id) =>
-        apiFetch(`/api/goals/${encodeURIComponent(id)}/path/generate`, { method: "POST" }),
       activate: (input) =>
         apiFetch(`/api/paths/${encodeURIComponent(input.pathId)}/activate`, {
           method: "POST",
@@ -119,10 +153,6 @@ export function createHttpClient(): KomorebiApi {
 
     checklist: {
       today: () => apiFetch("/api/checklist/today"),
-      generate: () => apiFetch("/api/checklist/generate", { method: "POST" }),
-      regenerate: () => apiFetch("/api/checklist/regenerate", { method: "POST" }),
-      retryGoal: (goalId) =>
-        apiFetch(`/api/checklist/retry/${encodeURIComponent(goalId)}`, { method: "POST" }),
       stats: () => apiFetch("/api/checklist/stats"),
       onProgress: (handler) => {
         progressHandlers.add(handler);
@@ -149,16 +179,6 @@ export function createHttpClient(): KomorebiApi {
           method: "PATCH",
           body: JSON.stringify({ rating: input.rating })
         }),
-      skipAndRegenerate: (id, reason) =>
-        apiFetch(`/api/suggestions/${encodeURIComponent(id)}/skip-regenerate`, {
-          method: "POST",
-          body: JSON.stringify({ reason })
-        }),
-      regenerate: (id, note) =>
-        apiFetch(`/api/suggestions/${encodeURIComponent(id)}/regenerate`, {
-          method: "POST",
-          body: JSON.stringify({ note })
-        })
     },
 
     reflections: {
@@ -189,12 +209,7 @@ export function createHttpClient(): KomorebiApi {
 
     coach: {
       memory: () => apiFetch("/api/coach/memory"),
-      weeklyCheckIn: () => apiFetch("/api/coach/weekly-check-in"),
-      sendCheckInMessage: (content) =>
-        apiFetch("/api/coach/weekly-check-in/messages", {
-          method: "POST",
-          body: JSON.stringify({ content })
-        })
+      weeklyCheckIn: () => apiFetch("/api/coach/weekly-check-in")
     },
 
     onNavigate: (handler) => {

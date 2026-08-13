@@ -49,6 +49,7 @@ export type SettingsUpdate = {
 export type GenerationJobView = {
   id: string;
   kind: string;
+  targetId: string | null;
   status: "queued" | "running" | "retry_wait" | "succeeded" | "failed";
   attemptCount: number;
   maxAttempts: number;
@@ -64,6 +65,29 @@ export type KomorebiApi = {
   getVersion: () => Promise<string>;
   generation: {
     enqueueChecklist: (input: { requestId: string }) => Promise<GenerationJobView>;
+    enqueueChecklistRegeneration: (input: { requestId: string }) => Promise<GenerationJobView>;
+    enqueueGoalRetry: (input: {
+      requestId: string;
+      goalId: string;
+    }) => Promise<GenerationJobView>;
+    enqueuePathGeneration: (input: {
+      requestId: string;
+      goalId: string;
+    }) => Promise<GenerationJobView>;
+    enqueueSuggestionRegeneration: (input: {
+      requestId: string;
+      suggestionId: string;
+      note?: string;
+    }) => Promise<GenerationJobView>;
+    enqueueSuggestionSkip: (input: {
+      requestId: string;
+      suggestionId: string;
+      reason?: string;
+    }) => Promise<GenerationJobView>;
+    enqueueCheckInReply: (input: {
+      requestId: string;
+      content: string;
+    }) => Promise<GenerationJobView>;
     recentJobs: (limit?: number) => Promise<GenerationJobView[]>;
   };
   goals: {
@@ -74,20 +98,11 @@ export type KomorebiApi = {
   };
   paths: {
     get: (goalId: string) => Promise<GoalPath | null>;
-    generate: (goalId: string) => Promise<GoalPath>;
     activate: (input: { pathId: string; expectedRevision: number }) => Promise<GoalPath>;
     completeMilestone: (input: { pathId: string; milestoneId: string; evidence: string; expectedRevision: number }) => Promise<GoalPath>;
   };
   checklist: {
     today: () => Promise<ChecklistDay>;
-    generate: () => Promise<ChecklistDay>;
-    regenerate: () => Promise<ChecklistDay>;
-    /**
-     * Compose (or re-compose) today's suggestion for a single goal. This is
-     * the recovery path for a failed generation: the goal never silently
-     * drops off the list — it can always be retried on its own.
-     */
-    retryGoal: (goalId: string) => Promise<Suggestion>;
     /** Completion momentum: current/best streak and totals. */
     stats: () => Promise<ChecklistStats>;
     onProgress: (handler: (event: GenerationProgress) => void) => () => void;
@@ -96,17 +111,6 @@ export type KomorebiApi = {
     get: (id: string) => Promise<Suggestion | null>;
     setStatus: (input: { id: string; status: SuggestionStatus }) => Promise<Suggestion>;
     setRating: (input: { id: string; rating: SuggestionRating }) => Promise<Suggestion>;
-    /**
-     * Mark the suggestion skipped (keeping it in history so future
-     * generations learn from it) and compose a replacement.
-     */
-    skipAndRegenerate: (id: string, reason?: string) => Promise<Suggestion>;
-    /**
-     * Discard this suggestion entirely and compose a fresh one for the same
-     * goal and day. Works from any status — no more dead ends where a task
-     * can't be regenerated.
-     */
-    regenerate: (id: string, note?: string) => Promise<Suggestion>;
   };
   reflections: {
     list: (suggestionId: string) => Promise<Reflection[]>;
@@ -134,7 +138,6 @@ export type KomorebiApi = {
     memory: () => Promise<CoachMemory | null>;
     /** This week's persisted coaching conversation. */
     weeklyCheckIn: () => Promise<WeeklyCheckIn>;
-    sendCheckInMessage: (content: string) => Promise<WeeklyCheckIn>;
   };
   onNavigate: (handler: (view: string) => void) => () => void;
 };

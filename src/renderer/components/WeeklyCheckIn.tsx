@@ -1,22 +1,39 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Loader2, MessageCircle, Send } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { Button } from "./ui/Button";
+import {
+  GENERATION_JOBS_KEY,
+  isActiveGenerationJob,
+  showQueuedFeedback,
+  showQueueError
+} from "../lib/use-generation-feedback";
 
 export function WeeklyCheckIn() {
-  const queryClient = useQueryClient();
   const [text, setText] = useState("");
   const query = useQuery({
     queryKey: ["coach", "weekly-check-in"],
     queryFn: () => window.komorebi.coach.weeklyCheckIn()
   });
+  const generationJobsQuery = useQuery({
+    queryKey: GENERATION_JOBS_KEY,
+    queryFn: () => window.komorebi.generation.recentJobs(20)
+  });
+  const replyActive = (generationJobsQuery.data ?? []).some(
+    (job) => job.kind === "coach-checkin-reply" && isActiveGenerationJob(job)
+  );
   const send = useMutation({
-    mutationFn: (content: string) => window.komorebi.coach.sendCheckInMessage(content),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["coach", "weekly-check-in"], data);
+    mutationFn: (content: string) =>
+      window.komorebi.generation.enqueueCheckInReply({
+        requestId: crypto.randomUUID(),
+        content
+      }),
+    onSuccess: (job) => {
+      showQueuedFeedback(job);
       setText("");
-    }
+    },
+    onError: showQueueError
   });
 
   if (query.isLoading || query.isError || !query.data) return null;
@@ -24,7 +41,7 @@ export function WeeklyCheckIn() {
   const { due, messages } = query.data;
   const submit = () => {
     const content = text.trim();
-    if (!content || send.isPending) return;
+    if (!content || send.isPending || replyActive) return;
     send.mutate(content);
   };
 
@@ -86,16 +103,16 @@ export function WeeklyCheckIn() {
               maxLength={2000}
               placeholder={messages.length ? "Keep talking…" : "The recommendations haven't been useful because…"}
               className="input min-h-[68px] flex-1 resize-none bg-[var(--color-canvas)]"
-              disabled={send.isPending}
+              disabled={send.isPending || replyActive}
             />
             <Button
               size="sm"
               className="h-9 w-9 shrink-0 px-0"
               onClick={submit}
-              disabled={!text.trim() || send.isPending}
+              disabled={!text.trim() || send.isPending || replyActive}
               aria-label="Send to coach"
             >
-              {send.isPending ? (
+              {send.isPending || replyActive ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <Send className="h-3.5 w-3.5" strokeWidth={2} />

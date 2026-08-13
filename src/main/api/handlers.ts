@@ -37,9 +37,27 @@ import { ReflectionsRepo } from "../repo/Reflections";
 import { SettingsRepo } from "../repo/Settings";
 import { SuggestionsRepo } from "../repo/Suggestions";
 import { PathsRepo } from "../repo/Paths";
-import { PathPlanner } from "../paths/PathPlanner";
 import { Weather } from "../weather/Weather";
 import { run } from "../runtime";
+
+function enqueueGeneration(
+  kind: string,
+  requestId: string,
+  payload: Record<string, unknown>
+): Promise<GenerationJobView> {
+  return run(
+    GenerationJobs.pipe(
+      Effect.flatMap((jobs) =>
+        jobs.enqueue({
+          kind,
+          idempotencyKey: `${kind}:${requestId}`,
+          payload
+        })
+      ),
+      Effect.map(toGenerationJobView)
+    )
+  );
+}
 
 export const handlers = {
   health: {
@@ -53,18 +71,30 @@ export const handlers = {
   },
   generation: {
     enqueueChecklist: (requestId: string): Promise<GenerationJobView> =>
-      run(
-        GenerationJobs.pipe(
-          Effect.flatMap((jobs) =>
-            jobs.enqueue({
-              kind: "checklist-generate",
-              idempotencyKey: `checklist-generate:${requestId}`,
-              payload: {}
-            })
-          ),
-          Effect.map(toGenerationJobView)
-        )
-      ),
+      enqueueGeneration("checklist-generate", requestId, {}),
+    enqueueChecklistRegeneration: (requestId: string): Promise<GenerationJobView> =>
+      enqueueGeneration("checklist-regenerate", requestId, {}),
+    enqueueGoalRetry: (requestId: string, goalId: string): Promise<GenerationJobView> =>
+      enqueueGeneration("goal-retry", requestId, { goalId }),
+    enqueuePathGeneration: (requestId: string, goalId: string): Promise<GenerationJobView> =>
+      enqueueGeneration("path-generate", requestId, { goalId }),
+    enqueueSuggestionRegeneration: (
+      requestId: string,
+      suggestionId: string,
+      note?: string
+    ): Promise<GenerationJobView> =>
+      enqueueGeneration("suggestion-regenerate", requestId, { suggestionId, note }),
+    enqueueSuggestionSkip: (
+      requestId: string,
+      suggestionId: string,
+      reason?: string
+    ): Promise<GenerationJobView> =>
+      enqueueGeneration("suggestion-skip-regenerate", requestId, { suggestionId, reason }),
+    enqueueCheckInReply: (
+      requestId: string,
+      content: string
+    ): Promise<GenerationJobView> =>
+      enqueueGeneration("coach-checkin-reply", requestId, { content }),
     recentJobs: (limit?: number): Promise<GenerationJobView[]> =>
       run(
         GenerationJobs.pipe(
@@ -84,8 +114,6 @@ export const handlers = {
   },
   paths: {
     get: (goalId: string) => run(PathsRepo.pipe(Effect.flatMap((repo) => repo.getForGoal(goalId)))),
-    generate: (goalId: string) =>
-      run(PathPlanner.pipe(Effect.flatMap((planner) => planner.generate(goalId)))),
     activate: (input: { pathId: string; expectedRevision: number }) =>
       run(
         PathsRepo.pipe(
@@ -113,12 +141,6 @@ export const handlers = {
   },
   checklist: {
     today: (): Promise<ChecklistDay> => run(Checklist.pipe(Effect.flatMap((s) => s.today()))),
-    generate: (): Promise<ChecklistDay> =>
-      run(Checklist.pipe(Effect.flatMap((s) => s.generate()))),
-    regenerate: (): Promise<ChecklistDay> =>
-      run(Checklist.pipe(Effect.flatMap((s) => s.regenerateDay()))),
-    retryGoal: (goalId: string): Promise<Suggestion> =>
-      run(Checklist.pipe(Effect.flatMap((s) => s.retryGoal(goalId)))),
     stats: (): Promise<ChecklistStats> =>
       run(Checklist.pipe(Effect.flatMap((s) => s.stats())))
   },
@@ -129,10 +151,6 @@ export const handlers = {
       run(SuggestionsRepo.pipe(Effect.flatMap((s) => s.setStatus(input.id, input.status)))),
     setRating: (input: { id: string; rating: SuggestionRating }): Promise<Suggestion> =>
       run(SuggestionsRepo.pipe(Effect.flatMap((s) => s.setRating(input.id, input.rating)))),
-    skipAndRegenerate: (id: string, reason?: string): Promise<Suggestion> =>
-      run(Checklist.pipe(Effect.flatMap((s) => s.skipAndRegenerate(id, reason)))),
-    regenerate: (id: string, note?: string): Promise<Suggestion> =>
-      run(Checklist.pipe(Effect.flatMap((s) => s.regenerateSuggestion(id, note))))
   },
   reflections: {
     list: (suggestionId: string): Promise<Reflection[]> =>
@@ -166,9 +184,7 @@ export const handlers = {
     memory: (): Promise<CoachMemory | null> =>
       run(MemoryRepo.pipe(Effect.flatMap((s) => s.get()))),
     weeklyCheckIn: (): Promise<WeeklyCheckIn> =>
-      run(Checklist.pipe(Effect.flatMap((s) => s.weeklyCheckIn()))),
-    sendCheckInMessage: (content: string): Promise<WeeklyCheckIn> =>
-      run(Checklist.pipe(Effect.flatMap((s) => s.sendCheckInMessage(content))))
+      run(Checklist.pipe(Effect.flatMap((s) => s.weeklyCheckIn())))
   },
   /** Imperative progress subscription for transports (IPC push / SSE). */
   subscribeProgress: (listener: ProgressListener): Promise<() => void> =>
@@ -182,6 +198,7 @@ function toGenerationJobView(job: GenerationJob): GenerationJobView {
   return {
     id: job.id,
     kind: job.kind,
+    targetId: generationTargetId(job),
     status: job.status,
     attemptCount: job.attemptCount,
     maxAttempts: job.maxAttempts,
@@ -192,4 +209,12 @@ function toGenerationJobView(job: GenerationJob): GenerationJobView {
     updatedAt: job.updatedAt,
     completedAt: job.completedAt
   };
+}
+
+function generationTargetId(job: GenerationJob): string | null {
+  if (!job.payload || typeof job.payload !== "object" || Array.isArray(job.payload)) return null;
+  const payload = job.payload as Record<string, unknown>;
+  if (typeof payload.goalId === "string") return payload.goalId;
+  if (typeof payload.suggestionId === "string") return payload.suggestionId;
+  return null;
 }

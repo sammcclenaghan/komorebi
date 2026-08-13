@@ -207,6 +207,15 @@ export class SuggestionsRepo extends Effect.Service<SuggestionsRepo>()("Suggesti
         .rows("DELETE FROM suggestions WHERE id = ? RETURNING id", [id])
         .pipe(Effect.map((rows) => rows.length > 0));
 
+    /** Delete a known set of suggestions without touching newer replacements. */
+    const removeMany = (ids: string[]): Effect.Effect<string[], DbError> => {
+      if (ids.length === 0) return Effect.succeed([]);
+      const placeholders = ids.map(() => "?").join(", ");
+      return db
+        .rows(`DELETE FROM suggestions WHERE id IN (${placeholders}) RETURNING id`, ids)
+        .pipe(Effect.map((rows) => rows.map((row) => String(row.id))));
+    };
+
     /** Delete every suggestion on a given day. Returns the removed IDs. */
     const removeForDate = (date: string): Effect.Effect<string[], DbError> =>
       db
@@ -229,6 +238,7 @@ export class SuggestionsRepo extends Effect.Service<SuggestionsRepo>()("Suggesti
       setStatus,
       setRating,
       remove,
+      removeMany,
       removeForDate,
       removeForGoal
     } as const;

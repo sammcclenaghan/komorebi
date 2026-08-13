@@ -7,6 +7,12 @@ import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/Modal";
 import type { Theme } from "~/shared/schema";
 import type { SettingsUpdate } from "~/shared/api";
+import {
+  GENERATION_JOBS_KEY,
+  isActiveGenerationJob,
+  showQueuedFeedback,
+  showQueueError
+} from "../lib/use-generation-feedback";
 
 export function Settings() {
   const queryClient = useQueryClient();
@@ -24,14 +30,20 @@ export function Settings() {
   });
 
   const regenerate = useMutation({
-    mutationFn: () => window.komorebi.checklist.regenerate(),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["checklist", "today"], data);
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["checklist", "today"] });
-    }
+    mutationFn: () =>
+      window.komorebi.generation.enqueueChecklistRegeneration({
+        requestId: crypto.randomUUID()
+      }),
+    onSuccess: showQueuedFeedback,
+    onError: showQueueError
   });
+  const generationJobsQuery = useQuery({
+    queryKey: GENERATION_JOBS_KEY,
+    queryFn: () => window.komorebi.generation.recentJobs(20)
+  });
+  const regenerationActive = (generationJobsQuery.data ?? []).some(
+    (job) => job.kind === "checklist-regenerate" && isActiveGenerationJob(job)
+  );
 
   const [confirmingRedo, setConfirmingRedo] = useState(false);
 
@@ -234,15 +246,15 @@ export function Settings() {
               <Button
                 variant="danger-outline"
                 size="sm"
-                disabled={regenerate.isPending}
+                disabled={regenerate.isPending || regenerationActive}
                 onClick={() => setConfirmingRedo(true)}
               >
-                {regenerate.isPending ? (
+                {regenerate.isPending || regenerationActive ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <RotateCw className="h-3.5 w-3.5" strokeWidth={2} />
                 )}
-                {regenerate.isPending ? "Composing…" : "Redo today's list"}
+                {regenerate.isPending || regenerationActive ? "Composing…" : "Redo today's list"}
               </Button>
             </Row>
 
