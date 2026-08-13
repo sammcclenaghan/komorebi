@@ -6,9 +6,15 @@
  */
 import { Data, Duration, Effect, Schedule } from "effect";
 import { CLOUD_HOST, extractError } from "./Ollama";
+import { ProviderCircuitBreaker } from "./ProviderCircuitBreaker";
 
 const EXA_SEARCH_URL = "https://api.exa.ai/search";
 const SEARCH_TIMEOUT_MS = 30_000;
+const providerCircuit = new ProviderCircuitBreaker();
+
+export function resetSearchProviderCircuits(): void {
+  providerCircuit.reset();
+}
 
 // Ordinary resource discovery lets Exa choose the appropriate search mode.
 const EXA_SEARCH_SYSTEM_PROMPT =
@@ -315,14 +321,40 @@ const searchWithFallback = (
 ): Effect.Effect<SearchResult[], SearchError> =>
   Effect.gen(function* () {
     let exaFailure: SearchError | null = null;
-    if (process.env.EXA_API_KEY) {
+    if (process.env.EXA_API_KEY && providerCircuit.canRequest("exa")) {
       const exa = yield* Effect.either(withSearchRetry(searchExa(query, lane, domains)));
-      if (exa._tag === "Right") return exa.right;
+      if (exa._tag === "Right") {
+        providerCircuit.recordSuccess("exa");
+        return exa.right;
+      }
+      providerCircuit.recordFailure("exa", Boolean(exa.left.permanent));
       exaFailure = exa.left;
+    } else if (process.env.EXA_API_KEY) {
+      exaFailure = new SearchError({
+        message: `Exa circuit is open for ${Math.ceil(providerCircuit.remainingMs("exa") / 1000)}s`
+      });
     }
 
+    if (
+      (process.env.OLLAMA_WEB_SEARCH_API_KEY ?? process.env.OLLAMA_API_KEY) &&
+      providerCircuit.canRequest("ollama")
+    ) {
+      const ollama = yield* Effect.either(withSearchRetry(searchOllama(query)));
+      if (ollama._tag === "Right") {
+        providerCircuit.recordSuccess("ollama");
+        return ollama.right;
+      }
+      providerCircuit.recordFailure("ollama", Boolean(ollama.left.permanent));
+      return yield* Effect.fail(ollama.left);
+    }
     if (process.env.OLLAMA_WEB_SEARCH_API_KEY ?? process.env.OLLAMA_API_KEY) {
-      return yield* withSearchRetry(searchOllama(query));
+      return yield* Effect.fail(
+        new SearchError({
+          message: `Ollama search circuit is open for ${Math.ceil(
+            providerCircuit.remainingMs("ollama") / 1000
+          )}s`
+        })
+      );
     }
 
     if (exaFailure) return yield* Effect.fail(exaFailure);
@@ -390,7 +422,7 @@ export class Search extends Effect.Service<Search>()("Search", {
     researchPath: (query: string): Effect.Effect<PathResearch, SearchError> =>
       Effect.gen(function* () {
         const apiKey = process.env.EXA_API_KEY;
-        if (apiKey) {
+        if (apiKey && providerCircuit.canRequest("exa")) {
           const exaResearch = withSearchRetry(
             Effect.gen(function* () {
               const res = yield* timedFetch(
@@ -423,7 +455,11 @@ export class Search extends Effect.Service<Search>()("Search", {
             })
           );
           const result = yield* Effect.either(exaResearch);
-          if (result._tag === "Right") return result.right;
+          if (result._tag === "Right") {
+            providerCircuit.recordSuccess("exa");
+            return result.right;
+          }
+          providerCircuit.recordFailure("exa", Boolean(result.left.permanent));
           if (!(process.env.OLLAMA_WEB_SEARCH_API_KEY ?? process.env.OLLAMA_API_KEY)) {
             return yield* Effect.fail(result.left);
           }
@@ -431,13 +467,34 @@ export class Search extends Effect.Service<Search>()("Search", {
 
         if (!(process.env.OLLAMA_WEB_SEARCH_API_KEY ?? process.env.OLLAMA_API_KEY)) {
           return yield* Effect.fail(
+            apiKey
+              ? new SearchError({
+                  message: `Exa circuit is open for ${Math.ceil(
+                    providerCircuit.remainingMs("exa") / 1000
+                  )}s`
+                })
+              : new SearchError({
+                  message: "No web search provider is configured for path research.",
+                  permanent: true
+                })
+          );
+        }
+        if (!providerCircuit.canRequest("ollama")) {
+          return yield* Effect.fail(
             new SearchError({
-              message: "No web search provider is configured for path research.",
-              permanent: true
+              message: `Ollama search circuit is open for ${Math.ceil(
+                providerCircuit.remainingMs("ollama") / 1000
+              )}s`
             })
           );
         }
-        const sources = yield* withSearchRetry(searchOllama(query));
+        const ollama = yield* Effect.either(withSearchRetry(searchOllama(query)));
+        if (ollama._tag === "Left") {
+          providerCircuit.recordFailure("ollama", Boolean(ollama.left.permanent));
+          return yield* Effect.fail(ollama.left);
+        }
+        providerCircuit.recordSuccess("ollama");
+        const sources = ollama.right;
         if (sources.length === 0) {
           return yield* Effect.fail(
             new SearchError({ message: "Ollama web search returned no path research sources." })

@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Search } from "./Search";
+import { resetSearchProviderCircuits, Search } from "./Search";
 
 describe.sequential("resilient web search", () => {
   const originalExaKey = process.env.EXA_API_KEY;
@@ -8,6 +8,7 @@ describe.sequential("resilient web search", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    resetSearchProviderCircuits();
     restoreEnv("EXA_API_KEY", originalExaKey);
     restoreEnv("OLLAMA_WEB_SEARCH_API_KEY", originalOllamaKey);
   });
