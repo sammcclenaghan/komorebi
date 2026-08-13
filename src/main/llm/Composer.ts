@@ -38,6 +38,7 @@ import type { Goal, GenerationNoticeKind, GoalPath, PathMilestone } from "~/shar
 import type { ContextBlock } from "../context/types";
 import { Ollama, defaultModel, type LlmError } from "./Ollama";
 import { Search, normalizeUrl, searchProvider, type SearchResult } from "./Search";
+import { SearchCache } from "./SearchCache";
 
 const SYSTEM_INSTRUCTIONS = `You are Komorebi, a personal coach. Each day you turn the user's current path milestone into ONE concrete action they can do today that genuinely moves it forward.
 
@@ -146,10 +147,11 @@ export type ComposeInput = {
 };
 
 export class Composer extends Effect.Service<Composer>()("Composer", {
-  dependencies: [Ollama.Default, Search.Default],
+  dependencies: [Ollama.Default, Search.Default, SearchCache.Default],
   effect: Effect.gen(function* () {
     const ollama = yield* Ollama;
     const search = yield* Search;
+    const searchCache = yield* SearchCache;
 
     const planQueries = (input: ComposeInput, model: string): Effect.Effect<string[], LlmError> =>
       Effect.gen(function* () {
@@ -270,7 +272,12 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
           // A search failure must not kill the goal — degrade to no results
           // (the URL allowlist then simply stays empty).
           const searched = yield* Effect.either(
-            search.search(queries, canonicalDomains(input.path?.sources.map((source) => source.url) ?? []))
+            search
+              .search(
+                queries,
+                canonicalDomains(input.path?.sources.map((source) => source.url) ?? [])
+              )
+              .pipe(Effect.provideService(SearchCache, searchCache))
           );
           if (searched._tag === "Right") {
             results = searched.right;

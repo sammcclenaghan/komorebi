@@ -1,16 +1,19 @@
 import { Effect } from "effect";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resetSearchProviderCircuits, Search } from "./Search";
+import { SearchCache } from "./SearchCache";
 
 describe.sequential("resilient web search", () => {
   const originalExaKey = process.env.EXA_API_KEY;
   const originalOllamaKey = process.env.OLLAMA_WEB_SEARCH_API_KEY;
+  const originalOllamaApiKey = process.env.OLLAMA_API_KEY;
 
   afterEach(() => {
     vi.restoreAllMocks();
     resetSearchProviderCircuits();
     restoreEnv("EXA_API_KEY", originalExaKey);
     restoreEnv("OLLAMA_WEB_SEARCH_API_KEY", originalOllamaKey);
+    restoreEnv("OLLAMA_API_KEY", originalOllamaApiKey);
   });
 
   it("falls back from a permanently failing Exa request to Ollama", async () => {
@@ -69,13 +72,49 @@ describe.sequential("resilient web search", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(results.map((result) => result.title)).toEqual(["Working result"]);
   });
+
+  it("uses validated stale cache when no provider is available", async () => {
+    delete process.env.EXA_API_KEY;
+    delete process.env.OLLAMA_WEB_SEARCH_API_KEY;
+    delete process.env.OLLAMA_API_KEY;
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const cached = [
+      {
+        title: "Cached result",
+        url: "https://example.com/cached",
+        content: "Previously validated",
+        highlights: ["Previously validated"],
+        author: null,
+        publishedDate: null,
+        provider: "exa" as const,
+        lane: "discovery" as const
+      }
+    ];
+
+    const results = await runSearch(["offline query"], {
+      get: () => Effect.succeed({ value: cached, fresh: false }),
+      put: () => Effect.void,
+      prune: () => Effect.void
+    } as unknown as SearchCache);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(results).toEqual(cached);
+  });
 });
 
-function runSearch(queries: string[]) {
+function runSearch(
+  queries: string[],
+  cache: SearchCache = {
+    get: () => Effect.succeed(null),
+    put: () => Effect.void,
+    prune: () => Effect.void
+  } as unknown as SearchCache
+) {
   return Effect.runPromise(
     Search.pipe(
       Effect.flatMap((search) => search.search(queries)),
-      Effect.provide(Search.Default)
+      Effect.provide(Search.Default),
+      Effect.provideService(SearchCache, cache)
     )
   );
 }

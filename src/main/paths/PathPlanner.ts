@@ -3,6 +3,7 @@ import { Effect, Schema } from "effect";
 import { PathPlanDraftSchema, pathPlanJsonSchema } from "~/shared/schema";
 import { Ollama, defaultModel } from "../llm/Ollama";
 import { Search } from "../llm/Search";
+import { SearchCache } from "../llm/SearchCache";
 import { GoalsRepo } from "../repo/Goals";
 import { PathsRepo, PathValidationError } from "../repo/Paths";
 import { SettingsRepo } from "../repo/Settings";
@@ -82,7 +83,8 @@ export class PathPlanner extends Effect.Service<PathPlanner>()("PathPlanner", {
     PathsRepo.Default,
     SettingsRepo.Default,
     Ollama.Default,
-    Search.Default
+    Search.Default,
+    SearchCache.Default
   ],
   effect: Effect.gen(function* () {
     const goals = yield* GoalsRepo;

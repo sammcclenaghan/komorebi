@@ -4,12 +4,16 @@
  * degrades gracefully: a broken search never kills a goal's generation, it
  * just produces a draft without web links.
  */
+import { createHash } from "node:crypto";
 import { Data, Duration, Effect, Schedule } from "effect";
 import { CLOUD_HOST, extractError } from "./Ollama";
 import { ProviderCircuitBreaker } from "./ProviderCircuitBreaker";
+import { SearchCache } from "./SearchCache";
 
 const EXA_SEARCH_URL = "https://api.exa.ai/search";
 const SEARCH_TIMEOUT_MS = 30_000;
+const SEARCH_CACHE_FRESH_MS = 24 * 60 * 60_000;
+const SEARCH_CACHE_STALE_MS = 30 * 24 * 60 * 60_000;
 const providerCircuit = new ProviderCircuitBreaker();
 
 export function resetSearchProviderCircuits(): void {
@@ -366,6 +370,64 @@ const searchWithFallback = (
     );
   });
 
+const cachedSearchWithFallback = (
+  query: string,
+  lane: SearchResult["lane"],
+  domains: string[]
+): Effect.Effect<SearchResult[], SearchError, SearchCache> =>
+  Effect.gen(function* () {
+    const cache = yield* SearchCache;
+    const cacheKey = createHash("sha256")
+      .update(JSON.stringify({ version: 1, query, lane, domains: [...domains].sort() }))
+      .digest("hex");
+    const cached = yield* cache.get(cacheKey).pipe(
+      Effect.catchAll(() => Effect.succeed(null))
+    );
+    const cachedResults = cached ? decodeCachedResults(cached.value) : null;
+    if (cached?.fresh && cachedResults) return cachedResults;
+
+    const live = yield* Effect.either(searchWithFallback(query, lane, domains));
+    if (live._tag === "Right") {
+      yield* cache
+        .put(cacheKey, live.right, SEARCH_CACHE_FRESH_MS, SEARCH_CACHE_STALE_MS)
+        .pipe(Effect.ignore);
+      return live.right;
+    }
+    if (cachedResults) return cachedResults;
+    return yield* Effect.fail(live.left);
+  });
+
+function decodeCachedResults(value: unknown): SearchResult[] | null {
+  if (!Array.isArray(value)) return null;
+  const results: SearchResult[] = [];
+  for (const candidate of value) {
+    if (!candidate || typeof candidate !== "object") return null;
+    const row = candidate as Record<string, unknown>;
+    if (
+      typeof row.title !== "string" ||
+      typeof row.url !== "string" ||
+      typeof row.content !== "string" ||
+      !Array.isArray(row.highlights) ||
+      !row.highlights.every((item) => typeof item === "string") ||
+      (row.provider !== "exa" && row.provider !== "ollama") ||
+      (row.lane !== "canonical" && row.lane !== "discovery")
+    ) {
+      return null;
+    }
+    results.push({
+      title: row.title,
+      url: row.url,
+      content: row.content,
+      highlights: row.highlights,
+      author: typeof row.author === "string" ? row.author : null,
+      publishedDate: typeof row.publishedDate === "string" ? row.publishedDate : null,
+      provider: row.provider,
+      lane: row.lane
+    });
+  }
+  return results;
+}
+
 export class Search extends Effect.Service<Search>()("Search", {
   succeed: {
     provider: searchProvider,
@@ -377,16 +439,17 @@ export class Search extends Effect.Service<Search>()("Search", {
     search: (
       queries: string[],
       canonicalDomains: string[] = []
-    ): Effect.Effect<SearchResult[], SearchError> =>
+    ): Effect.Effect<SearchResult[], SearchError, SearchCache> =>
       Effect.gen(function* () {
-        const provider = searchProvider();
-        if (provider === "none" || queries.length === 0) return [];
+        if (queries.length === 0) return [];
 
         const searches = [
           ...(canonicalDomains.length
-            ? queries.map((query) => searchWithFallback(query, "canonical", canonicalDomains))
+            ? queries.map((query) =>
+                cachedSearchWithFallback(query, "canonical", canonicalDomains)
+              )
             : []),
-          ...queries.map((query) => searchWithFallback(query, "discovery", []))
+          ...queries.map((query) => cachedSearchWithFallback(query, "discovery", []))
         ];
         const batches = yield* Effect.forEach(
           searches,

@@ -13,6 +13,7 @@ import { createClient } from "@libsql/client";
 import type { Client, InStatement, InValue, ResultSet, Row } from "@libsql/client";
 import { Data, Effect } from "effect";
 import { GENERATION_JOBS_SCHEMA } from "../jobs/schema";
+import { SEARCH_CACHE_SCHEMA } from "../llm/searchCacheSchema";
 import { resolvePaths } from "../paths";
 
 export class DbError extends Data.TaggedError("DbError")<{
@@ -111,7 +112,8 @@ const SCHEMA: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_suggestions_goal ON suggestions(goal_id, date)`,
   `CREATE INDEX IF NOT EXISTS idx_reflections_suggestion ON reflections(suggestion_id)`,
   `CREATE INDEX IF NOT EXISTS idx_coach_checkins_week ON coach_checkin_messages(week_start, created_at)`,
-  ...GENERATION_JOBS_SCHEMA
+  ...GENERATION_JOBS_SCHEMA,
+  ...SEARCH_CACHE_SCHEMA
 ];
 
 async function initSchema(client: Client): Promise<void> {
