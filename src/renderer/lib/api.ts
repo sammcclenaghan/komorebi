@@ -231,7 +231,3 @@ export function bootstrapWebApi(): void {
 
   window.komorebi = createHttpClient();
 }
-
-export function isWebMode(): boolean {
-  return import.meta.env.VITE_KOMOREBI_WEB === "true";
-}

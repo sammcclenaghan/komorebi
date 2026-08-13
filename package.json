@@ -3,24 +3,14 @@
   "version": "0.2.1",
   "private": true,
   "type": "module",
-  "main": "dist-electron/main.cjs",
   "packageManager": "pnpm@10.33.2",
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "dev:web": "node scripts/dev-web.mjs",
     "build": "tsdown && vite build",
-    "build:web": "tsdown && KOMOREBI_WEB=1 vite build",
-    "build:main": "tsdown",
-    "build:renderer": "vite build",
     "start": "node scripts/start.mjs",
-    "start:web": "node scripts/start-web.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "migrate:turso": "node scripts/migrate-to-turso.mjs",
-    "icon": "node scripts/build-icon.mjs",
-    "icon:icns": "node scripts/build-icns.mjs",
-    "package": "pnpm icon && pnpm icon:icns && pnpm build && electron-builder --mac --arm64 --dir",
-    "install:app": "pnpm package && rm -rf /Applications/Komorebi.app && cp -R release/mac-arm64/Komorebi.app /Applications/ && echo '\\n✔ Komorebi installed to /Applications. Launch via Spotlight or Launchpad.'"
+    "migrate:turso": "node scripts/migrate-to-turso.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -39,14 +29,11 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
-    "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "^4.3.0",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.0",
-    "electron": "^42.2.0",
-    "electron-builder": "^26.8.1",
     "tailwindcss": "^4.3.0",
     "tsdown": "^0.20.3",
     "tsx": "^4.20.0",
@@ -58,47 +45,5 @@
     "onlyBuiltDependencies": [
       "esbuild"
     ]
-  },
-  "build": {
-    "appId": "dev.sammcclenaghan.komorebi",
-    "productName": "Komorebi",
-    "files": [
-      "dist-electron/**/*",
-      "dist/**/*",
-      "package.json",
-      "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,*.markdown,LICENSE*,license*,docs}",
-      "!**/node_modules/**/{test,tests,__tests__,examples,example}/**",
-      "!**/.git",
-      "!**/.env*"
-    ],
-    "extraResources": [
-      ".env.local",
-      {
-        "from": "build/trayTemplate.png",
-        "to": "trayTemplate.png"
-      },
-      {
-        "from": "build/trayTemplate@2x.png",
-        "to": "trayTemplate@2x.png"
-      }
-    ],
-    "directories": {
-      "output": "release"
-    },
-    "mac": {
-      "icon": "build/icon.icns",
-      "target": [
-        {
-          "target": "dir",
-          "arch": "arm64"
-        }
-      ],
-      "identity": null,
-      "category": "public.app-category.productivity",
-      "darkModeSupport": true,
-      "hardenedRuntime": false,
-      "gatekeeperAssess": false
-    },
-    "asar": true
   }
 }

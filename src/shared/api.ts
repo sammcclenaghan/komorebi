@@ -1,10 +1,5 @@
 /**
- * The renderer-facing API contract. Both transports implement it:
- *  - Electron: preload bridge over IPC (src/preload/preload.ts)
- *  - Web: HTTP + SSE client (src/renderer/lib/api.ts)
- *
- * The backend implements it once, as a map of Effect handlers
- * (src/main/api/handlers.ts) shared by the IPC registrar and the HTTP router.
+ * The renderer-facing HTTP + SSE API contract.
  */
 import type {
   AppSettings,

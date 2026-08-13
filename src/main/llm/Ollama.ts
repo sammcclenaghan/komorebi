@@ -15,7 +15,6 @@ import { ProviderCircuitBreaker } from "./ProviderCircuitBreaker";
 const LOCAL_HOST = "http://localhost:11434";
 export const CLOUD_HOST = "https://ollama.com";
 const DEFAULT_LOCAL_MODEL = "gpt-oss:120b-cloud";
-const DEFAULT_CLOUD_MODEL = "gpt-oss:120b";
 
 // Without a timeout, a hung host blocks the coalesced in-flight generation
 // forever — the UI just shows "Composing…" until the process restarts.
@@ -51,12 +50,12 @@ type OllamaChatResponse = {
 };
 
 export function defaultHost(): string {
-  return process.env.KOMOREBI_WEB === "1" ? CLOUD_HOST : LOCAL_HOST;
+  return LOCAL_HOST;
 }
 
 export function defaultModel(): string {
   if (process.env.OLLAMA_MODEL) return process.env.OLLAMA_MODEL;
-  return process.env.KOMOREBI_WEB === "1" ? DEFAULT_CLOUD_MODEL : DEFAULT_LOCAL_MODEL;
+  return DEFAULT_LOCAL_MODEL;
 }
 
 /** Pull a human-readable error out of an Ollama error body ({"error": "..."}). */

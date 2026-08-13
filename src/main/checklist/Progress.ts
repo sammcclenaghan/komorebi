@@ -1,7 +1,6 @@
 /**
  * The generation progress bus. The Checklist service emits typed events;
- * transports subscribe imperatively (Electron pushes them over the
- * `checklist:progress` IPC channel, the web server streams them over SSE).
+ * the web server streams them to subscribed clients over SSE.
  */
 import { Effect } from "effect";
 import type { GenerationProgress } from "~/shared/schema";

@@ -3,12 +3,10 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./App";
 import { AppToaster } from "./components/ui/Toaster";
-import { bootstrapWebApi, isWebMode } from "./lib/api";
+import { bootstrapWebApi } from "./lib/api";
 import "./styles.css";
 
-if (isWebMode()) {
-  bootstrapWebApi();
-}
+bootstrapWebApi();
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -3,7 +3,6 @@
 import type { KomorebiApi } from "~/shared/api";
 
 interface ImportMetaEnv {
-  readonly VITE_KOMOREBI_WEB: string;
   readonly VITE_API_BASE: string;
 }
 

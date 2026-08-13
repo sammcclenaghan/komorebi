@@ -8,7 +8,7 @@ const moduleDir =
     ? __dirname
     : path.dirname(fileURLToPath(import.meta.url));
 
-/** Load .env files for the standalone web server (mirrors Electron main). */
+/** Load local environment files for the web server. */
 export function loadEnv(): void {
   const candidates = [
     path.join(process.cwd(), ".env.local"),

@@ -1,7 +1,5 @@
 /**
- * The Effect runtime hosting every backend service. Both transports
- * (Electron IPC and the self-hosted HTTP server) resolve services from this
- * one runtime, so behavior is identical by construction.
+ * The Effect runtime hosting every backend service for the web server.
  */
 import { Cause, Effect, Exit, Layer, ManagedRuntime } from "effect";
 import { Checklist } from "./checklist/Checklist";

@@ -12,7 +12,6 @@ import { IconButton } from "./components/ui/IconButton";
 import { useApplyTheme } from "./lib/use-theme";
 import { useChecklistProgress } from "./lib/use-checklist-progress";
 import { useGenerationFeedback } from "./lib/use-generation-feedback";
-import { isWebMode } from "./lib/api";
 import { cn } from "~/lib/cn";
 
 const KNOWN_VIEWS: View[] = ["today", "history", "goals", "settings"];
@@ -122,8 +121,6 @@ export function App() {
   );
 }
 
-const TOGGLE_LEFT = isWebMode() ? "left-3" : "left-[78px]";
-
 function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const Icon = open ? PanelLeftClose : PanelLeftOpen;
   return (
@@ -134,7 +131,7 @@ function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void
       onClick={onToggle}
       className={cn(
         "no-drag fixed top-[14px] z-50 hidden h-[26px] w-[26px] p-0 md:inline-flex",
-        TOGGLE_LEFT,
+        "left-3",
         "transition-[background-color,border-color,box-shadow] duration-200 ease-out",
         open
           ? // Sits over the sidebar panel — stays borderless so it blends in.

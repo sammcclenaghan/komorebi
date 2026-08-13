@@ -1,7 +1,5 @@
 /**
- * HTTP mirror of the IPC contract. Every route delegates to the shared
- * Effect-backed handler map (src/main/api/handlers.ts), so web-server
- * behavior is identical to the Electron app by construction.
+ * HTTP routes delegate to the shared Effect-backed handler map.
  */
 import fs from "node:fs";
 import path from "node:path";

@@ -1,7 +1,6 @@
 /**
  * The backend implementation of the renderer contract (~/shared/api), as
- * plain async functions over the Effect runtime. The Electron IPC registrar
- * and the HTTP router both call these — one implementation, two transports.
+ * plain async functions over the Effect runtime for the HTTP transport.
  */
 import { Effect } from "effect";
 import type {

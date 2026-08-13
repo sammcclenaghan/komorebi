@@ -1,13 +1,9 @@
 # Self-hosting Komorebi
 
-Komorebi can run as both:
+Komorebi is a self-hosted web app for Docker, Proxmox, or Arcane. The same
+responsive PWA works on desktop and mobile and connects to your Ollama host.
 
-- a desktop Electron app on your Mac
-- a self-hosted web app on Proxmox/Arcane
-
-Both modes can use the same Ollama host.
-
-## Local Desktop
+## Local development
 
 Create `.env.local` with:
 
