@@ -1,7 +1,10 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  entry: ["src/server/main.ts"],
+  entry: {
+    main: "src/server/main.ts",
+    database: "src/tools/database.ts"
+  },
   format: "cjs",
   outDir: "dist-server",
   sourcemap: true,

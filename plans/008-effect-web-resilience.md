@@ -74,11 +74,11 @@ turn optional dependency outages into whole-application outages.
 
 ### 6. Data protection and operations
 
-- Replace best-effort schema alterations with versioned migrations.
-- Enable SQLite WAL, foreign keys, and a busy timeout.
-- Add online backup, restore, integrity-check, and migration commands.
-- Add structured logs with request, job, and generation correlation IDs.
-- Document rollback and test it against a production-like backup.
+- Replace best-effort schema alterations with versioned migrations. DONE
+- Enable SQLite WAL, foreign keys, and a busy timeout. DONE
+- Add online backup, restore, integrity-check, and migration commands. DONE
+- Add structured logs with request, job, and generation correlation IDs. DONE
+- Document rollback and test it against a production-like backup. DONE
 
 ## Current status
 
@@ -87,4 +87,4 @@ turn optional dependency outages into whole-application outages.
 - Slice 3: DONE
 - Slice 4: DONE
 - Slice 5: DONE
-- Slice 6: TODO
+- Slice 6: DONE

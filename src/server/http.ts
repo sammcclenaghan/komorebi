@@ -1,9 +1,11 @@
 import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { handlers } from "~/main/api/handlers";
 import { handleApi, RouteNotFoundError } from "./routes";
+import { errorFields, log } from "./log";
 
 const moduleDir =
   typeof __dirname === "string"
@@ -34,6 +36,19 @@ export function createServer(options: ServerOptions): http.Server {
   const staticDir = options.staticDir ?? path.join(moduleDir, "..", "dist", "renderer");
 
   return http.createServer(async (req, res) => {
+    const requestId = getRequestId(req);
+    const startedAt = performance.now();
+    res.setHeader("X-Request-Id", requestId);
+    res.once("finish", () => {
+      log("info", "http.request.completed", {
+        requestId,
+        method: req.method ?? "GET",
+        path: req.url?.split("?")[0] ?? "",
+        status: res.statusCode,
+        durationMs: Math.round(performance.now() - startedAt)
+      });
+    });
+
     try {
       if (!req.url) {
         res.writeHead(400).end();
@@ -53,7 +68,7 @@ export function createServer(options: ServerOptions): http.Server {
           await handlers.health.ready();
           writeJson(res, 200, { status: "ready" });
         } catch (err) {
-          console.error("[server] readiness check failed:", err);
+          log("warn", "health.readiness.failed", { requestId, ...errorFields(err) });
           writeJson(res, 503, { status: "not-ready" });
         }
         return;
@@ -101,7 +116,12 @@ export function createServer(options: ServerOptions): http.Server {
             );
             return;
           }
-          console.error("[server] API error:", err);
+          log("error", "http.api.failed", {
+            requestId,
+            method,
+            path: pathname,
+            ...errorFields(err)
+          });
           const message = err instanceof Error ? err.message : "Internal error";
           res.writeHead(500, { "Content-Type": "application/json" }).end(
             JSON.stringify({ error: message })
@@ -123,11 +143,11 @@ export function createServer(options: ServerOptions): http.Server {
         } else if (err instanceof SyntaxError) {
           writeJson(res, 400, { error: "Request body must be valid JSON." });
         } else {
-          console.error("[server] request failed:", err);
+          log("error", "http.request.failed", { requestId, ...errorFields(err) });
           writeJson(res, 500, { error: "Internal error" });
         }
       } else {
-        console.error("[server] request failed after headers were sent:", err);
+        log("error", "http.request.stream.failed", { requestId, ...errorFields(err) });
       }
     }
   });
@@ -144,7 +164,11 @@ function authorize(req: http.IncomingMessage, token?: string, url?: URL): boolea
 function writeCors(res: http.ServerResponse): void {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Request-Id"
+  );
+  res.setHeader("Access-Control-Expose-Headers", "X-Request-Id");
 }
 
 function writeJson(res: http.ServerResponse, status: number, body: unknown): void {
@@ -173,7 +197,12 @@ function handleProgressStream(req: http.IncomingMessage, res: http.ServerRespons
       if (closed) un();
       else unsubscribe = un;
     })
-    .catch((err) => console.error("[server] progress subscribe failed:", err));
+    .catch((err) =>
+      log("error", "progress.subscription.failed", {
+        requestId: res.getHeader("X-Request-Id"),
+        ...errorFields(err)
+      })
+    );
 
   const heartbeat = setInterval(() => {
     res.write(": ping\n\n");
@@ -252,13 +281,21 @@ export function startServer(options: ServerOptions): http.Server {
   const server = createServer(options);
   server.listen(options.port, options.host, () => {
     const hostLabel = options.host === "0.0.0.0" ? "localhost" : options.host;
-    console.log(`[komorebi] web server listening on http://${hostLabel}:${options.port}`);
+    log("info", "server.started", {
+      host: options.host,
+      port: options.port,
+      url: `http://${hostLabel}:${options.port}`,
+      apiTokenRequired: Boolean(options.apiToken)
+    });
     if (options.host === "0.0.0.0") {
-      console.log("[komorebi] reachable on your LAN — open this URL on your phone");
-    }
-    if (options.apiToken) {
-      console.log("[komorebi] API token required (Authorization: Bearer …)");
+      log("info", "server.lan.enabled", { port: options.port });
     }
   });
   return server;
+}
+
+function getRequestId(req: http.IncomingMessage): string {
+  const supplied = req.headers["x-request-id"];
+  const value = Array.isArray(supplied) ? supplied[0] : supplied;
+  return value && /^[a-zA-Z0-9._:-]{1,128}$/.test(value) ? value : randomUUID();
 }

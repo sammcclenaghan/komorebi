@@ -10,6 +10,10 @@
     "start": "node scripts/start.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
+    "db:migrate": "node dist-server/database.cjs migrate",
+    "db:integrity": "node dist-server/database.cjs integrity",
+    "db:backup": "node dist-server/database.cjs backup",
+    "db:restore": "node dist-server/database.cjs restore",
     "migrate:turso": "node scripts/migrate-to-turso.mjs"
   },
   "dependencies": {

@@ -1,7 +1,7 @@
 /**
  * The Effect runtime hosting every backend service for the web server.
  */
-import { Cause, Effect, Exit, Layer, ManagedRuntime } from "effect";
+import { Cause, Effect, Exit, Layer, Logger, ManagedRuntime } from "effect";
 import { Checklist } from "./checklist/Checklist";
 import { Progress } from "./checklist/Progress";
 import { Context } from "./context/Context";
@@ -40,7 +40,7 @@ const AppLayer = Layer.mergeAll(
   Progress.Default,
   Checklist.Default,
   GenerationWorker.Default
-);
+).pipe(Layer.provide(Logger.json));
 
 export const runtime = ManagedRuntime.make(AppLayer);
 

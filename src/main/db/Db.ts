@@ -12,9 +12,8 @@ import path from "node:path";
 import { createClient } from "@libsql/client";
 import type { Client, InStatement, InValue, ResultSet, Row } from "@libsql/client";
 import { Data, Effect } from "effect";
-import { GENERATION_JOBS_SCHEMA } from "../jobs/schema";
-import { SEARCH_CACHE_SCHEMA } from "../llm/searchCacheSchema";
 import { resolvePaths } from "../paths";
+import { configureDatabase, runMigrations } from "./migrations";
 
 export class DbError extends Data.TaggedError("DbError")<{
   message: string;
@@ -25,7 +24,7 @@ export class DbError extends Data.TaggedError("DbError")<{
   }
 }
 
-function makeClient(): Client {
+export function makeClient(): Client {
   const url = process.env.TURSO_DB_URL?.trim();
   const authToken = process.env.TURSO_AUTH_TOKEN?.trim();
   if (url) {
@@ -34,112 +33,6 @@ function makeClient(): Client {
   const { dataDir, dbFile } = resolvePaths();
   fs.mkdirSync(dataDir, { recursive: true });
   return createClient({ url: `file:${path.resolve(dbFile)}` });
-}
-
-const SCHEMA: string[] = [
-  `CREATE TABLE IF NOT EXISTS goals (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT,
-    context TEXT,
-    status TEXT NOT NULL DEFAULT 'active',
-    priority TEXT NOT NULL DEFAULT 'medium',
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS suggestions (
-    id TEXT PRIMARY KEY,
-    goal_id TEXT NOT NULL,
-    path_id TEXT,
-    milestone_id TEXT,
-    date TEXT NOT NULL,
-    title TEXT NOT NULL,
-    summary TEXT NOT NULL,
-    detail_markdown TEXT NOT NULL,
-    resource_url TEXT,
-    estimated_minutes INTEGER,
-    status TEXT NOT NULL DEFAULT 'pending',
-    rating TEXT,
-    generation_warning TEXT,
-    created_at TEXT NOT NULL,
-    completed_at TEXT
-  )`,
-  `CREATE TABLE IF NOT EXISTS goal_paths (
-    id TEXT PRIMARY KEY, goal_id TEXT NOT NULL, version INTEGER NOT NULL, status TEXT NOT NULL,
-    revision INTEGER NOT NULL DEFAULT 0, assumptions TEXT NOT NULL DEFAULT '', research_summary TEXT NOT NULL DEFAULT '',
-    research_at TEXT, error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS path_milestones (
-    id TEXT PRIMARY KEY, path_id TEXT NOT NULL, position INTEGER NOT NULL, title TEXT NOT NULL,
-    outcome TEXT NOT NULL, rationale TEXT NOT NULL, completion_criteria TEXT NOT NULL, status TEXT NOT NULL,
-    completion_evidence TEXT, completed_at TEXT
-  )`,
-  `CREATE TABLE IF NOT EXISTS path_sources (id TEXT PRIMARY KEY, path_id TEXT NOT NULL, title TEXT NOT NULL, url TEXT NOT NULL, excerpt TEXT NOT NULL)`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_path ON goal_paths(goal_id) WHERE status = 'active'`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS idx_one_current_milestone ON path_milestones(path_id) WHERE status = 'current'`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS idx_path_version ON goal_paths(goal_id, version)`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS idx_one_path_candidate ON goal_paths(goal_id)
-    WHERE status IN ('generating', 'draft')`,
-  `CREATE TABLE IF NOT EXISTS reflections (
-    id TEXT PRIMARY KEY,
-    suggestion_id TEXT NOT NULL,
-    text TEXT NOT NULL,
-    rating TEXT,
-    created_at TEXT NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS settings (
-    id INTEGER PRIMARY KEY DEFAULT 1,
-    data TEXT NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS day_briefs (
-    date TEXT PRIMARY KEY,
-    markdown TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS coach_memory (
-    id INTEGER PRIMARY KEY DEFAULT 1,
-    markdown TEXT NOT NULL,
-    updated_date TEXT NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS coach_checkin_messages (
-    id TEXT PRIMARY KEY,
-    week_start TEXT NOT NULL,
-    role TEXT NOT NULL,
-    content TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  )`,
-  `CREATE INDEX IF NOT EXISTS idx_suggestions_date ON suggestions(date)`,
-  `CREATE INDEX IF NOT EXISTS idx_suggestions_goal ON suggestions(goal_id, date)`,
-  `CREATE INDEX IF NOT EXISTS idx_reflections_suggestion ON reflections(suggestion_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_coach_checkins_week ON coach_checkin_messages(week_start, created_at)`,
-  ...GENERATION_JOBS_SCHEMA,
-  ...SEARCH_CACHE_SCHEMA
-];
-
-async function initSchema(client: Client): Promise<void> {
-  await client.batch(SCHEMA, "write");
-  // Tables created before a column existed: ADD COLUMN throws when the
-  // column is already there, so each is best-effort.
-  try {
-    await client.execute("ALTER TABLE goals ADD COLUMN priority TEXT NOT NULL DEFAULT 'medium'");
-  } catch {
-    // Column already exists.
-  }
-  try {
-    await client.execute("ALTER TABLE suggestions ADD COLUMN generation_warning TEXT");
-  } catch {
-    // Column already exists.
-  }
-  for (const sql of [
-    "ALTER TABLE suggestions ADD COLUMN path_id TEXT",
-    "ALTER TABLE suggestions ADD COLUMN milestone_id TEXT"
-  ]) {
-    try {
-      await client.execute(sql);
-    } catch {
-      // Column already exists.
-    }
-  }
 }
 
 export class Db extends Effect.Service<Db>()("Db", {
@@ -154,7 +47,13 @@ export class Db extends Effect.Service<Db>()("Db", {
     );
 
     yield* Effect.tryPromise({
-      try: () => initSchema(client),
+      try: async () => {
+        await configureDatabase(client, !process.env.TURSO_DB_URL?.trim());
+        await runMigrations(client);
+        // libSQL transactions may rotate the underlying connection. Reapply
+        // connection-scoped foreign-key and busy-timeout settings afterwards.
+        await configureDatabase(client, !process.env.TURSO_DB_URL?.trim());
+      },
       catch: (cause) =>
         new DbError({ message: `Database schema setup failed: ${describe(cause)}`, cause })
     });

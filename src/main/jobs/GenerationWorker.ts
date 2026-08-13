@@ -66,6 +66,7 @@ export class GenerationWorker extends Effect.Service<GenerationWorker>()("Genera
 
           if (Exit.isSuccess(exit)) {
             yield* jobs.succeed(job.id, workerId, exit.value);
+            yield* Effect.logInfo("generation job succeeded");
             return;
           }
 
@@ -84,6 +85,9 @@ export class GenerationWorker extends Effect.Service<GenerationWorker>()("Genera
               permanent ? "configuration" : "attempts-exhausted",
               message
             );
+            yield* Effect.logError("generation job permanently failed").pipe(
+              Effect.annotateLogs({ error: message, permanent })
+            );
             return;
           }
 
@@ -95,12 +99,22 @@ export class GenerationWorker extends Effect.Service<GenerationWorker>()("Genera
             message,
             new Date(Date.now() + delay)
           );
+          yield* Effect.logWarning("generation job scheduled for retry").pipe(
+            Effect.annotateLogs({ delayMs: delay, error: message })
+          );
         }).pipe(
           Effect.catchAllCause((cause) =>
             Effect.logError(
-              `generation worker could not settle job ${job.id}: ${Cause.pretty(cause)}`
+              `generation worker could not settle job: ${Cause.pretty(cause)}`
             )
-          )
+          ),
+          Effect.annotateLogs({
+            requestId: payloadCorrelationId(job),
+            jobId: job.id,
+            generationId: job.id,
+            jobKind: job.kind,
+            workerId
+          })
         )
       );
 
@@ -155,6 +169,14 @@ function payloadRecord(job: GenerationJob): Record<string, unknown> {
     throw new GenerationJobPayloadError(`${job.kind} payload must be an object.`);
   }
   return job.payload as Record<string, unknown>;
+}
+
+function payloadCorrelationId(job: GenerationJob): string {
+  if (!job.payload || typeof job.payload !== "object" || Array.isArray(job.payload)) {
+    return "background";
+  }
+  const requestId = (job.payload as Record<string, unknown>).requestId;
+  return typeof requestId === "string" ? requestId : "background";
 }
 
 function hasPermanentDomainTag(cause: unknown, job: GenerationJob): boolean {

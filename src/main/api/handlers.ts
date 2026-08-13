@@ -50,7 +50,7 @@ function enqueueGeneration(
         jobs.enqueue({
           kind,
           idempotencyKey: `${kind}:${requestId}`,
-          payload
+          payload: { ...payload, requestId }
         })
       ),
       Effect.map(toGenerationJobView)

@@ -21,9 +21,12 @@ describe("HTTP process boundary", () => {
   });
 
   it("reports liveness without initializing optional dependencies", async () => {
-    const response = await fetch(`${baseUrl}/health/live`);
+    const response = await fetch(`${baseUrl}/health/live`, {
+      headers: { "X-Request-Id": "health-test-1" }
+    });
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("x-request-id")).toBe("health-test-1");
     await expect(response.json()).resolves.toEqual({ status: "ok" });
   });
 

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { disposeRuntime } from "~/main/runtime";
 import { loadEnv } from "./env";
 import { startServer } from "./http";
+import { errorFields, log } from "./log";
 
 // Prefer IPv4 for outbound connections in hosted/self-hosted environments that lack working
 // IPv6 egress, so Node's default Happy Eyeballs (IPv6-first) makes outbound
@@ -29,10 +30,10 @@ let shuttingDown = false;
 async function shutdown(signal: NodeJS.Signals): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log(`[komorebi] ${signal} received; shutting down`);
+  log("info", "server.shutdown.started", { signal });
 
   const forcedExit = setTimeout(() => {
-    console.error("[komorebi] graceful shutdown timed out");
+    log("error", "server.shutdown.timed_out", { signal });
     process.exit(1);
   }, 25_000);
   forcedExit.unref();
@@ -41,7 +42,7 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await disposeRuntime();
   clearTimeout(forcedExit);
-  console.log("[komorebi] shutdown complete");
+  log("info", "server.shutdown.completed", { signal });
 }
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
@@ -51,7 +52,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
         process.exitCode = 0;
       })
       .catch((err) => {
-        console.error("[komorebi] shutdown failed:", err);
+        log("error", "server.shutdown.failed", { signal, ...errorFields(err) });
         process.exitCode = 1;
       });
   });
