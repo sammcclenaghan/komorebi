@@ -331,6 +331,11 @@ export const AppSettingsSchema = Schema.Struct({
    */
   model: Schema.NullOr(Schema.String),
   /**
+   * Ollama server base URL (e.g. "http://192.168.1.20:11434").
+   * null means "use OLLAMA_HOST or the built-in localhost default".
+   */
+  ollamaHost: Schema.NullOr(Schema.String),
+  /**
    * The user's own words about what they want from their coach — priorities,
    * constraints, taste ("I want to ship a game by December, I only have
    * evenings, I learn best by building"). Injected verbatim into every
@@ -344,6 +349,7 @@ export const defaultSettings: AppSettings = {
   schedule: { enabled: true, time: "07:00", lastRunDate: null, lastNudgeDate: null },
   theme: "system",
   model: null,
+  ollamaHost: null,
   profile: null
 };
 

@@ -122,6 +122,7 @@ export class PathPlanner extends Effect.Service<PathPlanner>()("PathPlanner", {
           for (let planAttempt = 1; planAttempt <= MAX_PLAN_ATTEMPTS; planAttempt++) {
             const raw = yield* ollama.chat({
               model: config.model ?? defaultModel(),
+              host: config.ollamaHost,
               system: SYSTEM_PROMPT,
               format: pathPlanJsonSchema,
               messages,

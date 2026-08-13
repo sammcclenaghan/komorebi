@@ -36,6 +36,8 @@ export class LlmError extends Data.TaggedError("LlmError")<{
 
 export type ChatRequest = {
   model: string;
+  /** Per-request host from persisted settings; falls back to OLLAMA_HOST. */
+  host?: string | null;
   system: string;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
   /** JSON Schema for Ollama structured outputs. */
@@ -56,6 +58,10 @@ export function defaultHost(): string {
 export function defaultModel(): string {
   if (process.env.OLLAMA_MODEL) return process.env.OLLAMA_MODEL;
   return DEFAULT_LOCAL_MODEL;
+}
+
+export function resolveOllamaHost(configuredHost?: string | null): string {
+  return (configuredHost || process.env.OLLAMA_HOST || defaultHost()).replace(/\/+$/, "");
 }
 
 /** Pull a human-readable error out of an Ollama error body ({"error": "..."}). */
@@ -82,7 +88,7 @@ export class Ollama extends Effect.Service<Ollama>()("Ollama", {
     chat: (request: ChatRequest): Effect.Effect<string, LlmError> => {
       const attempt = Effect.tryPromise({
         try: async () => {
-          const host = (process.env.OLLAMA_HOST ?? defaultHost()).replace(/\/$/, "");
+          const host = resolveOllamaHost(request.host);
           const circuitKey = `${host}|${request.model}`;
           if (!chatCircuit.canRequest(circuitKey)) {
             throw new LlmError({
@@ -187,7 +193,7 @@ export class Ollama extends Effect.Service<Ollama>()("Ollama", {
       const protectedAttempt = attempt.pipe(
         Effect.tap(() =>
           Effect.sync(() => {
-            const host = (process.env.OLLAMA_HOST ?? defaultHost()).replace(/\/$/, "");
+            const host = resolveOllamaHost(request.host);
             chatCircuit.recordSuccess(`${host}|${request.model}`);
           })
         ),
@@ -195,7 +201,7 @@ export class Ollama extends Effect.Service<Ollama>()("Ollama", {
           error.circuitOpen
             ? Effect.void
             : Effect.sync(() => {
-                const host = (process.env.OLLAMA_HOST ?? defaultHost()).replace(/\/$/, "");
+                const host = resolveOllamaHost(request.host);
                 chatCircuit.recordFailure(`${host}|${request.model}`, error.permanent);
               })
         )

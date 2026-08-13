@@ -130,11 +130,18 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
       );
       const today = localDate();
       const stats = computeStats(all, today);
-      const notes = yield* refreshNotes(current.model, all, today);
+      const notes = yield* refreshNotes(current.model, current.ollamaHost, all, today);
       const weeklyNotes = weeklyMessages.length
         ? weeklyMessages.map((m) => `- ${m.weekStart}: ${m.content}`).join("\n")
         : null;
-      return { model: current.model, profile: current.profile, notes, weeklyNotes, stats };
+      return {
+        model: current.model,
+        ollamaHost: current.ollamaHost,
+        profile: current.profile,
+        notes,
+        weeklyNotes,
+        stats
+      };
     });
 
     type CoachInputs = Effect.Effect.Success<typeof prepareCoach>;
@@ -147,6 +154,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
      */
     const refreshNotes = (
       model: string | null,
+      ollamaHost: string | null,
       all: Suggestion[],
       today: string
     ): Effect.Effect<string | null> =>
@@ -183,7 +191,8 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
         const notes = yield* composer.distillNotes({
           existingNotes: existing?.markdown ?? null,
           evidence,
-          model: model ?? undefined
+          model: model ?? undefined,
+          ollamaHost
         });
         yield* memory.set(notes, today);
         return notes || null;
@@ -255,6 +264,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           date,
           contextBlocks,
           model: coach.model ?? undefined,
+          ollamaHost: coach.ollamaHost,
           profile: coach.profile,
           coachNotes: coach.notes,
           weeklyNotes: coach.weeklyNotes,
@@ -298,7 +308,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
     ): Effect.Effect<void> =>
       Effect.gen(function* () {
         if (items.length === 0) return;
-        const { model, profile } = yield* settings.get();
+        const { model, ollamaHost, profile } = yield* settings.get();
         const all = yield* suggestions.listAll();
         const yesterday = all.filter((s) => s.date === prevDate(date));
         const brief = yield* composer.composeBrief({
@@ -308,7 +318,8 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
           stats: computeStats(all, date),
           contextBlocks,
           profile,
-          model: model ?? undefined
+          model: model ?? undefined,
+          ollamaHost
         });
         yield* briefs.upsert(date, brief);
       }).pipe(
@@ -459,6 +470,7 @@ export class Checklist extends Effect.Service<Checklist>()("Checklist", {
             profile: current.profile,
             coachNotes: coachMemory?.markdown ?? null,
             model: current.model ?? undefined,
+            ollamaHost: current.ollamaHost,
             messages: [
               ...messages,
               {

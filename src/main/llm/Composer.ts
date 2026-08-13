@@ -128,6 +128,7 @@ export type ComposeInput = {
   date: string;
   contextBlocks?: ContextBlock[];
   model?: string;
+  ollamaHost?: string | null;
   /** The user's own words about what they want (settings.profile). */
   profile?: string | null;
   /** The coach's learned notes, distilled from past feedback. */
@@ -165,6 +166,7 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
         input.onStatus?.("Planning search...");
         const raw = yield* ollama.chat({
           model,
+          host: input.ollamaHost,
           system: QUERY_SYSTEM_INSTRUCTIONS,
           messages: [{ role: "user", content: goalBlock(input) }],
           format: searchQueriesJsonSchema
@@ -217,6 +219,7 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
 
           const raw = yield* ollama.chat({
             model,
+            host: input.ollamaHost,
             system: SYSTEM_INSTRUCTIONS,
             messages,
             format: suggestionDraftJsonSchema
@@ -247,6 +250,7 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
         input.onStatus?.("Choosing a resource...");
         const raw = yield* ollama.chat({
           model,
+          host: input.ollamaHost,
           system: RESOURCE_SELECTOR_INSTRUCTIONS,
           messages: [{ role: "user", content: buildResourceSelectionPrompt(input, results) }],
           format: resourceSelectionJsonSchema,
@@ -317,6 +321,7 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
         const model = input.model ?? defaultModel();
         const raw = yield* ollama.chat({
           model,
+          host: input.ollamaHost,
           system: BRIEF_SYSTEM_INSTRUCTIONS,
           messages: [{ role: "user", content: buildBriefPrompt(input) }],
           format: dayBriefJsonSchema,
@@ -347,6 +352,7 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
         const model = input.model ?? defaultModel();
         const raw = yield* ollama.chat({
           model,
+          host: input.ollamaHost,
           system: NOTES_SYSTEM_INSTRUCTIONS,
           messages: [{ role: "user", content: buildNotesPrompt(input) }],
           format: coachNotesJsonSchema,
@@ -372,6 +378,7 @@ export class Composer extends Effect.Service<Composer>()("Composer", {
         const model = input.model ?? defaultModel();
         const raw = yield* ollama.chat({
           model,
+          host: input.ollamaHost,
           system: CHECK_IN_SYSTEM_INSTRUCTIONS,
           messages: [{ role: "user", content: buildCheckInPrompt(input) }],
           format: coachReplyJsonSchema,
@@ -402,6 +409,7 @@ export type CheckInInput = {
   profile?: string | null;
   coachNotes?: string | null;
   model?: string;
+  ollamaHost?: string | null;
 };
 
 function buildCheckInPrompt(input: CheckInInput): string {
@@ -425,6 +433,7 @@ export type NotesInput = {
   /** Recent suggestions (newest first) with their reflections attached. */
   evidence: HistoryItem[];
   model?: string;
+  ollamaHost?: string | null;
 };
 
 function buildNotesPrompt(input: NotesInput): string {
@@ -454,6 +463,7 @@ export type BriefInput = {
   /** The user's own words about what they want (settings.profile). */
   profile?: string | null;
   model?: string;
+  ollamaHost?: string | null;
 };
 
 function buildBriefPrompt(input: BriefInput): string {

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@base-ui/react/switch";
-import { AlertCircle, AlertTriangle, Bell, BookOpen, Cpu, Loader2, Monitor, Moon, Palette, RotateCw, Settings as SettingsIcon, Sun } from "lucide-react";
+import { AlertCircle, AlertTriangle, Bell, BookOpen, Loader2, Monitor, Moon, Palette, RotateCw, Server, Settings as SettingsIcon, Sun } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "~/lib/cn";
 import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/Modal";
@@ -24,8 +25,22 @@ export function Settings() {
 
   const update = useMutation({
     mutationFn: (patch: SettingsUpdate) => window.komorebi.settings.update(patch),
-    onSuccess: (next) => {
+    onSuccess: (next, patch) => {
       queryClient.setQueryData(["settings"], next);
+      if ("ollamaHost" in patch) {
+        toast.success(
+          next.ollamaHost
+            ? "Ollama host updated"
+            : "Using the server's default Ollama host"
+        );
+      }
+    },
+    onError: (error, patch) => {
+      if ("ollamaHost" in patch) {
+        toast.error("Couldn't update the Ollama host", {
+          description: error instanceof Error ? error.message : "Try again."
+        });
+      }
     }
   });
 
@@ -55,6 +70,7 @@ export function Settings() {
   const schedule = settingsQuery.data?.schedule;
   const theme = settingsQuery.data?.theme;
   const model = settingsQuery.data?.model ?? null;
+  const ollamaHost = settingsQuery.data?.ollamaHost ?? null;
   const profile = settingsQuery.data?.profile ?? null;
 
   return (
@@ -213,11 +229,22 @@ export function Settings() {
 
           <section className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-5 py-4">
             <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
-              <Cpu className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <Server className="h-3.5 w-3.5" strokeWidth={1.75} />
               <span className="font-mono text-2xs uppercase tracking-[0.2em]">
-                model
+                Ollama
               </span>
             </div>
+
+            <Row
+              title="Ollama host"
+              description="The address Komorebi uses for generation. In Docker, use an address reachable from inside the container, such as your Ollama machine's LAN IP. Leave blank to use the server default."
+            >
+              <OllamaHostField
+                value={ollamaHost}
+                disabled={update.isPending}
+                onCommit={(next) => update.mutate({ ollamaHost: next })}
+              />
+            </Row>
 
             <Row
               title="Composer model"
@@ -401,6 +428,101 @@ function ProfileField({
           disabled={!dirty || disabled}
           onClick={() => onCommit(draft.trim())}
         >
+          Save
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function OllamaHostField({
+  value,
+  disabled,
+  onCommit
+}: {
+  value: string | null;
+  disabled?: boolean;
+  onCommit: (next: string | null) => void;
+}) {
+  const [draft, setDraft] = useState(value ?? "");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDraft(value ?? "");
+    setError(null);
+  }, [value]);
+
+  const normalizedDraft = draft.trim().replace(/\/+$/, "");
+  const dirty = normalizedDraft !== (value ?? "");
+
+  const commit = () => {
+    if (!normalizedDraft) {
+      setError(null);
+      onCommit(null);
+      return;
+    }
+    try {
+      const parsed = new URL(normalizedDraft);
+      if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || !parsed.hostname) {
+        throw new Error("invalid protocol");
+      }
+    } catch {
+      setError("Enter a complete http:// or https:// address.");
+      return;
+    }
+    setError(null);
+    onCommit(normalizedDraft);
+  };
+
+  return (
+    <div className="flex w-[280px] flex-col items-end gap-2">
+      <input
+        type="url"
+        value={draft}
+        disabled={disabled}
+        placeholder="server default"
+        spellCheck={false}
+        autoCapitalize="off"
+        autoCorrect="off"
+        onChange={(event) => {
+          setDraft(event.target.value);
+          setError(null);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && dirty) commit();
+          if (event.key === "Escape") {
+            setDraft(value ?? "");
+            setError(null);
+          }
+        }}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? "ollama-host-error" : undefined}
+        className={cn(
+          "input w-full bg-[var(--color-panel)] px-2.5 py-1.5 font-mono md:text-sm",
+          error && "border-[var(--color-danger)]",
+          "disabled:cursor-not-allowed disabled:opacity-50"
+        )}
+      />
+      <div className="flex min-h-7 items-center gap-2">
+        {error && (
+          <span id="ollama-host-error" className="text-right text-xs text-[var(--color-danger)]">
+            {error}
+          </span>
+        )}
+        {dirty && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              setDraft(value ?? "");
+              setError(null);
+            }}
+            className="pressable text-xs text-[var(--color-ink-3)] hover:text-[var(--color-ink)]"
+          >
+            Discard
+          </button>
+        )}
+        <Button size="sm" disabled={!dirty || disabled} onClick={commit}>
           Save
         </Button>
       </div>

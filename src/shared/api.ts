@@ -37,6 +37,8 @@ export type SettingsUpdate = {
   theme?: AppSettings["theme"];
   /** Explicit null resets to the server default model. */
   model?: string | null;
+  /** Explicit null resets to OLLAMA_HOST or the built-in localhost default. */
+  ollamaHost?: string | null;
   /** The user's own words about what they want. Explicit null/"" clears it. */
   profile?: string | null;
 };

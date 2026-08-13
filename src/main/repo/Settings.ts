@@ -11,6 +11,9 @@ import { Db, DbError } from "../db/Db";
 /** Keep model tags short and on a single line; trim/clamp pasted junk. */
 const MAX_MODEL_LENGTH = 120;
 
+/** Enough for IPv6 literals, paths, and self-hosted reverse-proxy URLs. */
+const MAX_OLLAMA_HOST_LENGTH = 500;
+
 /** Enough room to actually say what you want, not enough to paste a novel. */
 const MAX_PROFILE_LENGTH = 2000;
 
@@ -21,6 +24,7 @@ function freshDefaults(): AppSettings {
     schedule: { ...defaultSettings.schedule },
     theme: defaultSettings.theme,
     model: defaultSettings.model,
+    ollamaHost: defaultSettings.ollamaHost,
     profile: defaultSettings.profile
   };
 }
@@ -30,6 +34,22 @@ function normalizeModel(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const trimmed = input.trim().slice(0, MAX_MODEL_LENGTH);
   return trimmed.length === 0 ? null : trimmed;
+}
+
+/** Accept only HTTP(S) base URLs. Invalid persisted values safely use the server default. */
+export function normalizeOllamaHost(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const trimmed = input.trim().slice(0, MAX_OLLAMA_HOST_LENGTH);
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    if ((url.protocol !== "http:" && url.protocol !== "https:") || !url.hostname) {
+      return null;
+    }
+    return trimmed.replace(/\/+$/, "");
+  } catch {
+    return null;
+  }
 }
 
 /** Normalize the profile text: trim, clamp, blank means "none". */
@@ -58,6 +78,7 @@ function normalize(raw: Partial<AppSettings> | null | undefined): AppSettings {
     schedule: { ...defaultSettings.schedule, ...(raw?.schedule ?? {}) },
     theme: normalizeTheme(raw?.theme),
     model: normalizeModel(raw?.model),
+    ollamaHost: normalizeOllamaHost(raw?.ollamaHost),
     profile: normalizeProfile(raw?.profile)
   };
 }
@@ -109,6 +130,10 @@ export class SettingsRepo extends Effect.Service<SettingsRepo>()("SettingsRepo",
             schedule,
             theme: patch.theme !== undefined ? normalizeTheme(patch.theme) : current.theme,
             model: patch.model !== undefined ? normalizeModel(patch.model) : current.model,
+            ollamaHost:
+              patch.ollamaHost !== undefined
+                ? normalizeOllamaHost(patch.ollamaHost)
+                : current.ollamaHost,
             profile: patch.profile !== undefined ? normalizeProfile(patch.profile) : current.profile
           };
           return persist(next);
