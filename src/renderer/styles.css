@@ -1,144 +1,425 @@
 @import "tailwindcss";
 
+/* Theme is a data attribute on <html>, set pre-paint from the OS and then
+   from the user's saved preference. Almost nothing needs this variant — the
+   colour scales already swap — but a few surfaces are structurally
+   different in dark mode, where the page itself is true black. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Komorebi's design foundation, built on Geist — Vercel's design system.
+
+   Two rules stop this from drifting again:
+
+   1. Colour only ever comes from the scales below. Ten steps of grey do
+      almost all of the work; blue, red, amber and green appear only where
+      the hue itself carries meaning.
+   2. Type only ever comes from the roles below. Each role bundles size,
+      leading, weight and tracking, so no heading is ever hand-tuned.
+
+   Both Tailwind namespaces are reset to `initial`, which means a stray
+   `text-sm` or `bg-slate-50` produces no CSS at all. If a utility doesn't
+   exist, it isn't part of the system.
+   ══════════════════════════════════════════════════════════════════════════ */
+
 @theme {
-  --font-sans: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* Surfaces — warm whites and soft grays */
-  --color-canvas: oklch(98.8% 0.004 85);
-  --color-panel: oklch(96.8% 0.003 85);
-  --color-panel-2: oklch(94.5% 0.003 85);
-  --color-panel-hover: oklch(96% 0.003 85);
+  /* ── Colour ───────────────────────────────────────────────────────────
+     Geist's scales, verbatim. Every hue's steps mean the same thing:
 
-  /* Text — charcoal with a hint of warmth, never pure black */
-  --color-ink: oklch(22% 0.008 60);
-  --color-ink-2: oklch(46% 0.006 60);
-  --color-ink-3: oklch(64% 0.006 60);
+       100–300   component backgrounds  (default / hover / active)
+       400–600   component borders      (default / hover / active)
+       700–800   high-contrast backgrounds
+       900       secondary text and icons
+       1000      primary text and icons
 
-  /* Rules — barely-there borders */
-  --color-rule: oklch(91.5% 0.003 80);
-  --color-rule-2: oklch(86% 0.004 80);
+     Dark mode swaps the values wholesale further down, so `bg-gray-100`
+     or `text-gray-900` is already correct in both themes — no dark:
+     variants, and no per-call-site var() plumbing. */
 
-  /* Accent — a muted slate blue, kept deliberately faint. Ink and paper
-     carry the design; accent appears only where it means something (links,
-     focus, a live toggle). "The one blue thing", never decoration. */
-  --color-accent: oklch(50% 0.05 245);
-  --color-accent-strong: oklch(43% 0.06 245);
-  --color-accent-soft: oklch(95% 0.009 245);
-  --color-accent-tint: oklch(96.5% 0.007 245);
+  --color-*: initial;
 
-  /* History heatmap intensity scale — a grayscale ink ramp (level 0 is
-     --color-panel-2, level 4 is --color-ink). Monochrome by design. */
-  --color-heat-1: oklch(87% 0.003 80);
-  --color-heat-2: oklch(72% 0.004 75);
-  --color-heat-3: oklch(50% 0.006 65);
+  --color-inherit: inherit;
+  --color-current: currentColor;
+  --color-transparent: transparent;
+  --color-white: #fff;
+  --color-black: #000;
 
-  /* Destructive actions — the only warm-red in the app. */
-  --color-danger: oklch(58% 0.18 25);
+  /* Page and panel backgrounds. 100 is the default surface; 200 is for the
+     rare case that needs a surface to sit *under* another one. */
+  --color-background-100: #fff;
+  --color-background-200: #fafafa;
 
-  /* Scrim used by modal backdrops — stays dark regardless of theme so
-     "ink with alpha" doesn't invert into a bright overlay. */
-  --color-overlay: oklch(20% 0.01 60 / 0.18);
+  --color-gray-100: #f2f2f2;
+  --color-gray-200: #ebebeb;
+  --color-gray-300: #e6e6e6;
+  --color-gray-400: #eaeaea;
+  --color-gray-500: #c9c9c9;
+  --color-gray-600: #a8a8a8;
+  --color-gray-700: #8f8f8f;
+  --color-gray-800: #7d7d7d;
+  --color-gray-900: #4d4d4d;
+  --color-gray-1000: #171717;
 
-  /* Leaf-green used by the completion burst — the one non-accent celebratory hue. */
-  --color-leaf: oklch(78% 0.13 130);
-  /* Scrim steps for media overlays (rest / hover / pressed). */
-  --color-scrim: oklch(20% 0.02 60 / 0.18);
-  --color-scrim-hover: oklch(20% 0.02 60 / 0.3);
-  --color-scrim-active: oklch(20% 0.02 60 / 0.35);
-  /* Ambient shadow tint for hover elevation. */
-  --color-shadow: oklch(20% 0.01 60);
+  /* Geist's gray-alpha. Preferred for borders and hover washes, because it
+     composites correctly over whatever surface it lands on. */
+  --color-alpha-100: #0000000d;
+  --color-alpha-200: #00000015;
+  --color-alpha-300: #0000001a;
+  --color-alpha-400: #00000014;
+  --color-alpha-500: #00000036;
+  --color-alpha-600: #0000003d;
+  --color-alpha-700: #00000070;
+  --color-alpha-800: #00000082;
+  --color-alpha-900: #000000b3;
+  --color-alpha-1000: #000000e8;
 
-  /* Type scale — replaces Tailwind's defaults so text-* utilities ARE the
-     app's scale. Content sizes step ~1.5px; headings tighten as they grow. */
-  --text-2xs: 10px; /* mono kickers, tab labels */
-  --text-2xs--line-height: 1.4;
-  --text-xs: 11.5px; /* hints, metadata, small actions */
-  --text-xs--line-height: 1.45;
-  --text-sm: 12.5px; /* secondary text, compact buttons */
-  --text-sm--line-height: 1.5;
-  --text-base: 14px; /* body, inputs, default buttons */
-  --text-base--line-height: 1.5;
-  --text-lg: 15px; /* row and card titles */
-  --text-lg--line-height: 1.45;
-  --text-xl: 17px; /* modal titles, empty-state headings */
-  --text-xl--line-height: 1.35;
-  --text-xl--letter-spacing: -0.01em;
+  /* Blue: links and the focus ring. Not decoration, and never a substitute
+     for hierarchy — grey and weight do that job. */
+  --color-blue-100: #f0f7ff;
+  --color-blue-200: #eaf4ff;
+  --color-blue-300: #e0efff;
+  --color-blue-400: #cce7ff;
+  --color-blue-500: #97ccff;
+  --color-blue-600: #51aeff;
+  --color-blue-700: #0070f7;
+  --color-blue-800: #005edc;
+  --color-blue-900: #0064e2;
+  --color-blue-1000: #002453;
+
+  /* Red: destructive actions and hard failures only. */
+  --color-red-100: #ffeef0;
+  --color-red-200: #ffe9ea;
+  --color-red-300: #ffe4e5;
+  --color-red-400: #ffd8d7;
+  --color-red-500: #ffb5b6;
+  --color-red-600: #ff6a6e;
+  --color-red-700: #fc0035;
+  --color-red-800: #e70022;
+  --color-red-900: #d60020;
+  --color-red-1000: #46000c;
+
+  /* Amber: degraded, retrying, needs-attention. */
+  --color-amber-100: #fff6e1;
+  --color-amber-200: #fff4d4;
+  --color-amber-300: #fff1c8;
+  --color-amber-400: #ffdd84;
+  --color-amber-500: #ffc85e;
+  --color-amber-600: #ffaa00;
+  --color-amber-700: #ffb200;
+  --color-amber-800: #ff9900;
+  --color-amber-900: #a64f00;
+  --color-amber-1000: #541c00;
+
+  /* Green: completed work. */
+  --color-green-100: #ecfdec;
+  --color-green-200: #e5fce7;
+  --color-green-300: #d3fad1;
+  --color-green-400: #b9f5bc;
+  --color-green-500: #82eb8d;
+  --color-green-600: #4ce15e;
+  --color-green-700: #28a948;
+  --color-green-800: #279141;
+  --color-green-900: #107d32;
+  --color-green-1000: #00370d;
+
+  /* Modal scrim, and the wash over media thumbnails (rest/hover/press).
+     These stay dark in both themes — a scrim that inverts isn't a scrim. */
+  --color-overlay: #00000066;
+  --color-scrim: #0000002e;
+  --color-scrim-hover: #0000004d;
+  --color-scrim-active: #0000005c;
+
+  /*
+   * Transitional aliases for the checklist and task surfaces. These keep
+   * the established interaction code readable while every old surface now
+   * resolves to a Geist value. New UI should use the numbered scales above.
+   */
+  --color-canvas: var(--color-background-100);
+  --color-panel: var(--color-gray-100);
+  --color-panel-2: var(--color-gray-200);
+  --color-panel-hover: var(--color-gray-100);
+  --color-ink: var(--color-gray-1000);
+  --color-ink-2: var(--color-gray-900);
+  --color-ink-3: var(--color-gray-700);
+  --color-rule: var(--color-alpha-400);
+  --color-rule-2: var(--color-alpha-500);
+  --color-accent: var(--color-blue-700);
+  --color-accent-strong: var(--color-blue-800);
+  --color-accent-soft: var(--color-blue-200);
+  --color-accent-tint: var(--color-blue-100);
+  --color-heat-1: var(--color-gray-300);
+  --color-heat-2: var(--color-gray-600);
+  --color-heat-3: var(--color-gray-800);
+  --color-danger: var(--color-red-800);
+  --color-leaf: var(--color-green-700);
+  --color-shadow: #000000;
+
+  /* ── Type ─────────────────────────────────────────────────────────────
+     Geist's three families of roles. Pick by job, not by size:
+
+       heading-*  introduces a page or section. Semibold, tight tracking.
+       copy-*     multiple lines of prose. Generous leading.
+       label-*    a single line, sized to sit beside an icon or control.
+
+     `mono-*` is for identifiers only — hosts, models, dates, counts —
+     never for whole sentences, and never as a decorative eyebrow. */
+
+  --text-*: initial;
+
+  --text-heading-40: 40px;
+  --text-heading-40--line-height: 48px;
+  --text-heading-40--font-weight: 600;
+  --text-heading-40--letter-spacing: -2.4px;
+
+  --text-heading-32: 32px;
+  --text-heading-32--line-height: 40px;
+  --text-heading-32--font-weight: 600;
+  --text-heading-32--letter-spacing: -1.28px;
+
+  --text-heading-24: 24px;
+  --text-heading-24--line-height: 32px;
+  --text-heading-24--font-weight: 600;
+  --text-heading-24--letter-spacing: -0.96px;
+
+  --text-heading-20: 20px;
+  --text-heading-20--line-height: 26px;
+  --text-heading-20--font-weight: 600;
+  --text-heading-20--letter-spacing: -0.4px;
+
+  --text-heading-16: 16px;
+  --text-heading-16--line-height: 24px;
+  --text-heading-16--font-weight: 600;
+  --text-heading-16--letter-spacing: -0.32px;
+
+  --text-heading-14: 14px;
+  --text-heading-14--line-height: 20px;
+  --text-heading-14--font-weight: 600;
+  --text-heading-14--letter-spacing: -0.28px;
+
+  --text-copy-24: 24px;
+  --text-copy-24--line-height: 36px;
+  --text-copy-24--font-weight: 400;
+
+  --text-copy-18: 18px;
+  --text-copy-18--line-height: 28px;
+  --text-copy-18--font-weight: 400;
+
+  --text-copy-16: 16px;
+  --text-copy-16--line-height: 24px;
+  --text-copy-16--font-weight: 400;
+
+  --text-copy-14: 14px;
+  --text-copy-14--line-height: 20px;
+  --text-copy-14--font-weight: 400;
+
+  --text-copy-13: 13px;
+  --text-copy-13--line-height: 18px;
+  --text-copy-13--font-weight: 400;
+
+  --text-label-20: 20px;
+  --text-label-20--line-height: 32px;
+  --text-label-20--font-weight: 400;
+
+  --text-label-16: 16px;
+  --text-label-16--line-height: 20px;
+  --text-label-16--font-weight: 400;
+
+  --text-label-14: 14px;
+  --text-label-14--line-height: 20px;
+  --text-label-14--font-weight: 400;
+
+  --text-label-13: 13px;
+  --text-label-13--line-height: 16px;
+  --text-label-13--font-weight: 400;
+
+  --text-label-12: 12px;
+  --text-label-12--line-height: 16px;
+  --text-label-12--font-weight: 400;
+
+  --text-button-16: 16px;
+  --text-button-16--line-height: 20px;
+  --text-button-16--font-weight: 500;
+
+  --text-button-14: 14px;
+  --text-button-14--line-height: 20px;
+  --text-button-14--font-weight: 500;
+
+  --text-button-12: 12px;
+  --text-button-12--line-height: 16px;
+  --text-button-12--font-weight: 500;
+
+  --text-mono-14: 14px;
+  --text-mono-14--line-height: 20px;
+  --text-mono-14--font-weight: 400;
+
+  --text-mono-13: 13px;
+  --text-mono-13--line-height: 18px;
+  --text-mono-13--font-weight: 400;
+
+  --text-mono-12: 12px;
+  --text-mono-12--line-height: 16px;
+  --text-mono-12--font-weight: 400;
+
+  /* Compatibility roles for the checklist/task pages while they move to
+     the explicit Geist names above. The values intentionally match Geist's
+     label/copy scale rather than the previous warm-paper scale. */
+  --text-2xs: 10px;
+  --text-2xs--line-height: 14px;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-base: 14px;
+  --text-base--line-height: 20px;
+  --text-lg: 16px;
+  --text-lg--line-height: 24px;
+  --text-xl: 20px;
+  --text-xl--line-height: 26px;
   --text-2xl: 24px;
-  --text-2xl--line-height: 1.3;
-  --text-2xl--letter-spacing: -0.015em;
-  --text-3xl: 28px; /* detail-page titles */
-  --text-3xl--line-height: 1.25;
-  --text-3xl--letter-spacing: -0.02em;
-  --text-4xl: 30px; /* page headlines */
-  --text-4xl--line-height: 1.15;
-  --text-4xl--letter-spacing: -0.025em;
+  --text-2xl--line-height: 32px;
+  --text-2xl--letter-spacing: -0.96px;
+  --text-3xl: 28px;
+  --text-3xl--line-height: 36px;
+  --text-3xl--letter-spacing: -1.12px;
+  --text-4xl: 32px;
+  --text-4xl--line-height: 40px;
+  --text-4xl--letter-spacing: -1.28px;
 
-  /* Motion — stronger curves than the CSS built-ins. ease-out-strong for
-     entrances/exits, ease-in-out-strong for on-screen movement, drawer for
-     iOS-like swipe/settle. */
+  /* ── Shape ────────────────────────────────────────────────────────────
+     6px is Geist's default and does most of the work. Anything larger is
+     reserved for surfaces that genuinely float above the page. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* ── Elevation ────────────────────────────────────────────────────────
+     Geist's shadows are almost invisible on purpose: a hairline border
+     plus a whisper of contact shadow. Depth is never the thing you notice.
+     `shadow-border` is the hairline on its own, for elements that can't
+     spend a border (it doesn't affect layout). */
+  --shadow-border: 0 0 0 1px var(--color-alpha-400);
+  --shadow-sm: 0 2px 2px #0000000a;
+  --shadow-md: 0 2px 2px #0000000a, 0 8px 8px -8px #0000000a;
+  --shadow-lg: 0 2px 2px #0000000a, 0 8px 16px -4px #0000000a;
+  --shadow-menu:
+    0 0 0 1px var(--color-alpha-400), 0 1px 1px #00000005,
+    0 4px 8px -4px #0000000a, 0 16px 24px -8px #0000000f;
+  --shadow-modal:
+    0 0 0 1px var(--color-alpha-400), 0 1px 1px #00000005,
+    0 8px 16px -4px #0000000a, 0 24px 32px -8px #0000000f;
+  --shadow-tooltip:
+    0 0 0 1px var(--color-alpha-400), 0 1px 1px #00000005, 0 4px 8px #0000000a;
+
+  /* ── Motion ───────────────────────────────────────────────────────────
+     Stronger curves than the CSS built-ins. `out-strong` for entrances and
+     exits, `drawer` for the iOS-like swipe settle. */
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
-  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-
-  /* Elevation — soft, layered shadows tinted with --color-shadow. Two layers
-     each: a tight contact shadow plus a wider ambient one. Kept subtle; depth
-     shows up in the aggregate, not as a drop-shadow you notice. */
-  --shadow-sm:
-    0 1px 2px -1px oklch(20% 0.01 60 / 0.1),
-    0 1px 3px -1px oklch(20% 0.01 60 / 0.06);
-  --shadow-md:
-    0 2px 6px -2px oklch(20% 0.01 60 / 0.1),
-    0 8px 20px -8px oklch(20% 0.01 60 / 0.14);
-  --shadow-lg:
-    0 6px 14px -6px oklch(20% 0.01 60 / 0.12),
-    0 20px 40px -20px oklch(20% 0.01 60 / 0.22);
 }
 
-/* Dark palette — warm-tinted neutrals so the app keeps its paper feel.
-   Applied when the user picks "dark", or when "system" resolves to dark. */
+/* Dark mode. Geist inverts to true black with lifted greys rather than
+   tinted charcoal, so the greys stay neutral and text stays crisp. Applied
+   when the user picks "dark", or when "system" resolves to dark. */
 :root[data-theme="dark"] {
-  --color-canvas: oklch(18% 0.006 80);
-  --color-panel: oklch(22% 0.006 80);
-  --color-panel-2: oklch(26% 0.006 80);
-  --color-panel-hover: oklch(24% 0.006 80);
+  --color-background-100: #000;
+  --color-background-200: #000;
 
-  --color-ink: oklch(94% 0.005 85);
-  --color-ink-2: oklch(74% 0.005 85);
-  --color-ink-3: oklch(56% 0.006 80);
+  --color-gray-100: #1a1a1a;
+  --color-gray-200: #1f1f1f;
+  --color-gray-300: #292929;
+  --color-gray-400: #2e2e2e;
+  --color-gray-500: #454545;
+  --color-gray-600: #878787;
+  --color-gray-700: #8f8f8f;
+  --color-gray-800: #7d7d7d;
+  --color-gray-900: #a0a0a0;
+  --color-gray-1000: #ededed;
 
-  --color-rule: oklch(30% 0.006 80);
-  --color-rule-2: oklch(38% 0.006 80);
+  --color-alpha-100: #ffffff12;
+  --color-alpha-200: #ffffff17;
+  --color-alpha-300: #ffffff21;
+  --color-alpha-400: #ffffff24;
+  --color-alpha-500: #ffffff3d;
+  --color-alpha-600: #ffffff82;
+  --color-alpha-700: #ffffff8a;
+  --color-alpha-800: #ffffff78;
+  --color-alpha-900: #ffffff9c;
+  --color-alpha-1000: #ffffffeb;
 
-  --color-accent: oklch(72% 0.055 245);
-  --color-accent-strong: oklch(80% 0.055 245);
-  --color-accent-soft: oklch(28% 0.022 245);
-  --color-accent-tint: oklch(25% 0.018 245);
+  --color-blue-100: #06193a;
+  --color-blue-200: #022248;
+  --color-blue-300: #002f62;
+  --color-blue-400: #003771;
+  --color-blue-500: #004287;
+  --color-blue-600: #0090ff;
+  --color-blue-700: #0071f6;
+  --color-blue-800: #005fd8;
+  --color-blue-900: #50a8ff;
+  --color-blue-1000: #ebf6ff;
 
-  --color-heat-1: oklch(33% 0.004 80);
-  --color-heat-2: oklch(46% 0.005 80);
-  --color-heat-3: oklch(64% 0.006 80);
+  --color-red-100: #330a11;
+  --color-red-200: #440d13;
+  --color-red-300: #5d0e17;
+  --color-red-400: #6f101b;
+  --color-red-500: #88151f;
+  --color-red-600: #f32e40;
+  --color-red-700: #f13242;
+  --color-red-800: #e2162a;
+  --color-red-900: #ff5e63;
+  --color-red-1000: #ffeaed;
 
-  --color-danger: oklch(70% 0.15 25);
+  --color-amber-100: #291800;
+  --color-amber-200: #331b00;
+  --color-amber-300: #4f2900;
+  --color-amber-400: #573200;
+  --color-amber-500: #6c4100;
+  --color-amber-600: #e99c00;
+  --color-amber-700: #ffb200;
+  --color-amber-800: #ff9900;
+  --color-amber-900: #ff9900;
+  --color-amber-1000: #fff3d9;
 
-  --color-overlay: oklch(0% 0 0 / 0.55);
+  --color-green-100: #00250a;
+  --color-green-200: #003110;
+  --color-green-300: #003814;
+  --color-green-400: #004616;
+  --color-green-500: #00661d;
+  --color-green-600: #009431;
+  --color-green-700: #00ab3e;
+  --color-green-800: #009335;
+  --color-green-900: #00ca52;
+  --color-green-1000: #daffe5;
 
-  --color-leaf: oklch(72% 0.12 130);
-  --color-scrim: oklch(0% 0 0 / 0.3);
-  --color-scrim-hover: oklch(0% 0 0 / 0.45);
-  --color-scrim-active: oklch(0% 0 0 / 0.55);
-  --color-shadow: oklch(0% 0 0);
+  --color-overlay: #000000a6;
+  --color-canvas: var(--color-background-100);
+  --color-panel: var(--color-gray-100);
+  --color-panel-2: var(--color-gray-200);
+  --color-panel-hover: var(--color-gray-100);
+  --color-ink: var(--color-gray-1000);
+  --color-ink-2: var(--color-gray-900);
+  --color-ink-3: var(--color-gray-700);
+  --color-rule: var(--color-alpha-400);
+  --color-rule-2: var(--color-alpha-500);
+  --color-accent: var(--color-blue-700);
+  --color-accent-strong: var(--color-blue-900);
+  --color-accent-soft: var(--color-blue-200);
+  --color-accent-tint: var(--color-blue-100);
+  --color-heat-1: var(--color-gray-300);
+  --color-heat-2: var(--color-gray-600);
+  --color-heat-3: var(--color-gray-800);
+  --color-danger: var(--color-red-900);
+  --color-leaf: var(--color-green-900);
+  --color-shadow: #000000;
 
-  /* Deeper, cooler shadows so elevation still reads against dark surfaces. */
-  --shadow-sm:
-    0 1px 2px -1px oklch(0% 0 0 / 0.44),
-    0 1px 3px -1px oklch(0% 0 0 / 0.34);
-  --shadow-md:
-    0 2px 6px -2px oklch(0% 0 0 / 0.44),
-    0 8px 20px -8px oklch(0% 0 0 / 0.5);
-  --shadow-lg:
-    0 6px 14px -6px oklch(0% 0 0 / 0.5),
-    0 20px 40px -20px oklch(0% 0 0 / 0.6);
+  /* On black, a contact shadow reads as nothing at all — the hairline
+     border has to carry the elevation instead. */
+  --shadow-sm: 0 1px 2px #00000052;
+  --shadow-md: 0 2px 2px #00000052, 0 8px 8px -8px #00000029;
+  --shadow-lg: 0 2px 2px #00000052, 0 8px 16px -4px #00000029;
 
   color-scheme: dark;
 }
@@ -152,33 +433,63 @@
   }
 
   body {
-    background: var(--color-canvas);
-    color: var(--color-ink);
+    background: var(--color-background-100);
+    color: var(--color-gray-1000);
     font-family: var(--font-sans);
-    font-feature-settings: "ss01", "cv05", "cv11";
-    letter-spacing: -0.005em;
+    font-size: 14px;
+    line-height: 20px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow: hidden;
   }
 
-  /* Hide scrollbars entirely — content still scrolls via wheel/trackpad. */
+  /* Scrollbars stay out of the composition until you're actually scrolling
+     in them: no track, no arrows, and a thumb that only appears on hover.
+     Overlay-style, so they never steal layout width. */
   * {
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  *:hover {
+    scrollbar-color: var(--color-alpha-500) transparent;
   }
   ::-webkit-scrollbar {
-    display: none;
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: transparent;
+    border: 2px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+  :hover::-webkit-scrollbar-thumb {
+    background: var(--color-alpha-500);
+    background-clip: content-box;
   }
 
   ::selection {
-    background: var(--color-accent-soft);
-    color: var(--color-ink);
+    background: var(--color-blue-400);
+    color: var(--color-gray-1000);
   }
 
   input,
   button,
-  textarea {
+  textarea,
+  select {
     font: inherit;
+    color: inherit;
+  }
+
+  /* One focus ring for the whole app: keyboard only, blue, offset so it
+     reads clearly against both the page and a control's own border. */
+  :focus-visible {
+    outline: 2px solid var(--color-blue-700);
+    outline-offset: 1px;
   }
 
   /* Our press states replace the OS tap flash; manipulation also removes
@@ -188,6 +499,11 @@
   [role="button"] {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+  }
+
+  /* Figures in a comparison read wrong when the digits jitter. */
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -199,12 +515,25 @@
     -webkit-app-region: no-drag;
   }
 
+  /* Two content measures, and no others. `page` is the reading column —
+     the checklist, a task, a goal. `page-wide` is for evidence that needs
+     the room: the history grid, a path's milestones, settings. */
+  .page {
+    @apply mx-auto w-full max-w-[680px] px-5 pt-8 pb-24 md:px-8 md:pt-12 md:pb-20;
+  }
+
+  .page-wide {
+    @apply mx-auto w-full max-w-[1024px] px-5 pt-8 pb-24 md:px-8 md:pt-12 md:pb-20;
+  }
+
+  /* Kept for the detail pages while their outer markup is migrated. They
+     intentionally resolve to the same two measures as the new primitives. */
   .page-shell {
-    @apply mx-auto max-w-2xl px-5 pt-10 pb-24 md:px-10 md:pt-16 md:pb-20;
+    @apply mx-auto w-full max-w-[680px] px-5 pt-8 pb-24 md:px-8 md:pt-12 md:pb-20;
   }
 
   .page-shell-wide {
-    @apply mx-auto max-w-6xl px-5 pt-10 pb-24 md:px-10 md:pt-16 md:pb-20;
+    @apply mx-auto w-full max-w-[1024px] px-5 pt-8 pb-24 md:px-8 md:pt-12 md:pb-20;
   }
 
   /* Press feedback — respond on pointer-down, not release. A pressable owns
@@ -224,7 +553,7 @@
   }
   /* Buttons and standalone controls. */
   .pressable:active {
-    transform: scale(0.97);
+    transform: scale(0.98);
   }
   /* Small icon buttons — a deeper dip reads better at this size. */
   .pressable-sm:active {
@@ -246,12 +575,24 @@
     inset: -13px;
   }
 
-  /* Text inputs and textareas. 16px on touch screens — anything smaller makes
-     iOS zoom the page on focus. Compose with utilities to shrink/tint. */
+  /* Text inputs and textareas. Geist inputs earn attention with a border
+     that darkens on focus rather than a coloured glow. 16px on touch
+     screens — anything smaller makes iOS zoom the page on focus.
+     `Input` and `Textarea` in components/ui wrap this; use those first. */
   .input {
-    @apply w-full rounded-md border border-[var(--color-rule)] bg-[var(--color-canvas)] px-3 py-2;
-    @apply text-[16px] text-[var(--color-ink)] placeholder:text-[var(--color-ink-3)] md:text-base;
-    @apply focus:border-[var(--color-accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20;
+    @apply w-full rounded-md border border-alpha-400 bg-background-100 px-3 py-2;
+    @apply text-[16px] text-gray-1000 placeholder:text-gray-700 md:text-copy-14;
+    @apply transition-[border-color,box-shadow] duration-150 ease-out;
+    @apply hover:border-alpha-500;
+    @apply focus:border-gray-1000 focus:outline-none;
+    @apply disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-700;
+    @apply aria-invalid:border-red-800 aria-invalid:hover:border-red-800;
+  }
+
+  /* The one caps label. Tertiary text in busy views — a table's column
+     name, a row's provenance. Never an eyebrow above a page title. */
+  .overline {
+    @apply text-label-12 font-medium uppercase tracking-[0.04em] text-gray-700;
   }
 
   @keyframes path-research {
@@ -274,6 +615,21 @@
   [data-past-threshold="true"] .swipe-action-icon {
     transform: scale(1.25);
   }
+
+  /* Loading placeholder. Sized by the caller; the wash travels left to
+     right so a column of them reads as one loading surface. */
+  .skeleton {
+    @apply rounded-md bg-gray-100;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      var(--color-alpha-200),
+      transparent
+    );
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: shimmer 2s linear infinite;
+  }
 }
 
 @keyframes pulse-soft {
@@ -283,6 +639,17 @@
   }
   50% {
     opacity: 1;
+  }
+}
+
+/* Geist's spinner: twelve bars fading in sequence rather than a rotating
+   arc. It reads as "working" at any size and never looks like it stalled. */
+@keyframes spinner-bar {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.15;
   }
 }
 

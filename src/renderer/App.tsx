@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftOpen } from "lucide-react";
 import { Sidebar, type View } from "./components/Sidebar";
 import { MobileNav } from "./components/MobileNav";
 import { Today } from "./pages/Today";
@@ -76,16 +76,14 @@ export function App() {
     : openPathGoalId ? `path:${openPathGoalId}` : `view:${view}`;
 
   return (
-    <div className="flex h-[100dvh] w-screen overflow-hidden bg-[var(--color-panel)]">
-      <Sidebar active={view} open={sidebarOpen} onSelect={selectView} />
-      <main
-        key={pageKey}
-        className={cn(
-          "relative flex-1 overflow-hidden bg-[var(--color-canvas)]",
-          sidebarOpen &&
-            "md:rounded-tl-xl md:rounded-bl-xl md:shadow-[inset_1px_0_0_var(--color-rule)]"
-        )}
-      >
+    <div className="flex h-[100dvh] w-screen overflow-hidden bg-background-100">
+      <Sidebar
+        active={view}
+        open={sidebarOpen}
+        onSelect={selectView}
+        onToggle={() => setSidebarOpen((o) => !o)}
+      />
+      <main key={pageKey} className="relative min-w-0 flex-1 overflow-hidden">
         <div
           className="absolute inset-0 overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0"
           style={{
@@ -115,38 +113,23 @@ export function App() {
         </div>
       </main>
 
-      <SidebarToggle open={sidebarOpen} onToggle={() => setSidebarOpen((o) => !o)} />
+      {/* Only needed while the rail is hidden — the open sidebar carries its
+          own collapse control in its header. */}
+      {!sidebarOpen && (
+        <IconButton
+          size="lg"
+          aria-label="Show sidebar"
+          title="Show sidebar (⌘B)"
+          onClick={() => setSidebarOpen(true)}
+          className={cn(
+            "fixed top-3 left-3 z-50 hidden md:inline-flex",
+            "border border-alpha-400 bg-background-100 shadow-sm"
+          )}
+        >
+          <PanelLeftOpen className="h-4 w-4" strokeWidth={1.75} />
+        </IconButton>
+      )}
       {!openSuggestionId && <MobileNav active={view} onSelect={selectView} />}
     </div>
-  );
-}
-
-function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
-  const Icon = open ? PanelLeftClose : PanelLeftOpen;
-  return (
-    <IconButton
-      size="md"
-      aria-label={open ? "Hide sidebar" : "Show sidebar"}
-      title={open ? "Hide sidebar (⌘B)" : "Show sidebar (⌘B)"}
-      onClick={onToggle}
-      className={cn(
-        "no-drag fixed top-[14px] z-50 hidden h-[26px] w-[26px] p-0 md:inline-flex",
-        "left-3",
-        "transition-[background-color,border-color,box-shadow] duration-200 ease-out",
-        open
-          ? // Sits over the sidebar panel — stays borderless so it blends in.
-            "hover:bg-[var(--color-panel-2)] active:bg-[var(--color-panel-2)]"
-          : // Floats over the canvas — give it a chip so it reads as an
-            // intentional control rather than a stray icon.
-            "border border-[var(--color-rule)] bg-[var(--color-panel)] shadow-sm hover:bg-[var(--color-panel-2)] active:bg-[var(--color-panel-2)]",
-      )}
-    >
-      <Icon
-        key={open ? "close" : "open"}
-        className="h-[16px] w-[16px]"
-        strokeWidth={1.5}
-        style={{ animation: "fade-up 180ms var(--ease-out-strong)" }}
-      />
-    </IconButton>
   );
 }

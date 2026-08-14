@@ -1,5 +1,6 @@
-import { History, Settings, Sunrise, Target } from "lucide-react";
+import { History, PanelLeftClose, Settings, Sunrise, Target } from "lucide-react";
 import { cn } from "~/lib/cn";
+import { IconButton } from "./ui/IconButton";
 
 export type View = "today" | "history" | "goals" | "settings";
 
@@ -13,49 +14,64 @@ type NavItem = {
 const PRIMARY: NavItem[] = [
   { id: "today", label: "Today", Icon: Sunrise },
   { id: "history", label: "History", Icon: History },
-  { id: "goals", label: "Goals", Icon: Target },
+  { id: "goals", label: "Goals", Icon: Target }
 ];
 
 const SETTINGS_ITEM: NavItem = {
   id: "settings",
   label: "Settings",
-  Icon: Settings,
+  Icon: Settings
 };
 
 /** Open width in pixels — kept in JS so the transition animates a known value. */
-const OPEN_WIDTH = 220;
+const OPEN_WIDTH = 240;
 
 type Props = {
   active: View;
   open: boolean;
   onSelect: (view: View) => void;
+  onToggle: () => void;
 };
 
 /**
- * Animates between fully-open and fully-collapsed (width 0) via a CSS
- * width transition. When collapsed, the toggle button (rendered in App)
- * floats over the main viewport so the user can pop the sidebar back open.
+ * A quiet rail: who you're using, where you are, and nothing else. It's the
+ * only place that names the current view, which is why no page repeats its
+ * own name as a label above its title.
+ *
+ * Animates between fully-open and fully-collapsed (width 0) via a CSS width
+ * transition. When collapsed, the toggle in App floats over the page.
  */
-export function Sidebar({ active, open, onSelect }: Props) {
+export function Sidebar({ active, open, onSelect, onToggle }: Props) {
   return (
     <aside
       aria-hidden={!open}
       style={{ width: open ? OPEN_WIDTH : 0 }}
       className={cn(
-        "drag-region hidden shrink-0 flex-col overflow-hidden md:flex",
-        "transition-[width] duration-200 ease-out",
+        "hidden shrink-0 flex-col overflow-hidden md:flex",
+        // In dark mode the page is true black; the border alone separates the
+        // rail, exactly as it does on Vercel.
+        "border-r border-alpha-400 bg-background-200 dark:bg-background-100",
+        "transition-[width] duration-200 ease-out"
       )}
     >
       {/* Fixed-width inner shell so child layout doesn't reflow as width
           animates — children just get clipped by the parent's overflow. */}
-      <div
-        style={{ width: OPEN_WIDTH }}
-        className="flex h-full shrink-0 flex-col"
-      >
-        {/* Spacer for macOS traffic lights + the floating toggle button. */}
-        <div className="h-[52px]" />
+      <div style={{ width: OPEN_WIDTH }} className="flex h-full shrink-0 flex-col">
+        <div className="flex h-14 shrink-0 items-center gap-2 px-3">
+          <Sunrise className="h-4 w-4 shrink-0 text-gray-1000" strokeWidth={1.75} aria-hidden />
+          <span className="text-heading-14 text-gray-1000">Komorebi</span>
+          <IconButton
+            size="md"
+            className="ml-auto"
+            aria-label="Hide sidebar"
+            title="Hide sidebar (⌘B)"
+            onClick={onToggle}
+          >
+            <PanelLeftClose className="h-4 w-4" strokeWidth={1.75} />
+          </IconButton>
+        </div>
 
-        <nav className="no-drag flex flex-col gap-0.5 px-2">
+        <nav className="flex flex-col gap-px px-2">
           {PRIMARY.map((item) => (
             <NavButton
               key={item.id}
@@ -66,8 +82,8 @@ export function Sidebar({ active, open, onSelect }: Props) {
           ))}
         </nav>
 
-        {/* Pinned to bottom-left, separated from primary nav by flex spacer. */}
-        <div className="no-drag mt-auto px-2 pb-3">
+        {/* Settings is chrome, not content: pinned away from the primary three. */}
+        <div className="mt-auto px-2 pb-3">
           <NavButton
             item={SETTINGS_ITEM}
             active={active === "settings"}
@@ -82,7 +98,7 @@ export function Sidebar({ active, open, onSelect }: Props) {
 function NavButton({
   item,
   active,
-  onSelect,
+  onSelect
 }: {
   item: NavItem;
   active: boolean;
@@ -91,16 +107,16 @@ function NavButton({
   return (
     <button
       onClick={() => onSelect(item.id)}
-      title={item.label}
+      aria-current={active ? "page" : undefined}
       className={cn(
-        "pressable-row group flex items-center gap-3 rounded-md px-3 py-2 text-base",
+        "pressable-row flex h-8 items-center gap-2.5 rounded-md px-2 text-label-14",
         active
-          ? "bg-[var(--color-panel-2)] text-[var(--color-ink)]"
-          : "text-[var(--color-ink-2)] hover:bg-[var(--color-panel-hover)] hover:text-[var(--color-ink)] active:bg-[var(--color-panel-2)]",
+          ? "bg-alpha-200 font-medium text-gray-1000"
+          : "text-gray-900 hover:bg-alpha-100 hover:text-gray-1000"
       )}
     >
-      <item.Icon className="h-[17px] w-[17px] shrink-0" strokeWidth={1.5} />
-      <span className="leading-none">{item.label}</span>
+      <item.Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+      {item.label}
     </button>
   );
 }

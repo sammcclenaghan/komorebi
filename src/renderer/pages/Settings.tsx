@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Switch } from "@base-ui/react/switch";
-import { AlertCircle, AlertTriangle, Bell, BookOpen, Loader2, Monitor, Moon, Palette, RotateCw, Server, Settings as SettingsIcon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "~/lib/cn";
 import { Button } from "../components/ui/Button";
+import { Card, CardBody, CardFooter } from "../components/ui/Card";
+import { ErrorState } from "../components/ui/EmptyState";
+import { Input, SegmentedControl, Textarea } from "../components/ui/Field";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Skeleton } from "../components/ui/Skeleton";
+import { Spinner } from "../components/ui/Spinner";
+import { Switch } from "../components/ui/Switch";
 import { ConfirmDialog } from "../components/ui/Modal";
 import type { Theme } from "~/shared/schema";
 import type { SettingsUpdate } from "~/shared/api";
@@ -73,227 +79,166 @@ export function Settings() {
   const ollamaHost = settingsQuery.data?.ollamaHost ?? null;
   const profile = settingsQuery.data?.profile ?? null;
 
+  const redoing = regenerate.isPending || regenerationActive;
+
   return (
-    <div className="page-shell">
-      <header>
-        <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
-          <SettingsIcon className="h-4 w-4" strokeWidth={1.5} />
-          <span className="font-mono text-2xs uppercase tracking-[0.22em]">
-            settings
-          </span>
-        </div>
+    <div className="page">
+      <PageHeader
+        title="Settings"
+        description="How your day gets composed, who it sounds like, and where the model runs."
+      />
 
-        <h1 className="mt-3 text-4xl font-semibold text-[var(--color-ink)]">
-          How Komorebi shows up.
-        </h1>
-        <p className="mt-3 max-w-lg text-base leading-relaxed text-[var(--color-ink-2)]">
-          Have your day composed and waiting for you, with a nudge when it's ready.
-        </p>
-      </header>
-
-      <div className="mt-10 space-y-6">
+      <div className="mt-8 space-y-6">
         {settingsQuery.isError ? (
-          <SettingsError
+          <ErrorState
+            title="Couldn't load your settings."
             message={(settingsQuery.error as Error).message ?? "Unknown error"}
-            onRetry={() => settingsQuery.refetch()}
+            onRetry={() => void settingsQuery.refetch()}
+            retrying={settingsQuery.isFetching}
           />
         ) : settingsQuery.isLoading || !schedule || !theme ? (
-          <div
-            className="h-[148px] rounded-xl border border-[var(--color-rule)] bg-[var(--color-panel)]"
-            style={{ animation: "fade-up 400ms var(--ease-out-strong)" }}
-          />
+          <>
+            <Skeleton className="h-[196px] rounded-xl" />
+            <Skeleton className="h-[232px] rounded-xl" />
+          </>
         ) : (
-        <>
-          <section className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-5 py-4">
-            <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
-              <Bell className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span className="font-mono text-2xs uppercase tracking-[0.2em]">
-                daily schedule
-              </span>
-            </div>
+          <>
+            <Card>
+              <CardBody
+                title="Daily schedule"
+                description="Komorebi composes tomorrow's checklist in the background and notifies you when it's ready, so the day is waiting for you rather than the other way around."
+              >
+                <div className="divide-y divide-alpha-400 border-y border-alpha-400">
+                  <SettingRow
+                    label="Compose each morning"
+                    hint="Runs whether or not the app is open."
+                  >
+                    <Switch
+                      label="Compose each morning"
+                      checked={schedule.enabled}
+                      disabled={update.isPending}
+                      onChange={(enabled) => update.mutate({ schedule: { enabled } })}
+                    />
+                  </SettingRow>
 
-            <Row
-              title="Compose & notify each morning"
-              description="At the time below, Komorebi composes today's checklist in the background and sends a notification when it's ready — even with the window closed."
-            >
-              <Toggle
-                checked={schedule.enabled}
-                disabled={update.isPending}
-                onChange={(enabled) => update.mutate({ schedule: { enabled } })}
-              />
-            </Row>
-
-            <Row
-              title="Time of day"
-              description="When your checklist is composed."
-              dimmed={!schedule.enabled}
-            >
-              <input
-                type="time"
-                value={schedule.time}
-                disabled={!schedule.enabled || update.isPending}
-                onChange={(e) => update.mutate({ schedule: { time: e.target.value } })}
-                className={cn(
-                  "input w-auto bg-[var(--color-panel)] px-2.5 py-1.5 tabular-nums md:text-base",
-                  "disabled:cursor-not-allowed disabled:opacity-50"
+                  <SettingRow
+                    label="Time of day"
+                    hint="Local time, in your browser's timezone."
+                    dimmed={!schedule.enabled}
+                  >
+                    <Input
+                      type="time"
+                      aria-label="Time of day"
+                      value={schedule.time}
+                      disabled={!schedule.enabled || update.isPending}
+                      onChange={(e) => update.mutate({ schedule: { time: e.target.value } })}
+                      className="w-auto tabular-nums"
+                    />
+                  </SettingRow>
+                </div>
+              </CardBody>
+              <CardFooter note={update.isError ? undefined : "Saved as you change it."}>
+                {update.isPending && (
+                  <span className="inline-flex items-center gap-2 text-copy-13 text-gray-900">
+                    <Spinner size={14} />
+                    Saving
+                  </span>
                 )}
-              />
-            </Row>
+                {update.isError && (
+                  <span className="text-copy-13 text-red-900">Couldn't save. Try again.</span>
+                )}
+              </CardFooter>
+            </Card>
 
-            <div className="mt-3 flex h-4 items-center justify-end">
-              {update.isPending && (
-                <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-ink-3)]">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Saving…
-                </span>
-              )}
-              {update.isError && (
-                <span className="text-xs text-[var(--color-danger)]">
-                  Couldn't save. Try again.
-                </span>
-              )}
-            </div>
-          </section>
+            <TextSettingCard
+              title="What you want, in your own words"
+              description={`Priorities, constraints, taste — “ship a game by December, evenings only, I learn by building, keep tasks under 30 minutes.” This sits in front of the model above everything it infers from your history.`}
+              note="Applies to every task composed from now on."
+              value={profile ?? ""}
+              placeholder="Tell your coach what you actually want…"
+              multiline
+              maxLength={2000}
+              saving={update.isPending}
+              onCommit={(next) => update.mutate({ profile: next })}
+            />
 
-          <section className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-5 py-4">
-            <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
-              <BookOpen className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span className="font-mono text-2xs uppercase tracking-[0.2em]">
-                your coach
-              </span>
-            </div>
-
-            <div className="mt-4 border-t border-[var(--color-rule)] pt-4">
-              <div className="text-base font-medium text-[var(--color-ink)]">
-                What you want, in your own words
-              </div>
-              <p className="mt-1 text-sm leading-relaxed text-[var(--color-ink-2)]">
-                Priorities, constraints, taste — "I want to ship a game by December, I only
-                have evenings free, I learn by building, keep tasks under 30 minutes."
-                Every task is composed with this in front of the model, above everything
-                it infers from your history.
-              </p>
-              <ProfileField
-                value={profile}
-                disabled={update.isPending}
-                onCommit={(next) => update.mutate({ profile: next })}
-              />
-            </div>
-
-            <div className="mt-4 border-t border-[var(--color-rule)] pt-4">
-              <div className="text-base font-medium text-[var(--color-ink)]">
-                What your coach has learned
-              </div>
-              <p className="mt-1 text-sm leading-relaxed text-[var(--color-ink-2)]">
-                Distilled automatically — at most once a day — from your ratings, skip
-                reasons, and notes, then fed into every generation. It updates itself as
-                your feedback accumulates.
-              </p>
-              {memoryQuery.data?.markdown ? (
-                <div className="mt-3 rounded-lg border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3">
-                  <p className="whitespace-pre-line text-sm leading-relaxed text-[var(--color-ink-2)]">
+            <Card>
+              <CardBody
+                title="What your coach has learned"
+                description="Distilled at most once a day from your ratings, skip reasons and notes, then fed into every generation. It rewrites itself as your feedback accumulates."
+              >
+                {memoryQuery.data?.markdown ? (
+                  <p className="max-w-2xl text-copy-14 whitespace-pre-line text-gray-1000">
                     {memoryQuery.data.markdown}
                   </p>
-                  <div className="mt-2 font-mono text-2xs uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
-                    last updated {memoryQuery.data.updatedDate}
-                  </div>
-                </div>
-              ) : (
-                <p className="mt-3 text-sm italic text-[var(--color-ink-3)]">
-                  Nothing yet — rate, skip, and leave notes on a few tasks and the coach
-                  will start taking notes with tomorrow's checklist.
-                </p>
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-5 py-4">
-            <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
-              <Palette className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span className="font-mono text-2xs uppercase tracking-[0.2em]">
-                appearance
-              </span>
-            </div>
-
-            <Row
-              title="Theme"
-              description="Light is the original paper look. Dark uses warm-tinted neutrals so it still feels like Komorebi. System follows your macOS appearance."
-            >
-              <ThemePicker
-                value={theme}
-                disabled={update.isPending}
-                onChange={(next) => update.mutate({ theme: next })}
-              />
-            </Row>
-          </section>
-
-          <section className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-5 py-4">
-            <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
-              <Server className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span className="font-mono text-2xs uppercase tracking-[0.2em]">
-                Ollama
-              </span>
-            </div>
-
-            <Row
-              title="Ollama host"
-              description="The address Komorebi uses for generation. In Docker, use an address reachable from inside the container, such as your Ollama machine's LAN IP. Leave blank to use the server default."
-            >
-              <OllamaHostField
-                value={ollamaHost}
-                disabled={update.isPending}
-                onCommit={(next) => update.mutate({ ollamaHost: next })}
-              />
-            </Row>
-
-            <Row
-              title="Composer model"
-              description="The Ollama model that drafts each suggestion. A bigger or instruction-tuned model finds higher-quality resources. Leave blank to use the server default. Must already be available on your Ollama host."
-            >
-              <ModelField
-                value={model}
-                disabled={update.isPending}
-                onCommit={(next) => update.mutate({ model: next })}
-              />
-            </Row>
-          </section>
-
-          <section className="rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-canvas)] px-5 py-4">
-            <div className="flex items-center gap-3 text-[var(--color-danger)]">
-              <AlertTriangle className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span className="font-mono text-2xs uppercase tracking-[0.2em]">
-                danger zone
-              </span>
-            </div>
-
-            <Row
-              title="Redo today's list"
-              description="Throws away every item composed for today — including any notes you left on them — and composes a fresh action for each of your active goals. This can't be undone."
-            >
-              <Button
-                variant="danger-outline"
-                size="sm"
-                disabled={regenerate.isPending || regenerationActive}
-                onClick={() => setConfirmingRedo(true)}
-              >
-                {regenerate.isPending || regenerationActive ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <RotateCw className="h-3.5 w-3.5" strokeWidth={2} />
+                  <p className="text-copy-14 text-gray-700">
+                    Nothing yet. Rate, skip and leave notes on a few tasks, and your coach
+                    will start keeping notes with tomorrow's checklist.
+                  </p>
                 )}
-                {regenerate.isPending || regenerationActive ? "Composing…" : "Redo today's list"}
-              </Button>
-            </Row>
+              </CardBody>
+              {memoryQuery.data?.updatedDate && (
+                <CardFooter note={`Last updated ${memoryQuery.data.updatedDate}.`} />
+              )}
+            </Card>
 
-            {regenerate.isError && (
-              <div className="mt-3 flex justify-end">
-                <span className="text-xs text-[var(--color-danger)]">
-                  Couldn't recompose. Try again.
-                </span>
-              </div>
-            )}
-          </section>
-        </>
+            <Card>
+              <CardBody
+                title="Appearance"
+                description="System follows your device. Dark is a true black, so the app disappears into a dim room instead of glowing in it."
+              >
+                <SegmentedControl
+                  label="Theme"
+                  value={theme}
+                  options={THEME_OPTIONS}
+                  disabled={update.isPending}
+                  onChange={(next) => update.mutate({ theme: next })}
+                />
+              </CardBody>
+            </Card>
+
+            <TextSettingCard
+              title="Ollama host"
+              description="The address Komorebi generates against. Inside Docker this has to be reachable from the container — usually your Ollama machine's LAN address, not localhost."
+              note="Leave blank to use the server's own host."
+              value={ollamaHost ?? ""}
+              placeholder="http://192.168.1.20:11434"
+              mono
+              validate={validateHost}
+              saving={update.isPending}
+              onCommit={(next) => update.mutate({ ollamaHost: next || null })}
+            />
+
+            <TextSettingCard
+              title="Composer model"
+              description="The model that drafts each suggestion. Bigger instruction-tuned models find better resources and hold your context more faithfully. It must already be pulled on the host above."
+              note="Leave blank to use the server's default model."
+              value={model ?? ""}
+              placeholder="qwen3:32b"
+              mono
+              presets={MODEL_PRESETS}
+              saving={update.isPending}
+              onCommit={(next) => update.mutate({ model: next })}
+            />
+
+            <Card tone="error">
+              <CardBody
+                title="Redo today's list"
+                description="Throws away every item composed for today, including the notes you left on them, and composes a fresh action for each active goal."
+              />
+              <CardFooter note="This can't be undone.">
+                <Button
+                  variant="error-secondary"
+                  size="sm"
+                  loading={redoing}
+                  onClick={() => setConfirmingRedo(true)}
+                >
+                  Redo today's list
+                </Button>
+              </CardFooter>
+            </Card>
+          </>
         )}
       </div>
 
@@ -305,32 +250,190 @@ export function Settings() {
           regenerate.mutate();
         }}
         title="Redo today's list?"
-        body="Every item composed for today — including any notes you left on them — will be thrown away and replaced with a fresh action for each active goal. This can't be undone."
-        confirmLabel="Yes, redo the day"
-        confirmIcon={<RotateCw className="h-3.5 w-3.5" strokeWidth={2} />}
+        body="Every item composed for today, including any notes you left on them, will be thrown away and replaced with a fresh action for each active goal. This can't be undone."
+        confirmLabel="Redo the day"
       />
     </div>
   );
 }
 
-function SettingsError({ message, onRetry }: { message: string; onRetry: () => void }) {
+/**
+ * One setting inside a card: what it is on the left, the control on the
+ * right. Peer rows share the label, hint and control positions exactly, so
+ * a column of them reads as a single object.
+ */
+function SettingRow({
+  label,
+  hint,
+  dimmed,
+  children
+}: {
+  label: string;
+  hint?: string;
+  /** The setting has no effect right now, but is still worth showing. */
+  dimmed?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="mx-auto mt-12 max-w-md text-center">
-      <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-panel)] text-[var(--color-accent-strong)]">
-        <AlertCircle className="h-5 w-5" strokeWidth={1.5} />
+    <div
+      className={cn(
+        "flex items-center justify-between gap-6 py-3.5",
+        dimmed && "opacity-50 transition-opacity"
+      )}
+    >
+      <div className="min-w-0">
+        <div className="text-label-14 font-medium text-gray-1000">{label}</div>
+        {hint && <p className="mt-0.5 text-copy-13 text-gray-900">{hint}</p>}
       </div>
-      <h3 className="mt-5 text-2xl font-semibold text-[var(--color-ink)]">
-        Couldn't load settings.
-      </h3>
-      <p className="mt-3 font-mono text-xs text-[var(--color-ink-3)]">{message}</p>
-      <button
-        onClick={onRetry}
-        className="pressable mt-6 rounded-md bg-[var(--color-ink)] px-4 py-2 text-sm text-[var(--color-canvas)] hover:opacity-90 active:opacity-90"
-      >
-        Try again
-      </button>
+      <div className="shrink-0">{children}</div>
     </div>
   );
+}
+
+/**
+ * A card whose whole job is one text value: the control in the body, the
+ * commitment in the footer. Editing is explicit — nothing is written while
+ * you're mid-sentence — and Discard appears only once there's something to
+ * discard.
+ */
+function TextSettingCard({
+  title,
+  description,
+  note,
+  value,
+  placeholder,
+  mono,
+  multiline,
+  maxLength,
+  presets,
+  saving,
+  validate,
+  onCommit
+}: {
+  title: string;
+  description: string;
+  note: string;
+  value: string;
+  placeholder?: string;
+  mono?: boolean;
+  multiline?: boolean;
+  maxLength?: number;
+  /** Tap-to-fill suggestions; the field still accepts anything. */
+  presets?: string[];
+  saving?: boolean;
+  /** Returns an error message, or null when the draft is committable. */
+  validate?: (draft: string) => string | null;
+  onCommit: (next: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [error, setError] = useState<string | null>(null);
+
+  // Re-sync when the saved value changes underneath us (another commit, or a
+  // refetch), so the field never shows a stale draft as if it were saved.
+  useEffect(() => {
+    setDraft(value);
+    setError(null);
+  }, [value]);
+
+  const trimmed = draft.trim();
+  const dirty = trimmed !== value;
+
+  const commit = () => {
+    const message = validate?.(trimmed) ?? null;
+    setError(message);
+    if (message) return;
+    onCommit(trimmed);
+  };
+
+  const discard = () => {
+    setDraft(value);
+    setError(null);
+  };
+
+  return (
+    <Card>
+      <CardBody title={title} description={description}>
+        {multiline ? (
+          <Textarea
+            value={draft}
+            rows={4}
+            maxLength={maxLength}
+            placeholder={placeholder}
+            invalid={Boolean(error)}
+            className="max-w-2xl"
+            onChange={(e) => setDraft(e.target.value)}
+          />
+        ) : (
+          <Input
+            value={draft}
+            mono={mono}
+            maxLength={maxLength}
+            placeholder={placeholder}
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+            invalid={Boolean(error)}
+            className="max-w-md"
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && dirty) commit();
+              if (e.key === "Escape") discard();
+            }}
+          />
+        )}
+
+        {error && <p className="mt-2 text-copy-13 text-red-900">{error}</p>}
+
+        {presets && presets.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {presets.map((preset) => (
+              <Button
+                key={preset}
+                variant="secondary"
+                size="xs"
+                className="font-mono"
+                aria-pressed={value === preset}
+                onClick={() => {
+                  setDraft(preset);
+                  setError(null);
+                  if (preset !== value) onCommit(preset);
+                }}
+              >
+                {preset}
+              </Button>
+            ))}
+          </div>
+        )}
+      </CardBody>
+
+      <CardFooter note={note}>
+        {dirty && (
+          <Button variant="tertiary" size="sm" onClick={discard}>
+            Discard
+          </Button>
+        )}
+        <Button size="sm" disabled={!dirty} loading={saving && dirty} onClick={commit}>
+          Save
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+/** Blank means "fall back to the server", so only non-empty input is checked. */
+function validateHost(draft: string): string | null {
+  if (!draft) return null;
+  try {
+    const parsed = new URL(draft.replace(/\/+$/, ""));
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error();
+    if (!parsed.hostname) throw new Error();
+  } catch {
+    return "Enter a complete http:// or https:// address, including the port.";
+  }
+  return null;
 }
 
 const THEME_OPTIONS: { value: Theme; label: string; Icon: typeof Sun }[] = [
@@ -339,324 +442,5 @@ const THEME_OPTIONS: { value: Theme; label: string; Icon: typeof Sun }[] = [
   { value: "system", label: "System", Icon: Monitor }
 ];
 
-function ThemePicker({
-  value,
-  disabled,
-  onChange
-}: {
-  value: Theme;
-  disabled?: boolean;
-  onChange: (next: Theme) => void;
-}) {
-  return (
-    <div
-      role="radiogroup"
-      aria-label="Theme"
-      className={cn(
-        "inline-flex items-center gap-0.5 rounded-md border border-[var(--color-rule)] bg-[var(--color-panel)] p-0.5",
-        disabled && "opacity-60"
-      )}
-    >
-      {THEME_OPTIONS.map(({ value: optValue, label, Icon }) => {
-        const selected = value === optValue;
-        return (
-          <button
-            key={optValue}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            disabled={disabled}
-            onClick={() => onChange(optValue)}
-            className={cn(
-              "pressable inline-flex items-center gap-1.5 rounded px-2.5 py-2 text-sm",
-              selected
-                ? "bg-[var(--color-canvas)] text-[var(--color-ink)] shadow-sm"
-                : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]",
-              "disabled:cursor-not-allowed"
-            )}
-          >
-            <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-            {label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function ProfileField({
-  value,
-  disabled,
-  onCommit
-}: {
-  value: string | null;
-  disabled?: boolean;
-  onCommit: (next: string) => void;
-}) {
-  const [draft, setDraft] = useState(value ?? "");
-
-  // Keep the textarea in sync when the saved value changes elsewhere.
-  useEffect(() => {
-    setDraft(value ?? "");
-  }, [value]);
-
-  const dirty = draft.trim() !== (value ?? "");
-
-  return (
-    <div className="mt-3">
-      <textarea
-        value={draft}
-        disabled={disabled}
-        rows={4}
-        maxLength={2000}
-        placeholder="Tell your coach what you actually want…"
-        onChange={(e) => setDraft(e.target.value)}
-        className="input resize-y bg-[var(--color-panel)]"
-      />
-      <div className="mt-2 flex items-center justify-end gap-2">
-        {dirty && (
-          <button
-            onClick={() => setDraft(value ?? "")}
-            disabled={disabled}
-            className="pressable text-xs text-[var(--color-ink-3)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]"
-          >
-            Discard
-          </button>
-        )}
-        <Button
-          size="sm"
-          disabled={!dirty || disabled}
-          onClick={() => onCommit(draft.trim())}
-        >
-          Save
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function OllamaHostField({
-  value,
-  disabled,
-  onCommit
-}: {
-  value: string | null;
-  disabled?: boolean;
-  onCommit: (next: string | null) => void;
-}) {
-  const [draft, setDraft] = useState(value ?? "");
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setDraft(value ?? "");
-    setError(null);
-  }, [value]);
-
-  const normalizedDraft = draft.trim().replace(/\/+$/, "");
-  const dirty = normalizedDraft !== (value ?? "");
-
-  const commit = () => {
-    if (!normalizedDraft) {
-      setError(null);
-      onCommit(null);
-      return;
-    }
-    try {
-      const parsed = new URL(normalizedDraft);
-      if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || !parsed.hostname) {
-        throw new Error("invalid protocol");
-      }
-    } catch {
-      setError("Enter a complete http:// or https:// address.");
-      return;
-    }
-    setError(null);
-    onCommit(normalizedDraft);
-  };
-
-  return (
-    <div className="flex w-[280px] flex-col items-end gap-2">
-      <input
-        type="url"
-        value={draft}
-        disabled={disabled}
-        placeholder="server default"
-        spellCheck={false}
-        autoCapitalize="off"
-        autoCorrect="off"
-        onChange={(event) => {
-          setDraft(event.target.value);
-          setError(null);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && dirty) commit();
-          if (event.key === "Escape") {
-            setDraft(value ?? "");
-            setError(null);
-          }
-        }}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? "ollama-host-error" : undefined}
-        className={cn(
-          "input w-full bg-[var(--color-panel)] px-2.5 py-1.5 font-mono md:text-sm",
-          error && "border-[var(--color-danger)]",
-          "disabled:cursor-not-allowed disabled:opacity-50"
-        )}
-      />
-      <div className="flex min-h-7 items-center gap-2">
-        {error && (
-          <span id="ollama-host-error" className="text-right text-xs text-[var(--color-danger)]">
-            {error}
-          </span>
-        )}
-        {dirty && (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => {
-              setDraft(value ?? "");
-              setError(null);
-            }}
-            className="pressable text-xs text-[var(--color-ink-3)] hover:text-[var(--color-ink)]"
-          >
-            Discard
-          </button>
-        )}
-        <Button size="sm" disabled={!dirty || disabled} onClick={commit}>
-          Save
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 /** A few solid self-hosted picks; the field still accepts any Ollama tag. */
 const MODEL_PRESETS = ["qwen3:32b", "llama3.3:70b", "gpt-oss:120b"];
-
-function ModelField({
-  value,
-  disabled,
-  onCommit
-}: {
-  value: string | null;
-  disabled?: boolean;
-  onCommit: (next: string) => void;
-}) {
-  const [draft, setDraft] = useState(value ?? "");
-
-  // Keep the input in sync when the saved value changes (e.g. another commit).
-  useEffect(() => {
-    setDraft(value ?? "");
-  }, [value]);
-
-  const commit = () => {
-    const trimmed = draft.trim();
-    if (trimmed === (value ?? "")) return;
-    onCommit(trimmed);
-  };
-
-  return (
-    <div className="flex flex-col items-end gap-2">
-      <input
-        type="text"
-        value={draft}
-        disabled={disabled}
-        placeholder="server default"
-        spellCheck={false}
-        autoCapitalize="off"
-        autoCorrect="off"
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-          if (e.key === "Escape") setDraft(value ?? "");
-        }}
-        className={cn(
-          "input w-[200px] bg-[var(--color-panel)] px-2.5 py-1.5 font-mono md:text-sm",
-          "disabled:cursor-not-allowed disabled:opacity-50"
-        )}
-      />
-      <div className="flex flex-wrap items-center justify-end gap-1">
-        {MODEL_PRESETS.map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            disabled={disabled}
-            onClick={() => {
-              setDraft(preset);
-              if (preset !== (value ?? "")) onCommit(preset);
-            }}
-            className={cn(
-              "pressable rounded border border-[var(--color-rule)] px-2 py-1.5 font-mono text-2xs",
-              value === preset
-                ? "bg-[var(--color-canvas)] text-[var(--color-ink)]"
-                : "text-[var(--color-ink-3)] hover:text-[var(--color-ink)] active:text-[var(--color-ink)]",
-              "disabled:cursor-not-allowed disabled:opacity-50"
-            )}
-          >
-            {preset}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Row({
-  title,
-  description,
-  dimmed,
-  children
-}: {
-  title: string;
-  description: string;
-  dimmed?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        "mt-4 flex items-start justify-between gap-6 border-t border-[var(--color-rule)] pt-4",
-        dimmed && "opacity-50 transition-opacity"
-      )}
-    >
-      <div className="min-w-0">
-        <div className="text-base font-medium text-[var(--color-ink)]">{title}</div>
-        <p className="mt-1 text-sm leading-relaxed text-[var(--color-ink-2)]">
-          {description}
-        </p>
-      </div>
-      <div className="shrink-0 pt-0.5">{children}</div>
-    </div>
-  );
-}
-
-function Toggle({
-  checked,
-  disabled,
-  onChange
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (next: boolean) => void;
-}) {
-  return (
-    <Switch.Root
-      checked={checked}
-      disabled={disabled}
-      onCheckedChange={(next) => onChange(next)}
-      className={cn(
-        "pressable hit-target relative block h-[24px] w-[42px] rounded-full",
-        "bg-[var(--color-rule-2)] data-[checked]:bg-[var(--color-accent)]",
-        "data-[disabled]:opacity-60"
-      )}
-    >
-      <Switch.Thumb
-        className={cn(
-          "absolute top-[3px] left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-[left]",
-          "data-[checked]:left-[21px]"
-        )}
-      />
-    </Switch.Root>
-  );
-}

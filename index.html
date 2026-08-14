@@ -6,7 +6,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="theme-color" content="#faf9f7" />
+    <meta name="theme-color" content="#ffffff" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
@@ -29,7 +29,7 @@
         document.documentElement.dataset.theme = prefersDark ? "dark" : "light";
         if (prefersDark) {
           var tc = document.querySelector('meta[name="theme-color"]');
-          if (tc) tc.setAttribute("content", "#131110"); // ≈ oklch(18% 0.006 80)
+          if (tc) tc.setAttribute("content", "#000000");
         }
       } catch (_) {}
     </script>

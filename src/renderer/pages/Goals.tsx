@@ -1,14 +1,21 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Plus, Pencil, Trash2, Target } from "lucide-react";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Menu } from "@base-ui/react/menu";
+import { ChevronRight, Ellipsis, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { GoalModal } from "../components/GoalModal";
+import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
-import { IconButton } from "../components/ui/IconButton";
+import { EmptyState, ErrorState } from "../components/ui/EmptyState";
+import { iconButtonClasses } from "../components/ui/IconButton";
+import { MenuItem, MenuSeparator, menuPopupClasses } from "../components/ui/Menu";
+import { Note } from "../components/ui/Note";
+import { PageHeader } from "../components/ui/PageHeader";
+import { SkeletonList } from "../components/ui/Skeleton";
 import { ConfirmDialog } from "../components/ui/Modal";
-import type { Goal } from "~/shared/schema";
+import type { Goal, GoalPath } from "~/shared/schema";
 
-export function Goals({onOpenPath}:{onOpenPath?:(id:string)=>void}) {
+export function Goals({ onOpenPath }: { onOpenPath?: (id: string) => void }) {
   const queryClient = useQueryClient();
   const [modalGoal, setModalGoal] = useState<Goal | null | undefined>(undefined);
   const [confirmDelete, setConfirmDelete] = useState<Goal | null>(null);
@@ -17,6 +24,20 @@ export function Goals({onOpenPath}:{onOpenPath?:(id:string)=>void}) {
     queryKey: ["goals"],
     queryFn: () => window.komorebi.goals.list()
   });
+
+  const goals = goalsQuery.data ?? [];
+
+  // Each goal's path decides what the row says and what its action is called,
+  // so the list can distinguish "needs a path" from "running" at a glance.
+  const pathQueries = useQueries({
+    queries: goals.map((goal) => ({
+      queryKey: ["path", goal.id],
+      queryFn: () => window.komorebi.paths.get(goal.id)
+    }))
+  });
+  const pathByGoalId = new Map<string, GoalPath | null>(
+    goals.map((goal, index) => [goal.id, pathQueries[index]?.data ?? null])
+  );
 
   const remove = useMutation({
     mutationFn: (id: string) => window.komorebi.goals.delete(id),
@@ -27,56 +48,52 @@ export function Goals({onOpenPath}:{onOpenPath?:(id:string)=>void}) {
     }
   });
 
-  const goals = goalsQuery.data ?? [];
-  const active = goals.filter((g) => g.status === "active");
+  const active = goals.filter((goal) => goal.status === "active");
 
   return (
     <>
-      <div className="page-shell">
-        <header>
-          <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
-            <Target className="h-4 w-4" strokeWidth={1.5} />
-            <span className="font-mono text-2xs uppercase tracking-[0.22em]">
-              goals
-            </span>
-          </div>
-
-          <div className="mt-3 flex items-start justify-between gap-6">
-            <h1 className="text-4xl font-semibold text-[var(--color-ink)]">
-              What you're working toward.
-            </h1>
-
-            <Button size="sm" className="shrink-0" onClick={() => setModalGoal(null)}>
-              <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-              New goal
+      <div className="page">
+        <PageHeader
+          title="Goals"
+          description="A goal is a destination. Its path turns that destination into milestones, and today's actions come from whichever milestone you're on."
+          action={
+            <Button size="sm" onClick={() => setModalGoal(null)}>
+              <Plus className="h-4 w-4" strokeWidth={2} />
+              New Goal
             </Button>
-          </div>
+          }
+        />
 
-          <p className="mt-3 max-w-lg text-base leading-relaxed text-[var(--color-ink-2)]">
-            Edit context to sharpen the suggestions, or delete a goal when
-            you're done with it.
-          </p>
-        </header>
-
-        <div className="mt-10">
+        <div className="mt-8">
           {goalsQuery.isLoading ? (
-            <LoadingList />
+            <SkeletonList rows={3} height={88} />
           ) : goalsQuery.isError ? (
             <ErrorState
+              title="Couldn't load your goals."
               message={(goalsQuery.error as Error).message ?? "Unknown error"}
-              onRetry={() => goalsQuery.refetch()}
+              onRetry={() => void goalsQuery.refetch()}
+              retrying={goalsQuery.isFetching}
             />
           ) : goals.length === 0 ? (
-            <EmptyState onAdd={() => setModalGoal(null)} />
+            <EmptyState
+              title="No goals yet."
+              description="Name one thing you're working toward. Komorebi researches a path to it, then composes a small action for it each day."
+            >
+              <Button onClick={() => setModalGoal(null)}>
+                <Plus className="h-4 w-4" strokeWidth={2} />
+                Add a Goal
+              </Button>
+            </EmptyState>
           ) : (
-            <ul className="space-y-3">
-              {goals.map((g) => (
-                <li key={g.id}>
-                  <GoalCard
-                    goal={g}
-                    onEdit={() => setModalGoal(g)}
-                    onDelete={() => setConfirmDelete(g)}
-                    onPath={() => onOpenPath?.(g.id)}
+            <ul className="space-y-2">
+              {goals.map((goal) => (
+                <li key={goal.id}>
+                  <GoalRow
+                    goal={goal}
+                    path={pathByGoalId.get(goal.id) ?? null}
+                    onEdit={() => setModalGoal(goal)}
+                    onDelete={() => setConfirmDelete(goal)}
+                    onOpenPath={() => onOpenPath?.(goal.id)}
                   />
                 </li>
               ))}
@@ -85,9 +102,9 @@ export function Goals({onOpenPath}:{onOpenPath?:(id:string)=>void}) {
         </div>
 
         {goals.length > 0 && active.length === 0 && (
-          <div className="mt-10 rounded-lg border border-[var(--color-rule)] bg-[var(--color-panel)] px-4 py-3 text-sm text-[var(--color-ink-2)]">
-            No active goals — add one to start getting suggestions on Today.
-          </div>
+          <Note className="mt-6" title="Nothing is active.">
+            Today stays empty until at least one goal is active.
+          </Note>
         )}
       </div>
 
@@ -95,7 +112,9 @@ export function Goals({onOpenPath}:{onOpenPath?:(id:string)=>void}) {
         open={modalGoal !== undefined}
         goal={modalGoal}
         onClose={() => setModalGoal(undefined)}
-        onSaved={(id) => { if (!modalGoal) onOpenPath?.(id); }}
+        onSaved={(id) => {
+          if (!modalGoal) onOpenPath?.(id);
+        }}
       />
 
       <ConfirmDialog
@@ -106,120 +125,140 @@ export function Goals({onOpenPath}:{onOpenPath?:(id:string)=>void}) {
         title="Delete this goal?"
         body={
           <>
-            “{confirmDelete?.title}” and all of its past suggestions and reflections
-            will be removed. This can't be undone.
+            “{confirmDelete?.title}”, its path, and every suggestion and reflection
+            recorded against it will be removed. This can't be undone.
           </>
         }
-        confirmLabel="Delete goal"
+        confirmLabel="Delete Goal"
       />
     </>
   );
 }
 
-function GoalCard({
+/**
+ * One goal as a single object: what it is, where its path stands, and one
+ * click into that path. Edit and delete live in an overflow menu — they are
+ * not what you came to this row to do, and a delete button that only appears
+ * on hover is a delete button you press by accident.
+ */
+function GoalRow({
   goal,
+  path,
   onEdit,
-  onDelete
-  ,onPath
+  onDelete,
+  onOpenPath
 }: {
   goal: Goal;
+  path: GoalPath | null;
   onEdit: () => void;
   onDelete: () => void;
-  onPath: () => void;
+  onOpenPath: () => void;
 }) {
+  const state = pathState(path);
+
   return (
     <article
       className={cn(
-        "group rounded-xl border border-[var(--color-rule)] bg-[var(--color-canvas)] px-5 py-4",
-        "transition-colors hover:border-[var(--color-rule-2)]"
+        "group relative flex items-start gap-3 rounded-xl border border-alpha-400 bg-background-100",
+        "pressable-row hover:border-alpha-500 hover:bg-gray-100"
       )}
     >
-      <header className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-lg font-semibold tracking-tight text-[var(--color-ink)]">
-            {goal.title}
-          </h3>
-          {goal.description && (
-            <p className="mt-1 text-base leading-snug text-[var(--color-ink-2)]">
-              {goal.description}
-            </p>
+      <button onClick={onOpenPath} className="min-w-0 flex-1 px-4 py-3.5 text-left">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <h3 className="text-heading-16 text-gray-1000">{goal.title}</h3>
+          <Badge tone={state.tone}>{state.label}</Badge>
+          {goal.priority !== "medium" && (
+            <span className="text-copy-13 text-gray-700">{goal.priority} priority</span>
           )}
         </div>
 
-        {/* Hover-revealed on pointer devices; always visible on touch, where an
-            invisible-but-tappable button would delete/edit by accident. */}
-        <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 [@media(hover:none)]:opacity-100">
-          <IconButton onClick={onEdit} aria-label="Edit goal" title="Edit" className="h-9 w-9">
-            <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </IconButton>
-          <IconButton onClick={onDelete} aria-label="Delete goal" title="Delete" className="h-9 w-9">
-            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </IconButton>
-        </div>
-      </header>
-
-      {goal.context && (
-        <div className="mt-3 border-t border-[var(--color-rule)] pt-3">
-          <div className="font-mono text-2xs uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
-            context for Komorebi
-          </div>
-          <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-ink-2)] whitespace-pre-wrap">
-            {goal.context}
+        {goal.description && (
+          <p className="mt-1 line-clamp-2 max-w-[60ch] text-copy-14 text-gray-900">
+            {goal.description}
           </p>
-        </div>
-      )}
-      <Button variant="secondary" size="sm" className="mt-3" onClick={onPath}>Create / view path</Button>
+        )}
+
+        <p className="mt-2 text-copy-13 text-gray-700">{state.detail}</p>
+      </button>
+
+      <div className="flex shrink-0 items-center gap-1 py-3.5 pr-3">
+        <Menu.Root>
+          <Menu.Trigger
+            aria-label={`Actions for ${goal.title}`}
+            className={iconButtonClasses("md", "data-[popup-open]:bg-alpha-200")}
+          >
+            <Ellipsis className="h-4 w-4" strokeWidth={1.75} />
+          </Menu.Trigger>
+          <Menu.Portal>
+            <Menu.Positioner sideOffset={4} align="end" className="z-50">
+              <Menu.Popup className={menuPopupClasses}>
+                <MenuItem onClick={onEdit}>
+                  <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  Edit goal
+                </MenuItem>
+                <MenuSeparator />
+                <MenuItem destructive onClick={onDelete}>
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  Delete goal
+                </MenuItem>
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
+
+        <ChevronRight
+          className="h-4 w-4 text-gray-700 opacity-0 transition-opacity group-hover:opacity-100"
+          strokeWidth={1.75}
+          aria-hidden
+        />
+      </div>
     </article>
   );
 }
 
-function LoadingList() {
-  return (
-    <div className="space-y-3">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div
-          key={i}
-          className="h-[92px] rounded-xl border border-[var(--color-rule)] bg-[var(--color-panel)]"
-          style={{ animation: `fade-up 400ms ${i * 60}ms backwards var(--ease-out-strong)` }}
-        />
-      ))}
-    </div>
-  );
-}
+/**
+ * What the row should say about this goal's path. Every state names both the
+ * situation and what happens next, so no row is a dead end.
+ */
+function pathState(path: GoalPath | null): {
+  label: string;
+  tone: "gray" | "gray-solid" | "amber" | "red" | "green";
+  detail: string;
+} {
+  if (!path) {
+    return {
+      label: "No path",
+      tone: "amber",
+      detail: "Open this goal to research a path. Daily actions start once one is active."
+    };
+  }
 
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="mx-auto mt-12 max-w-md text-center">
-      <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-panel)] text-[var(--color-accent-strong)]">
-        <AlertCircle className="h-5 w-5" strokeWidth={1.5} />
-      </div>
-      <h3 className="mt-5 text-2xl font-semibold text-[var(--color-ink)]">
-        Couldn't load your goals.
-      </h3>
-      <p className="mt-3 font-mono text-xs text-[var(--color-ink-3)]">{message}</p>
-      <button
-        onClick={onRetry}
-        className="pressable mt-6 rounded-md bg-[var(--color-ink)] px-4 py-2 text-sm text-[var(--color-canvas)] hover:opacity-90 active:opacity-90"
-      >
-        Try again
-      </button>
-    </div>
-  );
-}
+  const total = path.milestones.length;
+  const done = path.milestones.filter((milestone) => milestone.status === "completed").length;
+  const current = path.milestones.find((milestone) => milestone.status === "current");
 
-function EmptyState({ onAdd }: { onAdd: () => void }) {
-  return (
-    <div className="rounded-xl border border-dashed border-[var(--color-rule-2)] bg-[var(--color-panel)] px-6 py-12 text-center">
-      <h2 className="text-xl font-semibold text-[var(--color-ink)]">
-        No goals yet.
-      </h2>
-      <p className="mt-2 text-base text-[var(--color-ink-2)]">
-        Add one to start getting daily suggestions.
-      </p>
-      <Button className="mt-5" onClick={onAdd}>
-        <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-        Add a goal
-      </Button>
-    </div>
-  );
+  switch (path.status) {
+    case "generating":
+      return { label: "Researching", tone: "gray", detail: "Gathering sources and shaping milestones." };
+    case "draft":
+      return {
+        label: "Draft",
+        tone: "gray",
+        detail: `${total} milestones proposed, waiting for your review.`
+      };
+    case "active":
+      return {
+        label: "Active",
+        tone: "gray-solid",
+        detail: current
+          ? `Milestone ${done + 1} of ${total} — ${current.title}`
+          : `${done} of ${total} milestones complete.`
+      };
+    case "completed":
+      return { label: "Complete", tone: "green", detail: `All ${total} milestones reached.` };
+    case "failed":
+      return { label: "Needs attention", tone: "red", detail: "Research didn't finish. Open to retry." };
+    case "superseded":
+      return { label: "Replaced", tone: "gray", detail: "A newer version of this path took over." };
+  }
 }

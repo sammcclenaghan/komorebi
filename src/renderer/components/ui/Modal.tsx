@@ -1,6 +1,5 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { AlertDialog } from "@base-ui/react/alert-dialog";
-import { Loader2 } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { Button } from "./Button";
 
@@ -16,20 +15,19 @@ type ModalProps = {
 };
 
 const backdropClasses = cn(
-  "fixed inset-0 bg-[var(--color-overlay)] backdrop-blur-[2px]",
+  "fixed inset-0 bg-overlay",
   "transition-opacity duration-150 ease-out",
   "data-[starting-style]:opacity-0 data-[ending-style]:opacity-0"
 );
 
 const popupClasses = (size: "sm" | "md", className?: string) =>
   cn(
-    "fixed left-1/2 top-1/2 z-50 w-[calc(100%-3rem)] -translate-x-1/2 -translate-y-1/2",
-    "rounded-2xl border border-[var(--color-rule)] bg-[var(--color-canvas)]",
-    "shadow-[var(--shadow-lg)]",
+    "fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2",
+    "overflow-hidden rounded-xl bg-background-100 shadow-modal",
     "transition-[opacity,transform] duration-200 ease-[var(--ease-out-strong)]",
-    "data-[starting-style]:opacity-0 data-[starting-style]:-translate-y-[calc(50%-6px)] data-[starting-style]:scale-[0.97]",
-    "data-[ending-style]:opacity-0 data-[ending-style]:-translate-y-[calc(50%-6px)] data-[ending-style]:scale-[0.97]",
-    size === "sm" ? "max-w-md" : "max-w-lg",
+    "data-[starting-style]:opacity-0 data-[starting-style]:-translate-y-[calc(50%-6px)] data-[starting-style]:scale-[0.98]",
+    "data-[ending-style]:opacity-0 data-[ending-style]:-translate-y-[calc(50%-6px)] data-[ending-style]:scale-[0.98]",
+    size === "sm" ? "max-w-[420px]" : "max-w-[540px]",
     className
   );
 
@@ -87,12 +85,38 @@ type ConfirmDialogProps = {
   pending?: boolean;
   title: string;
   body: React.ReactNode;
+  /** Verb + noun, matching the toast that follows: "Delete goal". */
   confirmLabel: string;
-  /** Rendered inside the confirm button when not pending. */
-  confirmIcon?: React.ReactNode;
 };
 
-/** The one destructive-action confirm. */
+/**
+ * A modal's title block. Scrolling content goes in a sibling below it, so
+ * the title stays put while a long form scrolls.
+ */
+export function ModalHeader({
+  id,
+  title,
+  description
+}: {
+  /** Must match the `labelledBy` given to `Modal`. */
+  id: string;
+  title: React.ReactNode;
+  description?: React.ReactNode;
+}) {
+  return (
+    <header className="border-b border-alpha-400 px-6 py-5">
+      <h2 id={id} className="text-heading-20 text-gray-1000">
+        {title}
+      </h2>
+      {description && <p className="mt-1.5 text-copy-14 text-gray-900">{description}</p>}
+    </header>
+  );
+}
+
+/**
+ * The one destructive-action confirm. The consequence is spelled out in the
+ * body and the confirm button names what will happen — never "OK".
+ */
 export function ConfirmDialog({
   open,
   onClose,
@@ -100,27 +124,51 @@ export function ConfirmDialog({
   pending,
   title,
   body,
-  confirmLabel,
-  confirmIcon
+  confirmLabel
 }: ConfirmDialogProps) {
   return (
     <Modal open={open} onClose={onClose} role="alertdialog" labelledBy="confirm-title" size="sm">
-      <div className="p-6">
-        <h2 id="confirm-title" className="text-xl font-semibold text-[var(--color-ink)]">
+      <div className="px-6 pt-6 pb-5">
+        <h2 id="confirm-title" className="text-heading-20 text-gray-1000">
           {title}
         </h2>
-        <p className="mt-2 text-base leading-relaxed text-[var(--color-ink-2)]">{body}</p>
-
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <Button variant="ghost" size="md" onClick={onClose} disabled={pending}>
-            Cancel
-          </Button>
-          <Button variant="danger" size="md" onClick={onConfirm} disabled={pending}>
-            {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : confirmIcon}
-            {confirmLabel}
-          </Button>
-        </div>
+        <p className="mt-2 text-copy-14 text-gray-900">{body}</p>
       </div>
+
+      <ModalFooter>
+        <Button variant="secondary" size="md" onClick={onClose} disabled={pending}>
+          Cancel
+        </Button>
+        <Button variant="error" size="md" onClick={onConfirm} loading={pending}>
+          {confirmLabel}
+        </Button>
+      </ModalFooter>
     </Modal>
+  );
+}
+
+/**
+ * The recessed action bar every modal ends with, so "cancel" and "confirm"
+ * are always in the same place. Actions are right-aligned, with the
+ * committing one last.
+ */
+export function ModalFooter({
+  note,
+  children
+}: {
+  /** Anything the user should read before committing. */
+  note?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <footer
+      className={cn(
+        "flex flex-wrap items-center justify-end gap-3 border-t border-alpha-400 px-6 py-4",
+        "bg-background-200 dark:bg-gray-100"
+      )}
+    >
+      {note && <p className="mr-auto text-copy-13 text-gray-900">{note}</p>}
+      {children}
+    </footer>
   );
 }

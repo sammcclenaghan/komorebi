@@ -20,17 +20,21 @@ type Props = {
   onSelect: (view: View) => void;
 };
 
-/** Bottom tab bar for phones — hidden on md+ where the sidebar is used. */
+/**
+ * Bottom tab bar for phones — hidden on md+, where the sidebar is used.
+ * The current tab is marked with ink and weight rather than a colour, so it
+ * matches how the sidebar shows the same thing.
+ */
 export function MobileNav({ active, onSelect }: Props) {
   return (
     <nav
       className={cn(
         "fixed inset-x-0 bottom-0 z-40 md:hidden",
-        "border-t border-[var(--color-rule)] bg-[var(--color-panel)]/95 backdrop-blur-md",
+        "border-t border-alpha-400 bg-background-100/85 backdrop-blur-lg",
         "pb-[max(0.5rem,env(safe-area-inset-bottom))]"
       )}
     >
-      <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1">
+      <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1.5">
         {ITEMS.map((item) => {
           const isActive = item.id === active;
           return (
@@ -39,14 +43,12 @@ export function MobileNav({ active, onSelect }: Props) {
               onClick={() => onSelect(item.id)}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "pressable flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-2xs",
-                isActive
-                  ? "text-[var(--color-accent-strong)]"
-                  : "text-[var(--color-ink-3)] active:text-[var(--color-ink)]"
+                "pressable flex min-w-0 flex-1 flex-col items-center gap-1 rounded-md px-1 py-1.5 text-label-12",
+                isActive ? "font-medium text-gray-1000" : "text-gray-700 active:text-gray-1000"
               )}
             >
-              <item.Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
-              <span className="truncate leading-none">{item.label}</span>
+              <item.Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              <span className="truncate">{item.label}</span>
             </button>
           );
         })}

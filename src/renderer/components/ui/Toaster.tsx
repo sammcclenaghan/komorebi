@@ -25,16 +25,24 @@ export function AppToaster() {
       offset={{ bottom: 20 }}
       gap={8}
       visibleToasts={3}
-      richColors
       closeButton
       toastOptions={{
         style: {
-          // Map Sonner's surface tokens onto the app's palette so toasts read
-          // as part of the product in both light and dark.
-          "--normal-bg": "var(--color-canvas)",
-          "--normal-border": "var(--color-rule)",
-          "--normal-text": "var(--color-ink-2)",
-          borderRadius: "12px"
+          // Map Sonner's surface tokens onto Geist's, so a toast is the same
+          // object as a menu or a modal: hairline border, whisper of shadow.
+          "--normal-bg": "var(--color-background-100)",
+          "--normal-border": "var(--color-alpha-400)",
+          "--normal-text": "var(--color-gray-1000)",
+          "--success-bg": "var(--color-background-100)",
+          "--success-border": "var(--color-alpha-400)",
+          "--success-text": "var(--color-gray-1000)",
+          "--error-bg": "var(--color-red-100)",
+          "--error-border": "var(--color-red-400)",
+          "--error-text": "var(--color-red-900)",
+          borderRadius: "8px",
+          boxShadow: "var(--shadow-menu)",
+          fontSize: "14px",
+          lineHeight: "20px"
         } as React.CSSProperties
       }}
     />

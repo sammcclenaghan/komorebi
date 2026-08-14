@@ -1,7 +1,17 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, ChevronRight, Clock, History as HistoryIcon, SkipForward, ThumbsDown, ThumbsUp } from "lucide-react";
+import {
+  Check,
+  ChevronRight,
+  Clock,
+  SkipForward,
+  ThumbsDown,
+  ThumbsUp
+} from "lucide-react";
 import { cn } from "~/lib/cn";
+import { EmptyState as UiEmptyState } from "../components/ui/EmptyState";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Skeleton, SkeletonList } from "../components/ui/Skeleton";
 import type { Goal, HistoryDay, Reflection, Suggestion } from "~/shared/schema";
 
 const WEEKS = 17;
@@ -53,29 +63,23 @@ export function History({ onOpenSuggestion }: Props) {
   const hasAny = byDate.size > 0 && [...byDate.values()].some((d) => d.items.length > 0);
 
   return (
-    <div className="page-shell">
-      <header>
-        <div className="flex items-center gap-3 text-[var(--color-ink-3)]">
-          <HistoryIcon className="h-4 w-4" strokeWidth={1.5} />
-          <span className="font-mono text-2xs uppercase tracking-[0.22em]">history</span>
-        </div>
-        <h1 className="mt-3 text-4xl font-semibold text-[var(--color-ink)]">
-          What you've been <span className="font-normal text-[var(--color-ink-2)]">working on.</span>
-        </h1>
-        <p className="mt-3 max-w-lg text-base leading-relaxed text-[var(--color-ink-2)]">
-          Your last {WEEKS} weeks at a glance. Pick any day to see what Komorebi
-          composed, what you finished, and the notes you left.
-        </p>
-      </header>
+    <div className="page-wide">
+      <PageHeader
+        title="History"
+        description={`Every day Komorebi composed for you, back ${WEEKS} weeks. Pick a day to see what it proposed, what you finished, and what you said about it.`}
+      />
 
       {historyQuery.isLoading ? (
-        <div className="mt-12">
-          <LoadingState />
+        <div className="mt-8 space-y-8">
+          <Skeleton className="h-[132px] rounded-xl" />
+          <SkeletonList rows={2} height={76} />
         </div>
       ) : !hasAny ? (
-        <div className="mt-12">
-          <EmptyState />
-        </div>
+        <UiEmptyState
+          className="mt-8"
+          title="Nothing recorded yet."
+          description="Finish something today and it shows up here tomorrow."
+        />
       ) : (
         <>
           <Heatmap
@@ -85,7 +89,7 @@ export function History({ onOpenSuggestion }: Props) {
             onSelect={setSelected}
           />
 
-          <div className="mt-10 border-t border-[var(--color-rule)] pt-8">
+          <div className="mt-10">
             {selectedDay && selectedDay.items.length > 0 ? (
               <DayBlock
                 key={selectedDate}
